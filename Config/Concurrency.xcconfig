@@ -1,0 +1,12 @@
+// Created by weixi on 2026/09/09.
+
+// Xcode names the Swift 6 language mode "6.0". Ravel additionally enforces
+// compiler >= 6.2 in RavelApp.swift and uses Swift 6.2 isolation semantics.
+SWIFT_VERSION = 6.0
+SWIFT_STRICT_CONCURRENCY = complete
+SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor
+SWIFT_APPROACHABLE_CONCURRENCY = YES
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+MACOSX_DEPLOYMENT_TARGET = 15.0
+CLANG_ENABLE_MODULES = YES
+CLANG_ENABLE_OBJC_ARC = YES
