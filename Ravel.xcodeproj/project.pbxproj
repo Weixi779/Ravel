@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DE5100000000000000000001 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = DE5100000000000000000002 /* DesignSystem */; };
 		18D917D0BA08BBFF1FF4D893 /* Subprocess in Frameworks */ = {isa = PBXBuildFile; productRef = 65A0A99A790FD6D8C5DD6122 /* Subprocess */; };
 		A2AB82AC98A7E77AA21EF181 /* Subprocess in Frameworks */ = {isa = PBXBuildFile; productRef = E4DC2BAD49EDAEB98758B37A /* Subprocess */; };
 /* End PBXBuildFile section */
@@ -22,6 +23,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		DE5100000000000000000003 /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = DesignSystem; sourceTree = "<group>"; };
 		681C948D238C526E9E3424E0 /* Ravel.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ravel.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		711A6108BA2CE6CA93DD47D6 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9D3678D486CFCA2896AF75ED /* Config/Concurrency.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Concurrency.xcconfig; sourceTree = "<group>"; };
@@ -39,6 +41,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A2AB82AC98A7E77AA21EF181 /* Subprocess in Frameworks */,
+				DE5100000000000000000001 /* DesignSystem in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,11 +69,20 @@
 			isa = PBXGroup;
 			children = (
 				1455444174429298B0F374B3 /* Sources/Ravel */,
+				10CA11000000000000000007 /* Packages */,
 				C4E2E7F217DE3642E7714F4E /* Tests/RavelTests */,
 				9D3678D486CFCA2896AF75ED /* Config/Concurrency.xcconfig */,
 				711A6108BA2CE6CA93DD47D6 /* README.md */,
 				0A3E27B8CA818264D75C8D81 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		10CA11000000000000000007 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				DE5100000000000000000003 /* DesignSystem */,
+			);
+			path = Packages;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -118,6 +130,7 @@
 			name = Ravel;
 			packageProductDependencies = (
 				E4DC2BAD49EDAEB98758B37A /* Subprocess */,
+				DE5100000000000000000002 /* DesignSystem */,
 			);
 			productName = Ravel;
 			productReference = 681C948D238C526E9E3424E0 /* Ravel.app */;
@@ -370,6 +383,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		DE5100000000000000000002 /* DesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DesignSystem;
+		};
 		65A0A99A790FD6D8C5DD6122 /* Subprocess */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9077EBBCEA07F49CAA26D37B /* XCRemoteSwiftPackageReference "swift-subprocess" */;
