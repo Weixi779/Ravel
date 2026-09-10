@@ -2,6 +2,7 @@
 
 import AppKit
 import SwiftUI
+import Localization
 
 struct RevisionTable: NSViewRepresentable {
     let log: RepositoryLog
@@ -22,14 +23,14 @@ struct RevisionTable: NSViewRepresentable {
         table.allowsColumnReordering = false
         table.columnAutoresizingStyle = .noColumnAutoresizing
         table.backgroundColor = .textBackgroundColor
-        table.setAccessibilityLabel("Revision history")
+        table.setAccessibilityLabel(String(localized: I18n.historyAccessibilityLabel))
 
         let columns: [(String, String, CGFloat, CGFloat)] = [
-            ("graph", "Graph", 84, 60),
-            ("description", "Description", 430, 200),
-            ("change", "Change", 96, 80),
-            ("author", "Author", 140, 85),
-            ("date", "Date", 150, 115),
+            ("graph", String(localized: I18n.historyGraphColumn), 84, 60),
+            ("description", String(localized: I18n.historyDescriptionColumn), 430, 200),
+            ("change", String(localized: I18n.revisionChange), 96, 80),
+            ("author", String(localized: I18n.revisionAuthor), 140, 85),
+            ("date", String(localized: I18n.revisionDate), 150, 115),
         ]
         for (id, title, width, minimum) in columns {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
@@ -123,8 +124,8 @@ struct RevisionTable: NSViewRepresentable {
                 cell.isWorkingCopy = revision.isWorkingCopy
                 cell.isImmutable = revision.isImmutable
                 cell.hasConflict = revision.hasConflict
-                cell.toolTip = revision.isWorkingCopy ? "Current working copy (@)" : "Commit graph"
-                cell.setAccessibilityLabel(revision.isWorkingCopy ? "Current working copy" : revision.isImmutable ? "Immutable commit" : "Mutable commit")
+                cell.toolTip = revision.isWorkingCopy ? String(localized: I18n.historyCurrentWorkingCopyHelp) : String(localized: I18n.historyCommitGraph)
+                cell.setAccessibilityLabel(revision.isWorkingCopy ? String(localized: I18n.historyCurrentWorkingCopy) : revision.isImmutable ? String(localized: I18n.historyImmutableCommit) : String(localized: I18n.historyMutableCommit))
                 cell.needsDisplay = true
                 return cell
             }
@@ -140,7 +141,7 @@ struct RevisionTable: NSViewRepresentable {
             case "change":
                 cell.label.stringValue = revision.shortChangeID
                 cell.label.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-                cell.toolTip = "Change \(revision.changeID)\nCommit \(revision.commitID)"
+                cell.toolTip = String(localized: I18n.historyRevisionIdentity(revision.changeID, revision.commitID))
             case "author":
                 cell.label.stringValue = revision.author
                 cell.label.font = .systemFont(ofSize: 12)
@@ -235,9 +236,9 @@ private final class DescriptionCell: NSTableCellView {
         }
         for name in revision.bookmarks.prefix(2) { stack.addArrangedSubview(BadgeView(name, color: .systemTeal)) }
         if revision.bookmarks.count > 2 { stack.addArrangedSubview(BadgeView("+\(revision.bookmarks.count - 2)", color: .secondaryLabelColor)) }
-        if revision.hasConflict { stack.addArrangedSubview(BadgeView("conflict", color: .systemOrange)) }
-        if revision.isDivergent { stack.addArrangedSubview(BadgeView("divergent", color: .systemPurple)) }
-        title.stringValue = revision.summary
+        if revision.hasConflict { stack.addArrangedSubview(BadgeView(String(localized: I18n.historyConflictBadge), color: .systemOrange)) }
+        if revision.isDivergent { stack.addArrangedSubview(BadgeView(String(localized: I18n.historyDivergentBadge), color: .systemPurple)) }
+        title.stringValue = revision.displaySummary
         title.font = .systemFont(ofSize: 13, weight: revision.isWorkingCopy ? .semibold : .regular)
         stack.addArrangedSubview(title)
         toolTip = revision.description

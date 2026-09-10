@@ -21,6 +21,9 @@ build/
 .jj/
 .codegraph/
 
+# Local upstream source checkouts and research notes
+/research/
+
 # Local credentials
 .env
 .env.*

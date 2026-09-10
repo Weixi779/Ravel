@@ -16,7 +16,7 @@ nonisolated struct JJClientTests {
         #expect(rows[0].description == "A \"quote\"\n中文 🚀\tend")
         #expect(rows[0].parentIDs == ["base", "other"])
         #expect(rows[0].hasConflict && rows[0].isDivergent && rows[0].isWorkingCopy)
-        #expect(rows[1].summary == "No description")
+        #expect(rows[1].summary.isEmpty)
         #expect(rows[0].id != rows[1].id)
     }
 

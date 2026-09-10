@@ -1,6 +1,7 @@
 // Created by weixi on 2026/09/09.
 
 import SwiftUI
+import Localization
 
 struct RevisionInspector: View {
     let revision: Revision?
@@ -11,9 +12,9 @@ struct RevisionInspector: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Picker("Revision information", selection: $showsDetails) {
-                    Text("Changes").tag(false)
-                    Text("Details").tag(true)
+                Picker(String(localized: I18n.revisionInformation), selection: $showsDetails) {
+                    Text(I18n.revisionChangesTab).tag(false)
+                    Text(I18n.revisionDetailsTab).tag(true)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -22,7 +23,7 @@ struct RevisionInspector: View {
                     Text(revision.shortChangeID)
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(.secondary)
-                    Text(revision.summary)
+                    Text(revision.displaySummary)
                         .font(.system(size: 12, weight: .medium))
                         .lineLimit(1)
                         .help(revision.description)
@@ -36,17 +37,17 @@ struct RevisionInspector: View {
             if showsDetails {
                 RevisionDetail(revision: revision)
             } else if revision == nil {
-                placeholder("Select a change", symbol: "cursorarrow.click")
+                placeholder(String(localized: I18n.revisionSelect), symbol: "cursorarrow.click")
             } else if diff.isLoading {
-                ProgressView("Loading changes…")
+                ProgressView(String(localized: I18n.diffLoadingChanges))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = diff.errorMessage {
-                placeholder("Couldn't load changes", symbol: "exclamationmark.triangle", detail: error)
+                placeholder(String(localized: I18n.diffLoadFailed), symbol: "exclamationmark.triangle", detail: error)
             } else if let changes = diff.diff {
                 VStack(spacing: 0) {
                     if let warning = changes.warning { warningBar(warning) }
                     if changes.files.isEmpty {
-                        placeholder("No file changes", symbol: "checkmark.circle", detail: "This revision has the same contents as its merged parents.")
+                        placeholder(String(localized: I18n.diffEmptyTitle), symbol: "checkmark.circle", detail: String(localized: I18n.diffEmptyDetail))
                     } else {
                         HSplitView {
                             fileList(changes.files)
@@ -67,9 +68,9 @@ struct RevisionInspector: View {
     private func fileList(_ files: [ChangedFile]) -> some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Changed Files").fontWeight(.medium)
+                Text(I18n.diffChangedFiles).fontWeight(.medium)
                 Spacer()
-                Text("\(files.count)").foregroundStyle(.secondary)
+                Text(files.count, format: .number).foregroundStyle(.secondary)
             }
             .font(.system(size: 11))
             .padding(.horizontal, 12)
@@ -99,9 +100,9 @@ struct RevisionInspector: View {
                     }
                     .padding(.vertical, 3)
                     .tag(file.id)
-                    .help("\(file.status.rawValue.capitalized): \(file.displayPath)")
+                    .help(String(localized: I18n.diffFileHelp(String(localized: file.status.localizedName), file.displayPath)))
                     .contextMenu {
-                        Button("Copy File Path") {
+                        Button(String(localized: I18n.diffCopyPath)) {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(file.path, forType: .string)
                         }
@@ -122,7 +123,7 @@ struct RevisionInspector: View {
                         .textSelection(.enabled)
                         .help(file.displayPath)
                     Spacer(minLength: 0)
-                    Text(file.status.rawValue.capitalized).foregroundStyle(statusColor(file.status))
+                    Text(file.status.localizedName).foregroundStyle(statusColor(file.status))
                 }
                 .font(.system(size: 11))
                 .padding(.horizontal, 12)
@@ -130,21 +131,21 @@ struct RevisionInspector: View {
                 Divider()
             }
             if diff.isLoadingFile {
-                ProgressView("Loading diff…")
+                ProgressView(String(localized: I18n.diffLoading))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = diff.fileErrorMessage {
-                placeholder("Couldn't display this diff", symbol: "exclamationmark.triangle", detail: error)
+                placeholder(String(localized: I18n.diffDisplayFailed), symbol: "exclamationmark.triangle", detail: error)
             } else if let content = diff.fileDiff {
                 if let warning = content.warning { warningBar(warning) }
                 if content.isBinary {
-                    placeholder("Binary file changed", symbol: "doc.zipper", detail: "A text diff isn't available for this file.")
+                    placeholder(String(localized: I18n.diffBinaryTitle), symbol: "doc.zipper", detail: String(localized: I18n.diffBinaryDetail))
                 } else if content.lines.isEmpty {
-                    placeholder("No text diff", symbol: "doc", detail: "No patch was returned for this file. Refresh the log to reload its changes.")
+                    placeholder(String(localized: I18n.diffNoTextTitle), symbol: "doc", detail: String(localized: I18n.diffNoTextDetail))
                 } else {
                     DiffTextView(diff: content)
                 }
             } else {
-                placeholder("Select a file", symbol: "doc.text.magnifyingglass")
+                placeholder(String(localized: I18n.diffSelectFile), symbol: "doc.text.magnifyingglass")
             }
         }
     }

@@ -1,0 +1,37 @@
+// Created by weixi on 2026/09/12.
+
+import Foundation
+import Localization
+import Testing
+@testable import Ravel
+
+nonisolated struct LocalizedPresentationTests {
+    @Test(arguments: ["", "No description", "中文 %@ 🚀\nsecond line"])
+    func revisionCopyDoesNotTranslateRepositoryContent(description: String) {
+        let row = Revision(
+            commitID: "commit", changeID: "change", parentIDs: [], description: description,
+            author: "author", email: "email", timestamp: .distantPast, bookmarks: [],
+            isWorkingCopy: false, isImmutable: false, hasConflict: false, isDivergent: false, isEmpty: false
+        )
+        if description.isEmpty {
+            #expect(row.summary.isEmpty)
+            #expect(row.displaySummary == String(localized: I18n.commonNoDescription))
+        } else {
+            #expect(row.displaySummary == description.components(separatedBy: "\n")[0])
+        }
+        #expect(row.description == description)
+    }
+
+    @Test func jjDiagnosticsRemainLiteralAndFallbackIsLocalized() {
+        let diagnostic = "jj: 错误 %@\n  path/한글.swift"
+        #expect(JJClient.Failure.commandFailed(diagnostic).localizedDescription == diagnostic)
+        #expect(JJClient.Failure.commandExited("exit(7)").localizedDescription == String(localized: I18n.errorsCommandExited("exit(7)")))
+        #expect(JJClient.Failure.malformedOutput(42).localizedDescription == String(localized: I18n.errorsMalformedOutput(42)))
+        #expect(FileDiff.Failure.tooLarge.localizedDescription == String(localized: I18n.errorsDiffTooLarge))
+    }
+
+    @Test func hostDeclaresTheLanguagesOfItsResourcePackage() throws {
+        let languages = try #require(Bundle.main.object(forInfoDictionaryKey: "CFBundleLocalizations") as? [String])
+        #expect(Set(languages) == ["en", "zh-Hans", "zh-Hant", "ja", "ko", "de", "fr", "es", "pt-BR"])
+    }
+}

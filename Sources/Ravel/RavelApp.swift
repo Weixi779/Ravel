@@ -2,6 +2,7 @@
 
 import AppKit
 import SwiftUI
+import Localization
 
 #if compiler(<6.2)
 #error("Ravel requires Swift 6.2 or newer.")
@@ -28,11 +29,11 @@ struct RavelApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Open Repository…", systemImage: "folder.badge.plus") {
+                Button(String(localized: I18n.repositoryOpen), systemImage: "folder.badge.plus") {
                     RepositoryPanel.open(using: session)
                 }
                 .keyboardShortcut("o")
-                Menu("Open Recent") {
+                Menu(String(localized: I18n.repositoryOpenRecent)) {
                     ForEach(session.recentPaths, id: \.self) { path in
                         Button(URL(fileURLWithPath: path).lastPathComponent) {
                             session.open(URL(fileURLWithPath: path, isDirectory: true))
@@ -42,15 +43,15 @@ struct RavelApp: App {
                 .disabled(session.recentPaths.isEmpty)
             }
             CommandGroup(after: .toolbar) {
-                Button("Refresh Log", systemImage: "arrow.clockwise") { session.refresh() }
+                Button(String(localized: I18n.historyRefreshLog), systemImage: "arrow.clockwise") { session.refresh() }
                     .keyboardShortcut("r")
                     .disabled(session.repositoryURL == nil || session.isLoading)
-                Button("Go to Working Copy", systemImage: "scope") { session.selectWorkingCopy() }
+                Button(String(localized: I18n.historyGoToWorkingCopy), systemImage: "scope") { session.selectWorkingCopy() }
                     .keyboardShortcut("0")
                     .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
             }
             CommandGroup(after: .appSettings) {
-                Button("Choose jj Executable…") { RepositoryPanel.chooseExecutable(using: session) }
+                Button(String(localized: I18n.repositoryChooseExecutable)) { RepositoryPanel.chooseExecutable(using: session) }
             }
         }
     }
@@ -74,9 +75,9 @@ final class RavelAppDelegate: NSObject, NSApplicationDelegate {
 enum RepositoryPanel {
     static func open(using session: LogSession) {
         let panel = NSOpenPanel()
-        panel.title = "Open Repository"
-        panel.message = "Choose a Jujutsu workspace."
-        panel.prompt = "Open"
+        panel.title = String(localized: I18n.repositoryOpenTitle)
+        panel.message = String(localized: I18n.repositoryChooseWorkspace)
+        panel.prompt = String(localized: I18n.commonOpen)
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
@@ -86,9 +87,9 @@ enum RepositoryPanel {
 
     static func chooseExecutable(using session: LogSession) {
         let panel = NSOpenPanel()
-        panel.title = "Choose jj Executable"
-        panel.message = "Select the jj program installed on this Mac."
-        panel.prompt = "Use jj"
+        panel.title = String(localized: I18n.repositoryExecutableTitle)
+        panel.message = String(localized: I18n.repositoryExecutableHelp)
+        panel.prompt = String(localized: I18n.repositoryUseExecutable)
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false

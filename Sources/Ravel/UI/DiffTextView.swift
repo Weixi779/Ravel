@@ -2,6 +2,7 @@
 
 import AppKit
 import SwiftUI
+import Localization
 
 struct DiffTextView: NSViewRepresentable {
     let diff: FileDiff
@@ -28,7 +29,7 @@ struct DiffTextView: NSViewRepresentable {
         text.textContainer?.containerSize = text.maxSize
         text.textContainer?.widthTracksTextView = false
         text.textContainerInset = NSSize(width: 6, height: 8)
-        text.setAccessibilityLabel("Unified diff")
+        text.setAccessibilityLabel(String(localized: I18n.diffAccessibilityLabel))
         scroll.documentView = text
         scroll.verticalRulerView = DiffLineRuler(scrollView: scroll, orientation: .verticalRuler)
         scroll.hasVerticalRuler = true

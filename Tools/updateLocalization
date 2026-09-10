@@ -1,0 +1,8 @@
+#!/bin/sh
+# Created by weixi on 2026/09/12.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec swift run --package-path "$root/Tools/LocalizationGenerator" \
+  --scratch-path "$root/.build/LocalizationGenerator" generate-localization \
+  "$root/Packages/Localization/Sources/Localization/Resources/Localizable.xcstrings" \
+  "$root/Packages/Localization/Sources/Localization/I18n.generated.swift" "$@"

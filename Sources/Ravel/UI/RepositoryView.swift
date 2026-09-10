@@ -2,6 +2,7 @@
 
 import AppKit
 import SwiftUI
+import Localization
 
 struct RepositoryView: View {
     @Bindable var session: LogSession
@@ -22,7 +23,7 @@ struct RepositoryView: View {
                 if let log = session.log {
                     history(log)
                 } else if session.isLoading {
-                    ProgressView("Opening repository…")
+                    ProgressView(String(localized: I18n.repositoryOpening))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     welcome
@@ -31,23 +32,23 @@ struct RepositoryView: View {
             }
             .background(Color(nsColor: .textBackgroundColor))
             .navigationTitle(session.repositoryURL?.lastPathComponent ?? "Ravel")
-            .navigationSubtitle(session.repositoryURL?.deletingLastPathComponent().path ?? "Jujutsu for Mac")
+            .navigationSubtitle(session.repositoryURL?.deletingLastPathComponent().path ?? String(localized: I18n.repositorySubtitle))
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button { RepositoryPanel.open(using: session) } label: {
-                        Label("Open Repository", systemImage: "folder.badge.plus")
+                        Label(String(localized: I18n.repositoryOpenTitle), systemImage: "folder.badge.plus")
                     }
-                    .help("Open Repository (⌘O)")
+                    .help(String(localized: I18n.repositoryOpenHelp))
                     Button { session.selectWorkingCopy() } label: {
-                        Label("Working Copy", systemImage: "scope")
+                        Label(String(localized: I18n.historyWorkingCopy), systemImage: "scope")
                     }
                     .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
-                    .help("Go to Working Copy (⌘0)")
+                    .help(String(localized: I18n.historyWorkingCopyHelp))
                     Button { session.refresh() } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
+                        Label(String(localized: I18n.commonRefresh), systemImage: "arrow.clockwise")
                     }
                     .disabled(session.repositoryURL == nil || session.isLoading)
-                    .help("Refresh Log (⌘R)")
+                    .help(String(localized: I18n.historyRefreshHelp))
                 }
             }
         }
@@ -55,15 +56,15 @@ struct RepositoryView: View {
 
     private var sidebar: some View {
         List {
-            Section("Workspace") {
-                Label("History", systemImage: "point.3.connected.trianglepath.dotted")
+            Section(String(localized: I18n.repositoryWorkspace)) {
+                Label(String(localized: I18n.historyTitle), systemImage: "point.3.connected.trianglepath.dotted")
                     .fontWeight(.medium)
                     .foregroundStyle(Color.accentColor)
                     .padding(.vertical, 3)
                     .listRowBackground(Color.accentColor.opacity(0.12))
             }
             if !session.recentPaths.isEmpty {
-                Section("Repositories") {
+                Section(String(localized: I18n.repositoryRepositories)) {
                     ForEach(session.recentPaths, id: \.self) { path in
                         let url = URL(fileURLWithPath: path, isDirectory: true)
                         Button { session.open(url) } label: {
@@ -82,7 +83,7 @@ struct RepositoryView: View {
                         .padding(.vertical, 3)
                         .help(path)
                         .contextMenu {
-                            Button("Remove from Recent") { session.forget(path) }
+                            Button(String(localized: I18n.repositoryRemoveRecent)) { session.forget(path) }
                         }
                     }
                 }
@@ -91,7 +92,7 @@ struct RepositoryView: View {
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
             Button { RepositoryPanel.open(using: session) } label: {
-                Label("Open Repository…", systemImage: "plus")
+                Label(String(localized: I18n.repositoryOpen), systemImage: "plus")
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
             }
@@ -105,11 +106,11 @@ struct RepositoryView: View {
             Image(nsImage: NSApplication.shared.applicationIconImage)
                 .resizable()
                 .frame(width: 100, height: 100)
-            Text(session.errorMessage == nil ? "Your changes, in view." : "Open a Jujutsu workspace")
+            Text(session.errorMessage == nil ? String(localized: I18n.repositoryWelcomeTitle) : String(localized: I18n.repositoryWelcomeRecovery))
                 .font(.system(size: 24, weight: .semibold))
-            Text("See your history, follow each change, and find your place.")
+            Text(I18n.repositoryWelcomeDetail)
                 .foregroundStyle(.secondary)
-            Button("Open Repository…") { RepositoryPanel.open(using: session) }
+            Button(String(localized: I18n.repositoryOpen)) { RepositoryPanel.open(using: session) }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .padding(.top, 4)
@@ -121,13 +122,13 @@ struct RepositoryView: View {
     private func history(_ log: RepositoryLog) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Text("History").font(.headline)
-                Text("\(log.revisions.count) changes")
+                Text(I18n.historyTitle).font(.headline)
+                Text(I18n.historyChangeCount(log.revisions.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
                 if log.isLimited {
-                    Text("Showing first \(JJClient.revisionLimit)")
+                    Text(I18n.historyShowingFirst(JJClient.revisionLimit))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -137,7 +138,7 @@ struct RepositoryView: View {
             Divider()
 
             if log.revisions.isEmpty {
-                ContentUnavailableView("No revisions", systemImage: "line.3.horizontal.decrease", description: Text("The repository's log selection contains no revisions."))
+                ContentUnavailableView(String(localized: I18n.historyEmptyTitle), systemImage: "line.3.horizontal.decrease", description: Text(I18n.historyEmptyDetail))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VSplitView {
@@ -158,8 +159,8 @@ struct RepositoryView: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if isError {
-                Button("Locate jj…") { RepositoryPanel.chooseExecutable(using: session) }
-                Button("Retry") { session.refresh() }
+                Button(String(localized: I18n.repositoryLocateExecutable)) { RepositoryPanel.chooseExecutable(using: session) }
+                Button(String(localized: I18n.commonRetry)) { session.refresh() }
                     .disabled(session.isLoading)
             }
         }
@@ -172,22 +173,22 @@ struct RepositoryView: View {
         HStack(spacing: 8) {
             if session.isLoading {
                 ProgressView().controlSize(.mini)
-                Text("Refreshing…")
+                Text(I18n.historyRefreshing)
             } else if session.errorMessage != nil {
                 Image(systemName: "exclamationmark.circle")
-                Text(session.log == nil ? "Unable to load repository" : "Refresh failed · showing previous log")
+                Text(session.log == nil ? String(localized: I18n.historyLoadFailed) : String(localized: I18n.historyRefreshFailed))
             } else if let log = session.log {
                 Circle().fill(Color.accentColor).frame(width: 5, height: 5)
                 Text(log.jjVersion)
                 Text("·").foregroundStyle(.tertiary)
-                Text("Recorded repository state")
-                    .help("Refresh reads jj's recorded state without snapshotting your working directory.")
+                Text(I18n.historyRecordedState)
+                    .help(String(localized: I18n.historyRecordedStateHelp))
             } else {
-                Text("Ready")
+                Text(I18n.historyReady)
             }
             Spacer()
             if let date = session.lastUpdated {
-                Text("Updated \(date, format: .dateTime.hour().minute().second())")
+                Text(I18n.historyUpdated(date.formatted(.dateTime.hour().minute().second())))
             }
         }
         .font(.system(size: 11))

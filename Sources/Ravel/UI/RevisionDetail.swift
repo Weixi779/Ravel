@@ -1,6 +1,7 @@
 // Created by weixi on 2026/09/09.
 
 import SwiftUI
+import Localization
 
 struct RevisionDetail: View {
     let revision: Revision?
@@ -10,25 +11,25 @@ struct RevisionDetail: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 8) {
-                        Text("Commit Details").font(.headline)
-                        if revision.isWorkingCopy { badge("Working copy", color: .teal) }
-                        if revision.isImmutable { badge("Immutable", color: .secondary) }
-                        if revision.hasConflict { badge("Conflict", color: .orange) }
-                        if revision.isDivergent { badge("Divergent", color: .purple) }
+                        Text(I18n.revisionDetails).font(.headline)
+                        if revision.isWorkingCopy { badge(String(localized: I18n.revisionWorkingCopy), color: .teal) }
+                        if revision.isImmutable { badge(String(localized: I18n.revisionImmutable), color: .secondary) }
+                        if revision.hasConflict { badge(String(localized: I18n.revisionConflict), color: .orange) }
+                        if revision.isDivergent { badge(String(localized: I18n.revisionDivergent), color: .purple) }
                         Spacer()
                     }
                     HStack(alignment: .top, spacing: 28) {
                         VStack(alignment: .leading, spacing: 8) {
-                            metadata("Change", value: revision.changeID, monospaced: true)
-                            metadata("Commit", value: revision.commitID, monospaced: true)
-                            metadata("Author", value: "\(revision.author) <\(revision.email)>")
-                            metadata("Date", value: revision.timestamp.formatted(date: .abbreviated, time: .standard))
+                            metadata(String(localized: I18n.revisionChange), value: revision.changeID, monospaced: true)
+                            metadata(String(localized: I18n.revisionCommit), value: revision.commitID, monospaced: true)
+                            metadata(String(localized: I18n.revisionAuthor), value: "\(revision.author) <\(revision.email)>")
+                            metadata(String(localized: I18n.revisionDate), value: revision.timestamp.formatted(date: .abbreviated, time: .standard))
                             if !revision.bookmarks.isEmpty {
-                                metadata("Bookmarks", value: revision.bookmarks.joined(separator: ", "))
+                                metadata(String(localized: I18n.revisionBookmarks), value: revision.bookmarks.joined(separator: ", "))
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(revision.description.isEmpty ? "No description" : revision.description)
+                        Text(revision.description.isEmpty ? String(localized: I18n.commonNoDescription) : revision.description)
                             .font(.system(size: 13))
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
@@ -39,7 +40,7 @@ struct RevisionDetail: View {
             }
             .background(Color(nsColor: .textBackgroundColor))
         } else {
-            ContentUnavailableView("Select a change", systemImage: "cursorarrow.click", description: Text("Its description and details will appear here."))
+            ContentUnavailableView(String(localized: I18n.revisionSelect), systemImage: "cursorarrow.click", description: Text(I18n.revisionSelectDetail))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

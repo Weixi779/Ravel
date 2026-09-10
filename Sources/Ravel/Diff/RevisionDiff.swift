@@ -38,16 +38,9 @@ nonisolated struct FileDiff: Identifiable, Sendable {
         let newNumber: Int?
     }
 
-    enum Failure: LocalizedError {
+    enum Failure: Error {
         case malformedPatch
         case tooLarge
-
-        var errorDescription: String? {
-            switch self {
-            case .malformedPatch: "This diff couldn't be read completely. Try refreshing the log."
-            case .tooLarge: "This file's diff is too large to display. The preview limit is 2 MB or 20,000 lines."
-            }
-        }
     }
 
     static let byteLimit = 2 * 1024 * 1024

@@ -7,33 +7,15 @@ nonisolated struct JJClient: Sendable {
     static let revisionLimit = 300
     static let readOptions = ["--no-pager", "--color=never", "--ignore-working-copy", "--at-op=@"]
 
-    enum Failure: LocalizedError, Sendable {
+    enum Failure: Error, Sendable {
         case executableNotFound
         case invalidExecutable(String)
         case invalidDirectory(String)
         case unsupportedVersion(String)
         case commandFailed(String)
+        case commandExited(String)
         case malformedOutput(Int)
         case duplicateCommit
-
-        var errorDescription: String? {
-            switch self {
-            case .executableNotFound:
-                "Ravel couldn't find jj. Install Jujutsu or choose your jj executable."
-            case .invalidExecutable(let path):
-                "The selected jj executable is unavailable: \(path)"
-            case .invalidDirectory(let path):
-                "This folder is no longer available: \(path)"
-            case .unsupportedVersion(let version):
-                "This version of jj isn't supported: \(version). Ravel requires jj 0.41 or newer."
-            case .commandFailed(let message):
-                message
-            case .malformedOutput(let line):
-                "Couldn't decode revision \(line) from jj. The repository has not been changed."
-            case .duplicateCommit:
-                "jj returned duplicate commit IDs. The log cannot be displayed reliably."
-            }
-        }
     }
 
     // Explicit fields form Ravel's wire format. Each value is escaped by jj,
@@ -152,7 +134,8 @@ nonisolated struct JJClient: Sendable {
         try Task.checkCancellation()
         guard result.terminationStatus.isSuccess else {
             let message = result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw Failure.commandFailed(message.isEmpty ? "jj exited with \(result.terminationStatus)." : message)
+            if message.isEmpty { throw Failure.commandExited(String(describing: result.terminationStatus)) }
+            throw Failure.commandFailed(message)
         }
         return (result.standardOutput, result.standardError.trimmingCharacters(in: .whitespacesAndNewlines))
     }
