@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct RavelApp: App {
+    @NSApplicationDelegateAdaptor(RavelAppDelegate.self) private var appDelegate
     @State private var session = LogSession()
 
     var body: some Scene {
@@ -52,6 +53,20 @@ struct RavelApp: App {
                 Button("Choose jj Executable…") { RepositoryPanel.chooseExecutable(using: session) }
             }
         }
+    }
+}
+
+@MainActor
+final class RavelAppDelegate: NSObject, NSApplicationDelegate {
+    private var dockIcon: DockIconController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        dockIcon = DockIconController(application: .shared)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        dockIcon?.stop()
     }
 }
 
