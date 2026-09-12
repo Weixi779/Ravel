@@ -94,9 +94,14 @@ layer in the current implementation.
 | `Sources/Ravel/Log/LogGraph.swift` | Lane assignment and edges for the loaded revision set |
 | `Sources/Ravel/Diff/` | Changed-file queries, patch parsing and cancellable diff state |
 | `Sources/Ravel/UI/` | SwiftUI composition, AppKit history table, graph and text diff rendering |
+| `Packages/Logger/` | Native system loggers with a shared subsystem convention |
 | `Tests/RavelTests/` | Swift Testing unit and temporary-repository integration tests |
 
 These are the current ownership boundaries, not a final architecture proposal.
+
+Diagnostics use the local [Logger package](Packages/Logger/). Repository refreshes
+and jj invocations record events and diagnostic fields under the `com.weixi.Ravel`
+subsystem. Each package can create its own logger without application setup.
 
 ## Localization
 

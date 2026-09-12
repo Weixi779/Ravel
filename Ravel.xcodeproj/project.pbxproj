@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		106600000000000000000001 /* Logger in Frameworks */ = {isa = PBXBuildFile; productRef = 106600000000000000000002 /* Logger */; };
+		106600000000000000000003 /* Logger in Frameworks */ = {isa = PBXBuildFile; productRef = 106600000000000000000004 /* Logger */; };
 		10CA11000000000000000001 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000002 /* Localization */; };
 		10CA11000000000000000003 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000004 /* Localization */; };
 		18D917D0BA08BBFF1FF4D893 /* Subprocess in Frameworks */ = {isa = PBXBuildFile; productRef = 65A0A99A790FD6D8C5DD6122 /* Subprocess */; };
@@ -25,6 +27,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		106600000000000000000005 /* Logger */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Logger; sourceTree = "<group>"; };
 		10CA11000000000000000006 /* Localization */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Localization; sourceTree = "<group>"; };
 		681C948D238C526E9E3424E0 /* Ravel.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ravel.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		711A6108BA2CE6CA93DD47D6 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -46,6 +49,7 @@
 				A2AB82AC98A7E77AA21EF181 /* Subprocess in Frameworks */,
 				10CA11000000000000000001 /* Localization in Frameworks */,
 				DE5100000000000000000001 /* DesignSystem in Frameworks */,
+				106600000000000000000001 /* Logger in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,6 +59,7 @@
 			files = (
 				18D917D0BA08BBFF1FF4D893 /* Subprocess in Frameworks */,
 				10CA11000000000000000003 /* Localization in Frameworks */,
+				106600000000000000000003 /* Logger in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +92,7 @@
 			children = (
 				10CA11000000000000000006 /* Localization */,
 				DE5100000000000000000003 /* DesignSystem */,
+				106600000000000000000005 /* Logger */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -114,6 +120,7 @@
 			packageProductDependencies = (
 				65A0A99A790FD6D8C5DD6122 /* Subprocess */,
 				10CA11000000000000000004 /* Localization */,
+				106600000000000000000004 /* Logger */,
 			);
 			productName = RavelTests;
 			productReference = F739566ED5280322FF98A798 /* RavelTests.xctest */;
@@ -139,6 +146,7 @@
 				E4DC2BAD49EDAEB98758B37A /* Subprocess */,
 				10CA11000000000000000002 /* Localization */,
 				DE5100000000000000000002 /* DesignSystem */,
+				106600000000000000000002 /* Logger */,
 			);
 			productName = Ravel;
 			productReference = 681C948D238C526E9E3424E0 /* Ravel.app */;
@@ -401,6 +409,14 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		106600000000000000000002 /* Logger */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Logger;
+		};
+		106600000000000000000004 /* Logger */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Logger;
+		};
 		10CA11000000000000000002 /* Localization */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Localization;

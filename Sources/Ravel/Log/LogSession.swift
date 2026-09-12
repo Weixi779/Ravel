@@ -1,11 +1,13 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
+import Logger
 import Observation
 
 @MainActor
 @Observable
 final class LogSession {
+    private static let logger = Logger.make(category: "Repository")
     typealias Loader = @Sendable (URL, String?) async throws -> RepositoryLog
 
     private(set) var repositoryURL: URL?
@@ -84,18 +86,29 @@ final class LogSession {
         let loader = loader
         isLoading = true
         errorMessage = nil
+        let logger = Self.logger
+        let operationID = UUID().uuidString
+        let started = ContinuousClock.now
+        logger.debug("Repository refresh started requestID=\(operationID, privacy: .public)")
 
         loadTask = Task { [weak self] in
             do {
                 let log = try await loader(directory, executable)
                 try Task.checkCancellation()
-                guard let self, self.requestID == request else { return }
+                guard let self, self.requestID == request else {
+                    logger.debug("Repository refresh superseded requestID=\(operationID, privacy: .public)")
+                    return
+                }
                 self.log = log
                 self.repositoryURL = log.repositoryURL
                 self.lastUpdated = .now
                 self.isLoading = false
                 self.loadTask = nil
                 self.remember(log.repositoryURL)
+                logger.info("""
+                    Repository refreshed requestID=\(operationID, privacy: .public) revisionCount=\(log.revisions.count) \
+                    duration=\(String(describing: started.duration(to: .now)), privacy: .public)
+                    """)
 
                 if let selected = self.selectedRevisionID, log.revisions.contains(where: { $0.id == selected }) {
                     return
@@ -110,10 +123,18 @@ final class LogSession {
                 }
                 self.selectedRevisionID = log.revisions.first(where: \.isWorkingCopy)?.id ?? log.revisions.first?.id
             } catch {
-                guard !Task.isCancelled, let self, self.requestID == request else { return }
+                guard !Task.isCancelled, let self, self.requestID == request else {
+                    logger.debug("Repository refresh cancelled or superseded requestID=\(operationID, privacy: .public)")
+                    return
+                }
                 self.isLoading = false
                 self.loadTask = nil
                 self.errorMessage = error.localizedDescription
+                logger.error("""
+                    Repository refresh failed requestID=\(operationID, privacy: .public) \
+                    errorType=\(String(reflecting: type(of: error)), privacy: .public) \
+                    duration=\(String(describing: started.duration(to: .now)), privacy: .public)
+                    """)
             }
         }
     }

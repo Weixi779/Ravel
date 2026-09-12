@@ -1,9 +1,11 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
+import Logger
 import Subprocess
 
 nonisolated struct JJClient: Sendable {
+    private static let logger = Logger.make(category: "JJClient")
     static let revisionLimit = 300
     static let readOptions = ["--no-pager", "--color=never", "--ignore-working-copy", "--at-op=@"]
 
@@ -121,22 +123,43 @@ nonisolated struct JJClient: Sendable {
         outputLimit: Int = 16 * 1024 * 1024
     ) async throws -> (output: String, error: String) {
         try Task.checkCancellation()
+        let logger = Self.logger
+        let invocationID = UUID().uuidString
+        // Record only known operation names; arguments can contain paths and file contents.
+        let command = arguments.first { ["--version", "root", "log", "diff"].contains($0) } ?? "other"
+        let started = ContinuousClock.now
+        logger.debug("Command started command=\(command, privacy: .public) invocationID=\(invocationID, privacy: .public)")
         var options = PlatformOptions()
         options.teardownSequence = [.gracefulShutDown(allowedDurationToNextStep: .seconds(1))]
-        let result = try await Subprocess.run(
-            .path(.init(executable)),
-            arguments: .init(arguments),
-            workingDirectory: .init(directory.path),
-            platformOptions: options,
-            output: .string(limit: outputLimit),
-            error: .string(limit: 256 * 1024)
-        )
-        try Task.checkCancellation()
-        guard result.terminationStatus.isSuccess else {
-            let message = result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
-            if message.isEmpty { throw Failure.commandExited(String(describing: result.terminationStatus)) }
-            throw Failure.commandFailed(message)
+        do {
+            let result = try await Subprocess.run(
+                .path(.init(executable)),
+                arguments: .init(arguments),
+                workingDirectory: .init(directory.path),
+                platformOptions: options,
+                output: .string(limit: outputLimit),
+                error: .string(limit: 256 * 1024)
+            )
+            try Task.checkCancellation()
+            logger.debug("""
+                Command exited command=\(command, privacy: .public) invocationID=\(invocationID, privacy: .public) \
+                status=\(String(describing: result.terminationStatus), privacy: .public) \
+                duration=\(String(describing: started.duration(to: .now)), privacy: .public) \
+                stdoutBytes=\(result.standardOutput.utf8.count) stderrBytes=\(result.standardError.utf8.count)
+                """)
+            guard result.terminationStatus.isSuccess else {
+                let message = result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
+                if message.isEmpty { throw Failure.commandExited(String(describing: result.terminationStatus)) }
+                throw Failure.commandFailed(message)
+            }
+            return (result.standardOutput, result.standardError.trimmingCharacters(in: .whitespacesAndNewlines))
+        } catch {
+            logger.debug("""
+                Command interrupted command=\(command, privacy: .public) invocationID=\(invocationID, privacy: .public) \
+                cancelled=\(Task.isCancelled) duration=\(String(describing: started.duration(to: .now)), privacy: .public) \
+                errorType=\(String(reflecting: type(of: error)), privacy: .public)
+                """)
+            throw error
         }
-        return (result.standardOutput, result.standardError.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
