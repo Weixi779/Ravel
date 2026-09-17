@@ -147,6 +147,19 @@ Configure your own jj author identity if needed. For a small, coherent change, u
 start the next change. Use `jj split` to separate mixed work before publishing.
 Fetch and inspect the graph before moving or pushing the intended bookmark.
 
+Swift code uses [Nick Lockwood's SwiftFormat](https://github.com/nicklockwood/SwiftFormat)
+0.61.0 or later, with shared settings in `.swiftformat`:
+
+```sh
+brew install swiftformat
+Tools/format --lint # Check formatting without changing files
+Tools/format        # Apply formatting
+```
+
+The entry point covers `Sources`, `Tests`, local `Packages`, and `Tools`. Generated
+Swift files and build outputs are excluded. Formatting runs explicitly; it is not
+part of the app build.
+
 CodeGraph is optional development tooling, not an app dependency. With its CLI
 installed, create a local index from the repository root:
 

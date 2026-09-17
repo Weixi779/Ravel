@@ -1,0 +1,22 @@
+# Created by weixi on 2026/09/17.
+
+--min-version 0.61.0
+--swift-version 6.2
+--language-mode 6
+--indent 4
+--linebreaks lf
+--header ignore
+--test-case-name-format preserve
+
+# Place type/function attributes above declarations; keep simple property attributes inline.
+--type-attributes prev-line
+--func-attributes prev-line
+--stored-var-attributes same-line
+--computed-var-attributes same-line
+--complex-attributes prev-line
+
+# Keep concurrency contracts explicit in source.
+--disable redundantSendable
+
+# Keep generated code, dependencies, and build outputs under their own tooling.
+--exclude **/*.generated.swift,**/.build,**/.swiftpm,DerivedData,build,Backend/target,research
