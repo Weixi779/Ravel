@@ -34,12 +34,3 @@ nonisolated struct Revision: Identifiable, Hashable, Sendable {
         String(commitID.prefix(8))
     }
 }
-
-nonisolated struct RepositoryLog: Sendable {
-    let repositoryURL: URL
-    let snapshotID = UUID()
-    var revisions: [Revision]
-    var graph: LogGraph
-    var hasMore: Bool
-    let backendVersion: String
-}

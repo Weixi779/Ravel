@@ -64,68 +64,7 @@ struct RavelApp: App {
         }
 
         Settings {
-            Form {
-                Picker(String(localized: I18n.historyPageSize), selection: Binding(
-                    get: { session.historyPageSize },
-                    set: { session.setHistoryPageSize($0) },
-                )) {
-                    ForEach(LogSession.historyPageSizes, id: \.self) { size in
-                        Text(size.formatted()).tag(size)
-                    }
-                }
-                Text(I18n.historyPageSizeHelp)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Section {
-                    DiffReadingSettings(options: diffOptions)
-                }
-            }
-            .formStyle(.grouped)
-            .frame(width: 440)
-            .fixedSize(horizontal: false, vertical: true)
+            SettingsView(session: session, diffOptions: diffOptions)
         }
-    }
-}
-
-private struct DiffReadingSettings: View {
-    @Bindable var options: DiffViewOptions
-    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
-
-    var body: some View {
-        Toggle(String(localized: I18n.diffShowMarkers), isOn: Binding(
-            get: { options.showsChangeMarkers ?? differentiateWithoutColor },
-            set: { options.showsChangeMarkers = $0 },
-        ))
-        Button(String(localized: I18n.diffMarkersFollowSystem)) { options.showsChangeMarkers = nil }
-            .disabled(options.showsChangeMarkers == nil)
-    }
-}
-
-@MainActor
-final class RavelAppDelegate: NSObject, NSApplicationDelegate {
-    private var dockIcon: DockIconController?
-
-    func applicationDidFinishLaunching(_: Notification) {
-        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
-        dockIcon = DockIconController(application: .shared)
-    }
-
-    func applicationWillTerminate(_: Notification) {
-        dockIcon?.stop()
-    }
-}
-
-@MainActor
-enum RepositoryPanel {
-    static func open(using session: LogSession) {
-        let panel = NSOpenPanel()
-        panel.title = String(localized: I18n.repositoryOpenTitle)
-        panel.message = String(localized: I18n.repositoryChooseWorkspace)
-        panel.prompt = String(localized: I18n.commonOpen)
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = session.repositoryURL
-        if panel.runModal() == .OK, let url = panel.url { session.open(url) }
     }
 }

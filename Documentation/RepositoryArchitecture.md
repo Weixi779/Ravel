@@ -2,6 +2,38 @@
 
 Status: history and Diff readers implemented; writer contract accepted in design, not yet implemented.
 
+## Source organization
+
+`Sources/Ravel/App` composes the application. Business code lives under
+`Domains/History`, `Domains/Revision`, `Domains/Settings` and `Domains/Repository`.
+Each domain uses the layers that have actual responsibilities:
+
+- `Domain` holds domain values and rules.
+- `Application` holds application workflows and their request values.
+- `Presentation` holds UI, observable view state and derived display values.
+- `Infrastructure` holds native backend adapters and preference storage details.
+
+History and Revision keep their `View` and `ViewModel` folders inside
+`Presentation`. `LogSession` and `DiffSession` retain their current names and
+lifecycle ownership. `RepositoryLog`, `LogGraph`, diff display rows and the
+changed-file tree are derived presentation state, not domain entities. Preference
+keys belong to each domain's `Infrastructure`; observable reading options remain
+presentation state. Settings binds to the existing owners and needs only `View`.
+Localized display extensions sit directly in `Presentation`; `Component` is
+reserved for local interface components that need separate organization.
+
+`Domains/Repository/Domain` contains shared reader values (`Revision`,
+`ChangedFile`, `RevisionDiff` and `FileDiff`). `RepositoryWorkspace` and
+`RevisionDiffRequest` live in `Application`; the native `CodeRepository` adapter
+lives in `Infrastructure`. `Shared/Presentation` contains the revision summary
+presentation used by History and Revision.
+
+These are organizational boundaries inside one app target. This move does not
+enforce dependency inversion or split existing mixed-responsibility files:
+`RepositoryWorkspace` still constructs the concrete reader, and that adapter's
+file still declares the read/query contracts. Future package extraction needs
+explicit interfaces. No new package, state owner or placeholder layer is added.
+
 ## Ownership
 
 ```mermaid

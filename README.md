@@ -116,20 +116,35 @@ commands or write UI are implemented in this slice.
 
 | Entry | Responsibility |
 | --- | --- |
-| `Sources/Ravel/RavelApp.swift` | Window lifetime, feature composition, commands and repository panel |
-| `Sources/Ravel/Log/LogSession.swift` | Loaded pages, selected revision, recents, refresh and retry state |
-| `Sources/Ravel/UserDefaultsKeys.swift` | Shared declarations of typed business keys and defaults |
-| `Sources/Ravel/Repository/` | Workspace lifetime, native repository reader, query cursor and diff requests |
-| `Sources/Ravel/Log/LogGraph.swift` | Lane assignment and edges for the loaded revision set |
-| `Sources/Ravel/Diff/` | Changed-file queries, patch parsing and cancellable diff state |
-| `Sources/Ravel/UI/` | SwiftUI composition, AppKit history table, graph and text diff rendering |
+| `Sources/Ravel/App/` | Application lifetime, Dock appearance, feature composition and commands |
+| `Sources/Ravel/Domains/History/Presentation/` | Repository browser, native history table, history session and derived graph state |
+| `Sources/Ravel/Domains/History/Infrastructure/` | Persisted history and recent-workspace preference keys |
+| `Sources/Ravel/Domains/Revision/Presentation/` | Revision inspector, details, file navigation, native diff reader and diff view models |
+| `Sources/Ravel/Domains/Revision/Infrastructure/` | Persisted diff-reading preference keys |
+| `Sources/Ravel/Domains/Settings/Presentation/` | Settings interface bound to the existing state owners |
+| `Sources/Ravel/Domains/Repository/Domain/` | Shared revision, changed-file and file-diff values |
+| `Sources/Ravel/Domains/Repository/Application/` | Workspace lifetime and diff requests |
+| `Sources/Ravel/Domains/Repository/Infrastructure/` | Native repository reader and query adapter |
+| `Sources/Ravel/Shared/Presentation/` | Revision summary presentation used by multiple domains |
 | `Backend/` | Pinned jj-lib, read-only operation views and streaming history queries |
 | `Packages/RavelBackend/` | Generated UniFFI Swift declarations and C module |
 | `Packages/Logger/` | Native system loggers with a shared subsystem convention |
 | `Packages/UserDefaultsKit/` | Typed storage, plain property wrapper and optional Observation macro |
-| `Tests/RavelTests/` | Swift Testing unit and temporary-repository integration tests |
+| `Tests/RavelTests/` | App and domain tests grouped by tested responsibility, with common fixtures in `Support/` |
 
-These are the current ownership boundaries, not a final architecture proposal.
+Business domains are the outer grouping. Within each domain, folders use
+`Domain`, `Application`, `Presentation` and `Infrastructure` according to the
+responsibilities that exist today. `Presentation` keeps `View` and `ViewModel`
+together; the latter includes existing session owners and derived display values.
+Localized presentation extensions sit directly in `Presentation`. A `Component`
+folder is added only when local interface components need separate organization.
+Settings has no separate state owner, so it has no empty ViewModel or other layers.
+
+This change organizes files without renaming existing types or changing state
+ownership. The app remains one target, and folders do not enforce dependency
+inversion: the workspace still uses the concrete native reader, whose current
+file also declares its read/query contracts. Extracting modules or splitting these
+files is a separate change that will require explicit interfaces.
 
 Diagnostics use the local [Logger package](Packages/Logger/). Repository refreshes
 and jj invocations record events and diagnostic fields under the `com.weixi.Ravel`
