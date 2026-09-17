@@ -8,7 +8,8 @@ import Testing
 import UserDefaultsKit
 
 struct UserDefaultsKitTests {
-    @Test func declarationNeedsOnlyATypedKey() throws {
+    @Test
+    func declarationNeedsOnlyATypedKey() {
         // A per-run key exercises the standard store without reading or changing app preferences.
         @UserDefault(.standardTestPath) var path: String?
         defer { _path.reset() }
@@ -22,10 +23,12 @@ struct UserDefaultsKitTests {
         #expect(UserDefaults.standard.object(forKey: StandardTestKey.name) == nil)
     }
 
-    @Test func declarationAcceptsAnExplicitStore() throws {
+    @Test
+    func declarationAcceptsAnExplicitStore() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
-            @UserDefault(.testWorkspacePath, store: store) var path: String?
+            @UserDefault(.testWorkspacePath, store: store)
+            var path: String?
             path = "/isolated"
             #expect(defaults.string(forKey: "path") == "/isolated")
             defaults.set("/updated", forKey: "path")
@@ -33,7 +36,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func fallbackDoesNotWriteOrRegisterAnything() throws {
+    @Test
+    func fallbackDoesNotWriteOrRegisterAnything() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let name = UUID().uuidString
@@ -47,7 +51,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func accessorsShareTheKeyFallbackAndHaveNoStaleCache() throws {
+    @Test
+    func accessorsShareTheKeyFallbackAndHaveNoStaleCache() throws {
         try withDefaults { defaults in
             let key = UserDefaultsKey("count", default: 12)
             let store = UserDefaultsStore(defaults: defaults)
@@ -64,7 +69,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func anExplicitDefaultIsNotRemoved() throws {
+    @Test
+    func anExplicitDefaultIsNotRemoved() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey("count", default: 12)
@@ -75,7 +81,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func optionalNilRemovesStorageAndRevealsTheFallback() throws {
+    @Test
+    func optionalNilRemovesStorageAndRevealsTheFallback() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey<String?>("path", default: "/fallback")
@@ -90,7 +97,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func existingNativeStringsAndArraysKeepTheirRepresentation() throws {
+    @Test
+    func existingNativeStringsAndArraysKeepTheirRepresentation() throws {
         try withDefaults { defaults in
             defaults.set("/repo", forKey: "lastRepositoryPath")
             defaults.set(["/repo", "/other"], forKey: "recentRepositoryPaths")
@@ -104,7 +112,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func nativeValuesRoundTrip() throws {
+    @Test
+    func nativeValuesRoundTrip() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             try roundTrip(true, fallback: false, store: store)
@@ -113,12 +122,13 @@ struct UserDefaultsKitTests {
             try roundTrip(Float(2.5), fallback: Float(0), store: store)
             try roundTrip("value", fallback: "", store: store)
             try roundTrip(Data([1, 2, 3]), fallback: Data(), store: store)
-            try roundTrip(Date(timeIntervalSince1970: 1_000), fallback: .distantPast, store: store)
+            try roundTrip(Date(timeIntervalSince1970: 1000), fallback: .distantPast, store: store)
             try roundTrip(["a": [1, 2]], fallback: [:], store: store)
         }
     }
 
-    @Test func invalidNativeCollectionIsRejectedWithoutDroppingElements() throws {
+    @Test
+    func invalidNativeCollectionIsRejectedWithoutDroppingElements() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey<[String?]>("values", default: [])
@@ -130,7 +140,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func customNativeRepresentationIsValidatedBeforeCallingFoundation() throws {
+    @Test
+    func customNativeRepresentationIsValidatedBeforeCallingFoundation() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey("value", default: InvalidNativeValue())
@@ -141,7 +152,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func mixedStoredArrayIsNotSilentlyFiltered() throws {
+    @Test
+    func mixedStoredArrayIsNotSilentlyFiltered() throws {
         try withDefaults { defaults in
             defaults.set(["path", 1], forKey: "paths")
             let store = UserDefaultsStore(defaults: defaults)
@@ -151,7 +163,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func codableUsesJSONDataAndPreservesNestedNulls() throws {
+    @Test
+    func codableUsesJSONDataAndPreservesNestedNulls() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey<Options>.codable("options", default: .init(names: [], scale: 1))
@@ -163,7 +176,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func codableOptionalNilRemovesTheKey() throws {
+    @Test
+    func codableOptionalNilRemovesTheKey() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey<Options?>.codable("options", default: nil)
@@ -175,7 +189,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func corruptDataFallsBackAndReportsWithoutOverwriting() throws {
+    @Test
+    func corruptDataFallsBackAndReportsWithoutOverwriting() throws {
         try withDefaults { defaults in
             let failures = Mutex<[UserDefaultsFailure]>([])
             let store = UserDefaultsStore(defaults: defaults) { failure in
@@ -191,7 +206,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func failedEncodingPreservesThePreviousValueAndReportsPropertyWrites() throws {
+    @Test
+    func failedEncodingPreservesThePreviousValueAndReportsPropertyWrites() throws {
         try withDefaults { defaults in
             let failures = Mutex<[UserDefaultsFailure]>([])
             let store = UserDefaultsStore(defaults: defaults) { failure in
@@ -209,7 +225,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func injectedSuitesDoNotShareWrites() throws {
+    @Test
+    func injectedSuitesDoNotShareWrites() throws {
         try withDefaults { firstDefaults in
             try withDefaults { secondDefaults in
                 let first = WorkspaceModel(store: UserDefaultsStore(defaults: firstDefaults))
@@ -224,7 +241,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func concurrentExplicitUpdatesRetainEveryIncrement() throws {
+    @Test
+    func concurrentExplicitUpdatesRetainEveryIncrement() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey("count", default: 0)
@@ -237,7 +255,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func aThrowingMutationDoesNotCommit() throws {
+    @Test
+    func aThrowingMutationDoesNotCommit() throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
             let key = UserDefaultsKey("count", default: 0)
@@ -252,7 +271,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @Test func failureCallbackRunsOutsideTheStoreLock() throws {
+    @Test
+    func failureCallbackRunsOutsideTheStoreLock() throws {
         try withDefaults { defaults in
             let slot = Mutex<UserDefaultsStore?>(nil)
             let key = UserDefaultsKey("count", default: 10)
@@ -273,7 +293,8 @@ struct UserDefaultsKitTests {
         }
     }
 
-    @MainActor @Test func observationBelongsToTheModelNotTheStorageAccessor() throws {
+    @MainActor @Test
+    func observationBelongsToTheModelNotTheStorageAccessor() throws {
         try withDefaults { defaults in
             let model = ObservableWorkspaceModel(defaults: defaults)
             let changes = Mutex(0)
@@ -307,7 +328,7 @@ private func withDefaults(_ body: (UserDefaults) throws -> Void) throws {
 }
 
 private func roundTrip<Value: UserDefaultsValue & Equatable>(
-    _ value: Value, fallback: Value, store: UserDefaultsStore
+    _ value: Value, fallback: Value, store: UserDefaultsStore,
 ) throws {
     let key = UserDefaultsKey(UUID().uuidString, default: fallback)
     try store.set(value, for: key)
@@ -320,7 +341,9 @@ private struct Options: Codable, Equatable, Sendable {
 }
 
 private struct InvalidNativeValue: UserDefaultsValue {
-    func encodeUserDefaultsValue() throws -> Any? { NSNull() }
+    func encodeUserDefaultsValue() throws -> Any? {
+        NSNull()
+    }
 }
 
 private enum MutationFailure: Error { case stopped }
@@ -340,7 +363,7 @@ private final class ObservableWorkspaceModel {
     init(defaults: UserDefaults) {
         _storedPath = UserDefault(
             UserDefaultsKey<String?>("path", default: nil),
-            store: UserDefaultsStore(defaults: defaults)
+            store: UserDefaultsStore(defaults: defaults),
         )
     }
 
@@ -356,8 +379,13 @@ private final class ObservableWorkspaceModel {
 }
 
 private extension UserDefaultsKey {
-    static var testWorkspacePath: UserDefaultsKey<String?> { .init("path", default: nil) }
-    static var standardTestPath: UserDefaultsKey<String?> { .init(StandardTestKey.name, default: nil) }
+    static var testWorkspacePath: UserDefaultsKey<String?> {
+        .init("path", default: nil)
+    }
+
+    static var standardTestPath: UserDefaultsKey<String?> {
+        .init(StandardTestKey.name, default: nil)
+    }
 }
 
 private enum StandardTestKey {

@@ -1,12 +1,13 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
-import Testing
 @testable import Ravel
+import Testing
 
 @MainActor
 struct LogSessionTests {
-    @Test func supersededRequestCannotReplaceTheNewRepository() async throws {
+    @Test
+    func supersededRequestCannotReplaceTheNewRepository() async throws {
         let gate = LoaderGate()
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -17,9 +18,9 @@ struct LogSessionTests {
         await gate.waitForRequest("/old")
         session.open(URL(fileURLWithPath: "/new"))
         await gate.waitForRequest("/new")
-        await gate.finish("/new", with: try repositoryLog("/new", revisions: [revision("new", workingCopy: true)]))
+        try await gate.finish("/new", with: repositoryLog("/new", revisions: [revision("new", workingCopy: true)]))
         try await waitUntil { !session.isLoading }
-        await gate.finish("/old", with: try repositoryLog("/old", revisions: [revision("old")]))
+        try await gate.finish("/old", with: repositoryLog("/old", revisions: [revision("old")]))
         await gate.waitUntilReturned("/old")
         // The obsolete loader deliberately ignores cancellation; the session must not.
         #expect(session.repositoryURL?.path == "/new")
@@ -28,7 +29,8 @@ struct LogSessionTests {
         #expect(defaults.string(forKey: "lastRepositoryPath") == "/new")
     }
 
-    @Test func failedRefreshKeepsThePreviouslyLoadedLog() async throws {
+    @Test
+    func failedRefreshKeepsThePreviouslyLoadedLog() async throws {
         let gate = LoaderGate()
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -36,7 +38,7 @@ struct LogSessionTests {
         let session = LogSession(defaults: defaults) { url, _ in try await gate.load(url) }
         session.open(URL(fileURLWithPath: "/repo"))
         await gate.waitForRequest("/repo")
-        await gate.finish("/repo", with: try repositoryLog("/repo", revisions: [revision("saved")]))
+        try await gate.finish("/repo", with: repositoryLog("/repo", revisions: [revision("saved")]))
         try await waitUntil { !session.isLoading }
         session.refresh()
         await gate.waitForRequest("/repo")
@@ -48,7 +50,7 @@ struct LogSessionTests {
 
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while !condition() && ContinuousClock.now < deadline {
+        while !condition(), ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(5))
         }
         try #require(condition(), "Session did not finish its request")

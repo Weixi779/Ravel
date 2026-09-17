@@ -4,7 +4,9 @@ import Foundation
 
 public struct CatalogError: Error, CustomStringConvertible {
     public let description: String
-    init(_ description: String) { self.description = description }
+    init(_ description: String) {
+        self.description = description
+    }
 }
 
 /// Delegates catalog parsing and typed accessor generation to Xcode.
@@ -32,7 +34,8 @@ public enum CatalogGenerator {
         let declaration = "nonisolated extension LocalizedStringResource {"
         guard source.components(separatedBy: declaration).count == 2,
               source.contains("Foundation.Bundle.module"),
-              !source.contains("public static ") else {
+              !source.contains("public static ")
+        else {
             throw CatalogError("Xcode's generated symbol format changed. Review the I18n adapter before regenerating.")
         }
         let result = source.replacingOccurrences(of: declaration, with: "public nonisolated enum I18n {")

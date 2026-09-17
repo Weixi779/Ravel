@@ -31,13 +31,15 @@ struct LocalizationTests {
         #expect(resolve(I18n.historyChangeCount(count), language: language) == expected)
     }
 
-    @Test func preservesArgumentsAsLiteralContent() {
+    @Test
+    func preservesArgumentsAsLiteralContent() {
         let path = "folder/中文 \"100%@\"\\file\n.swift"
         #expect(resolve(I18n.diffFileHelp("已修改", path), language: "zh-Hans") == "已修改：\(path)")
         #expect(resolve(I18n.historyRevisionIdentity("change%lld", "commit🚀"), language: "en") == "Change change%lld\nCommit commit🚀")
     }
 
-    @Test func unsupportedLanguageFallsBackToEnglish() {
+    @Test
+    func unsupportedLanguageFallsBackToEnglish() {
         #expect(resolve(I18n.repositoryOpen, language: "zz") == "Open Repository…")
     }
 }

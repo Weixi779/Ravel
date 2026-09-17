@@ -30,6 +30,7 @@ public final class UserDefaultsStore: Sendable {
         var depth = 0
         var failures: [UserDefaultsFailure] = []
     }
+
     // The recursive lock serializes operations; this short-held mutex keeps their
     // bookkeeping compiler-checked Sendable. No storage or client code runs under it.
     private let operation = Mutex(OperationState())
@@ -37,7 +38,7 @@ public final class UserDefaultsStore: Sendable {
 
     public init(
         defaults: UserDefaults,
-        onFailure: (@Sendable (UserDefaultsFailure) -> Void)? = nil
+        onFailure: (@Sendable (UserDefaultsFailure) -> Void)? = nil,
     ) {
         let reference = DefaultsReference(defaults)
         self.reference = reference
@@ -64,7 +65,7 @@ public final class UserDefaultsStore: Sendable {
         try withAccess { try writeUnlocked(value, for: key) }
     }
 
-    public func reset<Value>(_ key: UserDefaultsKey<Value>) {
+    public func reset(_ key: UserDefaultsKey<some Any>) {
         withAccess { reference.defaults.removeObject(forKey: key.name) }
     }
 
@@ -73,7 +74,7 @@ public final class UserDefaultsStore: Sendable {
     /// Throwing skips the write; it cannot undo external side effects from the closure.
     public func update<Value>(
         _ key: UserDefaultsKey<Value>,
-        _ mutation: (inout Value) throws -> Void
+        _ mutation: (inout Value) throws -> Void,
     ) throws {
         try withAccess {
             var value = try readUnlocked(key)
@@ -153,10 +154,12 @@ public final class UserDefaultsStore: Sendable {
     }
 }
 
-// Foundation documents UserDefaults as thread-safe, but does not declare it Sendable.
-// Only this immutable reference bridge needs an unchecked conformance. Store state and
-// closures remain compiler-checked; the store's lock additionally coordinates update().
+/// Foundation documents UserDefaults as thread-safe, but does not declare it Sendable.
+/// Only this immutable reference bridge needs an unchecked conformance. Store state and
+/// closures remain compiler-checked; the store's lock additionally coordinates update().
 final class DefaultsReference: @unchecked Sendable {
     let defaults: UserDefaults
-    init(_ defaults: UserDefaults) { self.defaults = defaults }
+    init(_ defaults: UserDefaults) {
+        self.defaults = defaults
+    }
 }

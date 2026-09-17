@@ -1,8 +1,8 @@
 // swift-tools-version: 6.2
 // Created by weixi on 2026/09/16.
 
-import PackageDescription
 import CompilerPluginSupport
+import PackageDescription
 
 let package = Package(
     name: "UserDefaultsKit",
@@ -21,16 +21,16 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
-            ]
+            ],
         ),
         .target(
             name: "UserDefaultsKitMacros",
-            dependencies: ["UserDefaultsKit", "UserDefaultsKitMacroPlugin"]
+            dependencies: ["UserDefaultsKit", "UserDefaultsKitMacroPlugin"],
         ),
         .testTarget(name: "UserDefaultsKitTests", dependencies: ["UserDefaultsKit"]),
         .testTarget(
             name: "UserDefaultsKitMacrosTests",
-            dependencies: ["UserDefaultsKit", "UserDefaultsKitMacros"]
+            dependencies: ["UserDefaultsKit", "UserDefaultsKitMacros"],
         ),
         .testTarget(
             name: "UserDefaultsKitMacroPluginTests",
@@ -38,7 +38,7 @@ let package = Package(
                 "UserDefaultsKitMacroPlugin",
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacroExpansion", package: "swift-syntax"),
-            ]
+            ],
         ),
-    ]
+    ],
 )

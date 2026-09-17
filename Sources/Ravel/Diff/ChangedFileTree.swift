@@ -8,7 +8,9 @@ nonisolated struct ChangedFileNode: Identifiable, Sendable {
     let file: ChangedFile?
     let children: [ChangedFileNode]
 
-    var id: String { "\(file == nil ? "directory" : "file"):\(path)" }
+    var id: String {
+        "\(file == nil ? "directory" : "file"):\(path)"
+    }
 
     static func tree(_ files: [ChangedFile]) -> [Self] {
         descendants(files, parent: "")

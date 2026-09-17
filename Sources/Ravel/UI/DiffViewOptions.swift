@@ -8,12 +8,10 @@ import UserDefaultsKitMacros
 @Observable
 final class DiffViewOptions {
     @ObservedDefault(.diffShowsChangeMarkers, store: \Self.store)
-    @ObservationIgnored
-    var showsChangeMarkers: Bool?
+    @ObservationIgnored var showsChangeMarkers: Bool?
 
     @ObservedDefault(.diffGroupsFiles, store: \Self.store)
-    @ObservationIgnored
-    var groupsFiles: Bool
+    @ObservationIgnored var groupsFiles: Bool
 
     private let store: UserDefaultsStore
 

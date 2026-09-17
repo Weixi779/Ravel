@@ -20,18 +20,15 @@ final class LogSession {
     private(set) var isLoadingMore = false
     private(set) var pageErrorMessage: String?
     @ObservedDefault(.recentWorkspacePaths, store: \Self.store)
-    @ObservationIgnored
-    private(set) var recentPaths: [String]
+    @ObservationIgnored private(set) var recentPaths: [String]
     private(set) var lastUpdated: Date?
     var selectedRevisionID: String?
 
     @ObservedDefault(.lastWorkspacePath, store: \Self.store)
-    @ObservationIgnored
-    private var lastWorkspacePath: String?
+    @ObservationIgnored private var lastWorkspacePath: String?
 
     @ObservedDefault(.historyPageSize, store: \Self.store)
-    @ObservationIgnored
-    private var storedHistoryPageSize: Int
+    @ObservationIgnored private var storedHistoryPageSize: Int
 
     var historyPageSize: Int {
         Self.historyPageSizes.contains(storedHistoryPageSize) ? storedHistoryPageSize : UserDefaultsKey<Int>.historyPageSize.defaultValue
@@ -71,7 +68,7 @@ final class LogSession {
             repositoryURL: repositoryURL,
             commitID: selectedRevision.commitID,
             operationID: query.identity.operationID,
-            refreshedAt: lastUpdated
+            refreshedAt: lastUpdated,
         )
     }
 
@@ -140,38 +137,38 @@ final class LogSession {
                 } while cursor != nil && revisions.count < desiredCount
                 let log = try await Self.makeLog(identity: history.identity, revisions: revisions, hasMore: cursor != nil)
                 try Task.checkCancellation()
-                guard let self, self.requestID == request else {
+                guard let self, requestID == request else {
                     await history.close()
                     return
                 }
-                let previous = self.query
-                self.query = history
+                let previous = query
+                query = history
                 self.cursor = cursor
                 self.log = log
-                self.repositoryURL = log.repositoryURL
-                self.lastUpdated = .now
-                self.isLoading = false
-                self.loadTask = nil
-                self.remember(log.repositoryURL)
+                repositoryURL = log.repositoryURL
+                lastUpdated = .now
+                isLoading = false
+                loadTask = nil
+                remember(log.repositoryURL)
                 logger.info("Repository refreshed generation=\(request) revisionCount=\(log.revisions.count) duration=\(String(describing: started.duration(to: .now)), privacy: .public)")
                 if let previous { Task { await previous.close() } }
 
-                if let selected = self.selectedRevisionID, log.revisions.contains(where: { $0.id == selected }) { return }
+                if let selected = selectedRevisionID, log.revisions.contains(where: { $0.id == selected }) { return }
                 // Preserve a rewritten change only if the mapping is unambiguous.
                 if let previousSelection {
                     let matches = log.revisions.filter { $0.changeID == previousSelection.changeID }
                     if matches.count == 1 {
-                        self.selectedRevisionID = matches[0].id
+                        selectedRevisionID = matches[0].id
                         return
                     }
                 }
-                self.selectedRevisionID = log.revisions.first(where: \.isWorkingCopy)?.id ?? log.revisions.first?.id
+                selectedRevisionID = log.revisions.first(where: \.isWorkingCopy)?.id ?? log.revisions.first?.id
             } catch {
                 await candidate?.close()
-                guard !Task.isCancelled, let self, self.requestID == request else { return }
-                self.isLoading = false
-                self.loadTask = nil
-                self.errorMessage = error.localizedDescription
+                guard !Task.isCancelled, let self, requestID == request else { return }
+                isLoading = false
+                loadTask = nil
+                errorMessage = error.localizedDescription
                 Self.logger.error("Repository refresh failed: \(String(reflecting: type(of: error)), privacy: .public)")
             }
         }
@@ -187,23 +184,24 @@ final class LogSession {
             do {
                 let page = try await query.page(after: cursor)
                 try Task.checkCancellation()
-                guard let self, self.requestID == request else { return }
-                try self.log?.graph.append(page.revisions)
-                self.log?.revisions.append(contentsOf: page.revisions)
-                self.log?.hasMore = page.nextCursor != nil
+                guard let self, requestID == request else { return }
+                try log?.graph.append(page.revisions)
+                log?.revisions.append(contentsOf: page.revisions)
+                log?.hasMore = page.nextCursor != nil
                 self.cursor = page.nextCursor
-                self.isLoadingMore = false
-                self.pageTask = nil
+                isLoadingMore = false
+                pageTask = nil
             } catch {
-                guard !Task.isCancelled, let self, self.requestID == request else { return }
-                self.isLoadingMore = false
-                self.pageTask = nil
-                self.pageErrorMessage = error.localizedDescription
+                guard !Task.isCancelled, let self, requestID == request else { return }
+                isLoadingMore = false
+                pageTask = nil
+                pageErrorMessage = error.localizedDescription
             }
         }
     }
 
-    @concurrent private static func makeLog(identity: HistoryIdentity, revisions: [Revision], hasMore: Bool) async throws -> RepositoryLog {
+    @concurrent
+    private static func makeLog(identity: HistoryIdentity, revisions: [Revision], hasMore: Bool) async throws -> RepositoryLog {
         try RepositoryLog(repositoryURL: identity.repositoryURL, revisions: revisions,
                           graph: LogGraph(revisions: revisions),
                           hasMore: hasMore, backendVersion: identity.backendVersion)

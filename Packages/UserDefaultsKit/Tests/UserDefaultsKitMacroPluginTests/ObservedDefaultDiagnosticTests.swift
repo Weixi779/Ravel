@@ -25,12 +25,13 @@ struct ObservedDefaultDiagnosticTests {
             _ = try ObservedDefaultMacro.expansion(
                 of: attribute,
                 providingAccessorsOf: property,
-                in: BasicMacroExpansionContext()
+                in: BasicMacroExpansionContext(),
             )
         }
     }
 
-    @Test func observablePropertiesExplainWhyIgnoredIsRequired() throws {
+    @Test
+    func observablePropertiesExplainWhyIgnoredIsRequired() throws {
         let declaration: DeclSyntax = "@ObservedDefault(.key) var value: Int"
         let property = try #require(declaration.as(VariableDeclSyntax.self))
         let attribute = try #require(property.attributes.first?.as(AttributeSyntax.self))
@@ -38,7 +39,7 @@ struct ObservedDefaultDiagnosticTests {
         let context = BasicMacroExpansionContext(lexicalContext: [Syntax(owner)])
         do {
             _ = try ObservedDefaultMacro.expansion(
-                of: attribute, providingAccessorsOf: property, in: context
+                of: attribute, providingAccessorsOf: property, in: context,
             )
             Issue.record("An observable property must explain the missing @ObservationIgnored.")
         } catch let error as SwiftSyntaxMacros.MacroExpansionErrorMessage {

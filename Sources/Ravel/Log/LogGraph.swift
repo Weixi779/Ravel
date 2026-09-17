@@ -30,14 +30,14 @@ nonisolated struct LogGraph: Sendable {
     private var lanes: [Lane?] = []
     private var nextColor = 0
 
-    // Input stays in jj's child-before-parent order. Vacant lanes are reused;
-    // occupied lanes never shift sideways between rows.
+    /// Input stays in jj's child-before-parent order. Vacant lanes are reused;
+    /// occupied lanes never shift sideways between rows.
     init(revisions: [Revision]) throws {
         try append(revisions)
     }
 
-    // An all-history query keeps pending parent lanes across page boundaries.
-    // Previously emitted rows and colors are never recomputed on append.
+    /// An all-history query keeps pending parent lanes across page boundaries.
+    /// Previously emitted rows and colors are never recomputed on append.
     mutating func append(_ revisions: [Revision]) throws {
         for revision in revisions {
             try Task.checkCancellation()
@@ -58,7 +58,7 @@ nonisolated struct LogGraph: Sendable {
                 segments.append(Segment(
                     start: Point(column: column, fraction: 0),
                     end: Point(column: column, fraction: column == nodeColumn ? 0.5 : 1),
-                    color: lane.color
+                    color: lane.color,
                 ))
             }
             lanes[nodeColumn] = nil
@@ -83,7 +83,7 @@ nonisolated struct LogGraph: Sendable {
                 segments.append(Segment(
                     start: Point(column: nodeColumn, fraction: 0.5),
                     end: Point(column: column, fraction: 1),
-                    color: edgeColor
+                    color: edgeColor,
                 ))
                 if existingColumn == nil {
                     lanes[column] = Lane(target: parent, color: edgeColor)
@@ -93,7 +93,9 @@ nonisolated struct LogGraph: Sendable {
 
             columnCount = max(columnCount, nodeColumn + 1)
             rows.append(Row(nodeColumn: nodeColumn, color: color, segments: segments))
-            while !lanes.isEmpty, lanes[lanes.count - 1] == nil { lanes.removeLast() }
+            while !lanes.isEmpty, lanes[lanes.count - 1] == nil {
+                lanes.removeLast()
+            }
         }
     }
 }

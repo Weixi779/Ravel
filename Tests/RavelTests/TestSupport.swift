@@ -5,12 +5,15 @@ import Testing
 
 nonisolated struct TestFailure: LocalizedError {
     let errorDescription: String?
-    init(_ message: String) { errorDescription = message }
+    init(_ message: String) {
+        errorDescription = message
+    }
 }
 
-// jj is a fixture builder and independent oracle only. Application reads use
-// the Rust bridge. Files avoid pipe backpressure when a fixture emits much data.
-@concurrent nonisolated func runJJ(_ arguments: [String], at directory: URL) async throws -> String {
+/// jj is a fixture builder and independent oracle only. Application reads use
+/// the Rust bridge. Files avoid pipe backpressure when a fixture emits much data.
+@concurrent
+nonisolated func runJJ(_ arguments: [String], at directory: URL) async throws -> String {
     try Task.checkCancellation()
     let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("Ravel-command-\(UUID())")
     try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)

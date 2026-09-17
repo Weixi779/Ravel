@@ -1,12 +1,13 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
-import Testing
 @testable import Ravel
+import Testing
 
 @MainActor
 struct DiffSessionTests {
-    @Test func obsoleteRevisionCannotPublishAfterNewSelection() async throws {
+    @Test
+    func obsoleteRevisionCannotPublishAfterNewSelection() async throws {
         let gate = DiffGate<RevisionDiff>()
         let session = DiffSession(loader: { try await gate.load($0.commitID) }, fileLoader: { _, _ in try FileDiff(patch: "") })
         session.selectRevision(request("old"))
@@ -22,7 +23,8 @@ struct DiffSessionTests {
         #expect(session.selectedFileID == "new")
     }
 
-    @Test func obsoleteFileCannotReplaceNewFileAndRepositorySwitchClearsContent() async throws {
+    @Test
+    func obsoleteFileCannotReplaceNewFileAndRepositorySwitchClearsContent() async throws {
         let gate = DiffGate<FileDiff>()
         let files = [file("one"), file("two")]
         let session = DiffSession(loader: { _ in RevisionDiff(files: files) },
@@ -34,7 +36,7 @@ struct DiffSessionTests {
         let newest = try FileDiff(patch: "newest\n")
         await gate.finish("two", with: newest)
         try await waitUntil { !session.isLoadingFile }
-        await gate.finish("one", with: try FileDiff(patch: "obsolete\n"))
+        try await gate.finish("one", with: FileDiff(patch: "obsolete\n"))
         try await gate.waitForReturn("one")
         #expect(session.fileDiff?.id == newest.id)
         session.selectRevision(nil)
@@ -42,7 +44,8 @@ struct DiffSessionTests {
         #expect(!session.isLoading && !session.isLoadingFile)
     }
 
-    @Test func failedFileLoadDoesNotLeavePreviousContentsVisible() async throws {
+    @Test
+    func failedFileLoadDoesNotLeavePreviousContentsVisible() async throws {
         let files = [file("good"), file("bad")]
         let session = DiffSession(loader: { _ in RevisionDiff(files: files) }, fileLoader: { _, file in
             if file.id == "bad" { throw TestFailure("File unavailable") }
@@ -57,7 +60,8 @@ struct DiffSessionTests {
         #expect(session.diff?.files.count == 2)
     }
 
-    @Test func refreshingTheSameCommitKeepsTheLoadedFile() async throws {
+    @Test
+    func refreshingTheSameCommitKeepsTheLoadedFile() async throws {
         let files = [file("one"), file("two")]
         let session = DiffSession(loader: { _ in RevisionDiff(files: files) },
                                   fileLoader: { _, _ in try FileDiff(patch: "content\n") })
@@ -84,7 +88,9 @@ struct DiffSessionTests {
 
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while !condition() && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        while !condition(), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
         try #require(condition())
     }
 }
@@ -99,17 +105,23 @@ private actor DiffGate<Value: Sendable> {
         return value
     }
 
-    func finish(_ key: String, with value: Value) { pending.removeValue(forKey: key)?.resume(returning: value) }
+    func finish(_ key: String, with value: Value) {
+        pending.removeValue(forKey: key)?.resume(returning: value)
+    }
 
     func waitForRequest(_ key: String) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while pending[key] == nil && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        while pending[key] == nil, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
         try #require(pending[key] != nil)
     }
 
     func waitForReturn(_ key: String) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while !returned.contains(key) && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        while !returned.contains(key), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
         try #require(returned.contains(key))
     }
 }

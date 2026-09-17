@@ -10,7 +10,8 @@ import UserDefaultsKitMacros
 
 @MainActor
 struct ObservedDefaultTests {
-    @Test func declarationCanUseTheStandardStore() {
+    @Test
+    func declarationCanUseTheStandardStore() {
         let model = StandardModel()
         defer { UserDefaultsStore.standard.reset(UserDefaultsKey<Int>.macroStandard) }
         #expect(model.count == 0)
@@ -20,7 +21,8 @@ struct ObservedDefaultTests {
         #expect(UserDefaults.standard.integer(forKey: MacroStandardKey.name) == 4)
     }
 
-    @Test func missingValuesUseTheKeyDefaultWithoutPersistingIt() throws {
+    @Test
+    func missingValuesUseTheKeyDefaultWithoutPersistingIt() throws {
         try withDefaults { defaults, store in
             let model = Model(store: store)
             #expect(model.path == nil)
@@ -29,7 +31,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func twoModelsObserveTheSameKey() throws {
+    @Test
+    func twoModelsObserveTheSameKey() throws {
         try withDefaults { defaults, store in
             let first = Model(store: store)
             let second = Model(store: store)
@@ -62,7 +65,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func unrelatedAndIdenticalWritesDoNotInvalidateReaders() throws {
+    @Test
+    func unrelatedAndIdenticalWritesDoNotInvalidateReaders() throws {
         try withDefaults { defaults, store in
             let model = Model(store: store)
             model.path = "/same"
@@ -76,7 +80,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func plainWrapperReadsRemainUntracked() throws {
+    @Test
+    func plainWrapperReadsRemainUntracked() throws {
         try withDefaults { _, store in
             let model = Model(store: store)
             let observedChanges = changes { model.path }
@@ -88,7 +93,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func resetAndCompoundUpdateNotifyReaders() throws {
+    @Test
+    func resetAndCompoundUpdateNotifyReaders() throws {
         try withDefaults { _, store in
             let model = Model(store: store)
             model.count = 12
@@ -103,7 +109,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func optionalNilRemovesTheValueAndNotifies() throws {
+    @Test
+    func optionalNilRemovesTheValueAndNotifies() throws {
         try withDefaults { defaults, store in
             let model = Model(store: store)
             model.path = "/workspace"
@@ -115,7 +122,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func codableChangesNotifyButFailedEncodingDoesNot() throws {
+    @Test
+    func codableChangesNotifyButFailedEncodingDoesNot() throws {
         try withDefaults { _, store in
             let model = Model(store: store)
             let notifications = changes { model.options }
@@ -128,7 +136,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func separateSuitesDoNotShareObservation() throws {
+    @Test
+    func separateSuitesDoNotShareObservation() throws {
         try withDefaults { _, firstStore in
             try withDefaults { _, secondStore in
                 let first = Model(store: firstStore)
@@ -143,7 +152,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func callbacksCanReadTheStoreFromAnotherThread() throws {
+    @Test
+    func callbacksCanReadTheStoreFromAnotherThread() throws {
         try withDefaults { _, store in
             let model = Model(store: store)
             let finished = DispatchSemaphore(value: 0)
@@ -158,7 +168,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func backgroundWritesNotifyWithoutMutatingTheMainActorModel() async throws {
+    @Test
+    func backgroundWritesNotifyWithoutMutatingTheMainActorModel() async throws {
         let suite = "ObservedDefaultTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -172,7 +183,8 @@ struct ObservedDefaultTests {
         #expect(notifications.withLock { $0 } == 1)
     }
 
-    @Test func concurrentObservationAndCompoundUpdatesKeepEveryWrite() throws {
+    @Test
+    func concurrentObservationAndCompoundUpdatesKeepEveryWrite() throws {
         try withDefaults { _, store in
             let key = UserDefaultsKey("concurrent", default: 0)
             DispatchQueue.concurrentPerform(iterations: 300) { iteration in
@@ -188,7 +200,8 @@ struct ObservedDefaultTests {
         }
     }
 
-    @Test func observationDoesNotKeepTheStoreAlive() throws {
+    @Test
+    func observationDoesNotKeepTheStoreAlive() throws {
         let suite = "ObservedDefaultTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -212,7 +225,7 @@ struct ObservedDefaultTests {
 }
 
 @MainActor
-private func changes<Value>(_ read: () -> Value) -> ChangeCount {
+private func changes(_ read: () -> some Any) -> ChangeCount {
     let result = ChangeCount()
     withObservationTracking { _ = read() } onChange: {
         result.withLock { $0 += 1 }
@@ -240,16 +253,15 @@ private func withDefaults(_ body: (UserDefaults, UserDefaultsStore) throws -> Vo
 private final class Model {
     private let store: UserDefaultsStore
 
-    @ObservedDefault(.observedPath, store: \Self.store) @ObservationIgnored
-    var path: String?
+    @ObservedDefault(.observedPath, store: \Self.store) @ObservationIgnored var path: String?
 
-    @ObservedDefault(.observedCount, store: \Self.store) @ObservationIgnored
-    var count: Int
+    @ObservedDefault(.observedCount, store: \Self.store) @ObservationIgnored var count: Int
 
-    @ObservedDefault(.observedOptions, store: \Self.store) @ObservationIgnored
-    var options: Options
+    @ObservedDefault(.observedOptions, store: \Self.store) @ObservationIgnored var options: Options
 
-    init(store: UserDefaultsStore) { self.store = store }
+    init(store: UserDefaultsStore) {
+        self.store = store
+    }
 }
 
 private struct Options: Codable, Equatable, Sendable {
@@ -258,8 +270,7 @@ private struct Options: Codable, Equatable, Sendable {
 
 @MainActor @Observable
 private final class StandardModel {
-    @ObservedDefault(.macroStandard) @ObservationIgnored
-    var count: Int
+    @ObservedDefault(.macroStandard) @ObservationIgnored var count: Int
 }
 
 private enum MacroStandardKey {
@@ -267,8 +278,19 @@ private enum MacroStandardKey {
 }
 
 private extension UserDefaultsKey {
-    static var macroStandard: UserDefaultsKey<Int> { .init(MacroStandardKey.name, default: 0) }
-    static var observedPath: UserDefaultsKey<String?> { .init("workspace.path", default: nil) }
-    static var observedCount: UserDefaultsKey<Int> { .init("count", default: 7) }
-    static var observedOptions: UserDefaultsKey<Options> { .codable("options", default: .init(scale: 1)) }
+    static var macroStandard: UserDefaultsKey<Int> {
+        .init(MacroStandardKey.name, default: 0)
+    }
+
+    static var observedPath: UserDefaultsKey<String?> {
+        .init("workspace.path", default: nil)
+    }
+
+    static var observedCount: UserDefaultsKey<Int> {
+        .init("count", default: 7)
+    }
+
+    static var observedOptions: UserDefaultsKey<Options> {
+        .codable("options", default: .init(scale: 1))
+    }
 }

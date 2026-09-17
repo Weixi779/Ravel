@@ -13,8 +13,8 @@ public struct UserDefaultsKey<Value: Sendable>: Sendable {
     public init(_ name: String, default defaultValue: Value) where Value: UserDefaultsValue {
         self.name = name
         self.defaultValue = defaultValue
-        self.decode = { try Value.decodeUserDefaultsValue($0) }
-        self.encode = { try $0.encodeUserDefaultsValue() }
+        decode = { try Value.decodeUserDefaultsValue($0) }
+        encode = { try $0.encodeUserDefaultsValue() }
     }
 
     /// Stores JSON Data. An outer Optional.none removes the key instead of writing JSON null.
@@ -31,7 +31,7 @@ public struct UserDefaultsKey<Value: Sendable>: Sendable {
             encode: { value in
                 if let optional = value as? any OptionalValue, optional.isNil { return nil }
                 return try JSONEncoder().encode(value)
-            }
+            },
         )
     }
 
@@ -39,7 +39,7 @@ public struct UserDefaultsKey<Value: Sendable>: Sendable {
         name: String,
         defaultValue: Value,
         decode: @escaping @Sendable (Any) throws -> Value,
-        encode: @escaping @Sendable (Value) throws -> Any?
+        encode: @escaping @Sendable (Value) throws -> Any?,
     ) {
         self.name = name
         self.defaultValue = defaultValue

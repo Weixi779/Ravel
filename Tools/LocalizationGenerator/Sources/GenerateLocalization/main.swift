@@ -10,7 +10,7 @@ do {
     }
     let catalog = URL(fileURLWithPath: arguments[0])
     let output = URL(fileURLWithPath: arguments[1])
-    let generated = Data(try CatalogGenerator.generate(catalog: catalog).utf8)
+    let generated = try Data(CatalogGenerator.generate(catalog: catalog).utf8)
     let existing = try? Data(contentsOf: output)
     if arguments.count == 3 {
         guard existing == generated else { throw CatalogErrorForCLI.stale }

@@ -5,7 +5,8 @@ import Foundation
 import Testing
 
 struct CatalogGeneratorTests {
-    @Test func onlyChangesNamespaceAndVisibility() throws {
+    @Test
+    func onlyChangesNamespaceAndVisibility() throws {
         let source = """
         private let resourceBundle = Foundation.Bundle.module
         nonisolated extension LocalizedStringResource {
@@ -25,7 +26,8 @@ struct CatalogGeneratorTests {
         #expect(throws: CatalogError.self) { try CatalogGenerator.exposeSymbols(source) }
     }
 
-    @Test func appleGeneratesNewTypedSymbolsWithoutChangingTheAdapter() throws {
+    @Test
+    func appleGeneratesNewTypedSymbolsWithoutChangingTheAdapter() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -45,17 +47,18 @@ struct CatalogGeneratorTests {
         #expect(!result.contains("@available(macOS 13,"))
     }
 
-    @Test func repositoryCatalogIsCompleteAndGeneratedFileIsCurrent() throws {
+    @Test
+    func repositoryCatalogIsCompleteAndGeneratedFileIsCurrent() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let sources = root.appendingPathComponent("Packages/Localization/Sources/Localization")
         let catalog = sources.appendingPathComponent("Resources/Localizable.xcstrings")
         let generated = try CatalogGenerator.generate(catalog: catalog)
-        #expect(generated == (try String(contentsOf: sources.appendingPathComponent("I18n.generated.swift"), encoding: .utf8)))
+        #expect(try generated == String(contentsOf: sources.appendingPathComponent("I18n.generated.swift"), encoding: .utf8))
         let data = try Data(contentsOf: catalog)
         let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let entries = try #require(object["strings"] as? [String: [String: Any]])
-        let expected: Set<String> = ["en", "zh-Hans", "zh-Hant", "ja", "ko", "de", "fr", "es", "pt-BR"]
+        let expected: Set = ["en", "zh-Hans", "zh-Hant", "ja", "ko", "de", "fr", "es", "pt-BR"]
         for (key, entry) in entries {
             let locales = try #require(entry["localizations"] as? [String: Any])
             #expect(Set(locales.keys) == expected, "Missing language for \(key)")

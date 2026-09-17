@@ -11,5 +11,5 @@ let package = Package(
         .target(name: "CatalogGenerator"),
         .executableTarget(name: "GenerateLocalization", dependencies: ["CatalogGenerator"]),
         .testTarget(name: "CatalogGeneratorTests", dependencies: ["CatalogGenerator"]),
-    ]
+    ],
 )

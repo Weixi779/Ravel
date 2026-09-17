@@ -1,8 +1,8 @@
 // Created by weixi on 2026/09/17.
 
 import Foundation
-import Testing
 @testable import Ravel
+import Testing
 
 actor StubHistory: HistoryQuery {
     nonisolated let identity: HistoryIdentity
@@ -20,7 +20,9 @@ actor StubHistory: HistoryQuery {
         self.pageSize = pageSize
     }
 
-    func pause(at offset: UInt64) { paused.insert(offset) }
+    func pause(at offset: UInt64) {
+        paused.insert(offset)
+    }
 
     func page(after cursor: HistoryCursor?) async throws -> HistoryPage {
         let offset = cursor?.offset ?? 0
@@ -36,7 +38,7 @@ actor StubHistory: HistoryQuery {
 
     private func result(at offset: UInt64) -> HistoryPage {
         let end = min(Int(offset) + pageSize, revisions.count)
-        return HistoryPage(revisions: Array(revisions[Int(offset)..<end]),
+        return HistoryPage(revisions: Array(revisions[Int(offset) ..< end]),
                            nextCursor: end < revisions.count ? HistoryCursor(queryID: identity.queryID, offset: UInt64(end)) : nil)
     }
 
@@ -52,13 +54,16 @@ actor StubHistory: HistoryQuery {
         else { continuation?.resume(returning: result(at: offset)) }
     }
 
-    func close() async { isClosed = true }
+    func close() async {
+        isClosed = true
+    }
 }
 
 @MainActor
 struct HistoryQueryTests {
-    @Test func refreshAcceptsShortBackendPagesUntilHistoryEnds() async throws {
-        let history = try StubHistory(log: repositoryLog("/repo", revisions: (0..<5).map { revision("\($0)") }), pageSize: 2)
+    @Test
+    func refreshAcceptsShortBackendPagesUntilHistoryEnds() async throws {
+        let history = try StubHistory(log: repositoryLog("/repo", revisions: (0 ..< 5).map { revision("\($0)") }), pageSize: 2)
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -69,8 +74,9 @@ struct HistoryQueryTests {
         #expect(session.log?.revisions.count == 5)
     }
 
-    @Test func appendDoesNotDuplicateAndFailureDoesNotAdvance() async throws {
-        let history = try StubHistory(log: repositoryLog("/repo", revisions: (0..<405).map { revision("\($0)", parents: $0 < 404 ? ["\($0 + 1)"] : []) }))
+    @Test
+    func appendDoesNotDuplicateAndFailureDoesNotAdvance() async throws {
+        let history = try StubHistory(log: repositoryLog("/repo", revisions: (0 ..< 405).map { revision("\($0)", parents: $0 < 404 ? ["\($0 + 1)"] : []) }))
         await history.pause(at: 200)
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -95,7 +101,7 @@ struct HistoryQueryTests {
         #expect(await history.requests == [0, 200, 200])
         #expect(session.log?.revisions.count == 400)
         #expect(session.selectedRevisionID == "17")
-        #expect(Array(session.log!.graph.rows.prefix(200)) == prefix)
+        #expect(try Array(#require(session.log?.graph.rows.prefix(200))) == prefix)
         session.loadMore()
         try await waitUntil { !session.isLoadingMore }
         #expect(session.log?.revisions.count == 405)
@@ -104,9 +110,10 @@ struct HistoryQueryTests {
         #expect(await history.requests == [0, 200, 200, 400])
     }
 
-    @Test func oldPageCannotAppendAfterRefreshAndRefreshRetainsDepth() async throws {
-        let old = try StubHistory(log: repositoryLog("/repo", revisions: (0..<605).map { revision("old\($0)") }))
-        let fresh = try StubHistory(log: repositoryLog("/repo", revisions: (0..<610).map { revision("new\($0)") }))
+    @Test
+    func oldPageCannotAppendAfterRefreshAndRefreshRetainsDepth() async throws {
+        let old = try StubHistory(log: repositoryLog("/repo", revisions: (0 ..< 605).map { revision("old\($0)") }))
+        let fresh = try StubHistory(log: repositoryLog("/repo", revisions: (0 ..< 610).map { revision("new\($0)") }))
         let source = QuerySequence([old, fresh])
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -133,8 +140,9 @@ struct HistoryQueryTests {
         #expect(await old.isClosed)
     }
 
-    @Test func batchSizePersistsAndChangesOnlyWhenOpeningANewQuery() async throws {
-        let log = try repositoryLog("/repo", revisions: (0..<610).map { revision("\($0)") })
+    @Test
+    func batchSizePersistsAndChangesOnlyWhenOpeningANewQuery() async throws {
+        let log = try repositoryLog("/repo", revisions: (0 ..< 610).map { revision("\($0)") })
         let old = StubHistory(log: log, pageSize: 200)
         let fresh = StubHistory(log: log, pageSize: 5000)
         let source = QuerySequence([old, fresh])
@@ -165,7 +173,9 @@ struct HistoryQueryTests {
 
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        while !condition(), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
         try #require(condition())
     }
 }
@@ -173,7 +183,10 @@ struct HistoryQueryTests {
 private actor QuerySequence {
     var values: [any HistoryQuery]
     private(set) var pageSizes: [Int] = []
-    init(_ values: [any HistoryQuery]) { self.values = values }
+    init(_ values: [any HistoryQuery]) {
+        self.values = values
+    }
+
     func next(pageSize: Int? = nil) -> any HistoryQuery {
         if let pageSize { pageSizes.append(pageSize) }
         return values.removeFirst()

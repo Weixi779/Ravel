@@ -15,5 +15,5 @@ public macro ObservedDefault<Value: Sendable>(_ key: UserDefaultsKey<Value>) =
 @attached(accessor, names: named(get), named(set))
 public macro ObservedDefault<Owner, Value: Sendable>(
     _ key: UserDefaultsKey<Value>,
-    store: KeyPath<Owner, UserDefaultsStore>
+    store: KeyPath<Owner, UserDefaultsStore>,
 ) = #externalMacro(module: "UserDefaultsKitMacroPlugin", type: "ObservedDefaultMacro")

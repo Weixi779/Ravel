@@ -2,14 +2,15 @@
 
 import Foundation
 import Observation
+@testable import Ravel
 import Synchronization
 import Testing
 import UserDefaultsKit
-@testable import Ravel
 
 @MainActor
 struct UserDefaultsIntegrationTests {
-    @Test func externalStorageChangesUpdateBothSessionsRecentWorkspaces() throws {
+    @Test
+    func externalStorageChangesUpdateBothSessionsRecentWorkspaces() throws {
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -33,7 +34,8 @@ struct UserDefaultsIntegrationTests {
         #expect(second.recentPaths.isEmpty)
     }
 
-    @Test func sessionUsesExistingKeysWithoutChangingTheirFormat() throws {
+    @Test
+    func sessionUsesExistingKeysWithoutChangingTheirFormat() throws {
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -47,7 +49,8 @@ struct UserDefaultsIntegrationTests {
         #expect(defaults.stringArray(forKey: "recentRepositoryPaths") == ["/other"])
     }
 
-    @Test func forgettingAWorkspaceStillNotifiesTheObservableSession() throws {
+    @Test
+    func forgettingAWorkspaceStillNotifiesTheObservableSession() throws {
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -69,7 +72,8 @@ struct UserDefaultsIntegrationTests {
         #expect(defaults.object(forKey: "lastRepositoryPath") == nil)
     }
 
-    @Test func separateSessionEnvironmentsKeepIndependentValues() throws {
+    @Test
+    func separateSessionEnvironmentsKeepIndependentValues() throws {
         let firstSuite = "RavelTests.\(UUID())"
         let secondSuite = "RavelTests.\(UUID())"
         let firstDefaults = try #require(UserDefaults(suiteName: firstSuite))

@@ -1,7 +1,7 @@
 // Created by weixi on 2026/09/16.
 
-import Foundation
 import CoreFoundation
+import Foundation
 
 /// A value with a native UserDefaults representation. Use a Codable key for models.
 public protocol UserDefaultsValue: Sendable {
@@ -23,7 +23,9 @@ public extension UserDefaultsValue {
         return value
     }
 
-    func encodeUserDefaultsValue() throws -> Any? { self }
+    func encodeUserDefaultsValue() throws -> Any? {
+        self
+    }
 }
 
 extension String: UserDefaultsValue {}
@@ -54,9 +56,9 @@ extension Float: UserDefaultsValue {
 extension Data: UserDefaultsValue {}
 extension Date: UserDefaultsValue {}
 
-// Match the native storage category before unboxing NSNumber. Swift's conditional
-// cast alone also accepts cross-category values such as true -> Int and 1.0 -> Int.
-// Float and Double share the floating-point category; the cast still checks precision.
+/// Match the native storage category before unboxing NSNumber. Swift's conditional
+/// cast alone also accepts cross-category values such as true -> Int and 1.0 -> Int.
+/// Float and Double share the floating-point category; the cast still checks precision.
 enum UserDefaultsNumberKind {
     case boolean, integer, floatingPoint
 
@@ -75,7 +77,8 @@ enum UserDefaultsNumberKind {
 private func decodeNumber<Value>(_ object: Any, kind: UserDefaultsNumberKind) throws -> Value {
     guard let number = object as? NSNumber,
           UserDefaultsNumberKind(number) == kind,
-          let value = object as? Value else {
+          let value = object as? Value
+    else {
         throw UserDefaultsValueError.typeMismatch(expected: String(reflecting: Value.self))
     }
     return value
@@ -83,13 +86,13 @@ private func decodeNumber<Value>(_ object: Any, kind: UserDefaultsNumberKind) th
 
 extension Optional: UserDefaultsValue where Wrapped: UserDefaultsValue {
     public static func decodeUserDefaultsValue(_ object: Any) throws -> Self {
-        .some(try Wrapped.decodeUserDefaultsValue(object))
+        try .some(Wrapped.decodeUserDefaultsValue(object))
     }
 
     public func encodeUserDefaultsValue() throws -> Any? {
         switch self {
         case .none: nil
-        case .some(let value): try value.encodeUserDefaultsValue()
+        case let .some(value): try value.encodeUserDefaultsValue()
         }
     }
 }

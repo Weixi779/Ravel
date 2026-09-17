@@ -1,15 +1,17 @@
 // Created by weixi on 2026/09/09.
 
 import AppKit
-import SwiftUI
 import Localization
+import SwiftUI
 
 struct RevisionTable: NSViewRepresentable {
     let log: RepositoryLog
     @Binding var selection: String?
     var loadMore: () -> Void = {}
 
-    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selection: $selection)
+    }
 
     func makeNSView(context: Context) -> NSScrollView {
         let table = NSTableView()
@@ -85,7 +87,9 @@ struct RevisionTable: NSViewRepresentable {
             return formatter
         }()
 
-        init(selection: Binding<String?>) { self.selection = selection }
+        init(selection: Binding<String?>) {
+            self.selection = selection
+        }
 
         func update(log: RepositoryLog, selection: Binding<String?>, loadMore: @escaping () -> Void) {
             guard let table else { return }
@@ -112,18 +116,20 @@ struct RevisionTable: NSViewRepresentable {
                     column.width = width
                 }
                 if appending {
-                    table.insertRows(at: IndexSet(integersIn: oldCount..<revisions.count), withAnimation: [])
+                    table.insertRows(at: IndexSet(integersIn: oldCount ..< revisions.count), withAnimation: [])
                 } else {
                     table.reloadData()
                     if !changedRepository, let anchorID, let row = revisions.firstIndex(where: { $0.id == anchorID }),
-                       let scroll = table.enclosingScrollView {
+                       let scroll = table.enclosingScrollView
+                    {
                         scroll.contentView.scroll(to: NSPoint(x: table.visibleRect.minX, y: CGFloat(row) * table.rowHeight + anchorOffset))
                         scroll.reflectScrolledClipView(scroll.contentView)
                     }
                 }
             }
             if let selected = selection.wrappedValue,
-               let index = revisions.firstIndex(where: { $0.id == selected }) {
+               let index = revisions.firstIndex(where: { $0.id == selected })
+            {
                 if table.selectedRow != index {
                     table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
                     if changedRepository || changedSelection { table.scrollRowToVisible(index) }
@@ -138,10 +144,10 @@ struct RevisionTable: NSViewRepresentable {
             prefetchTask?.cancel()
             prefetchTask = Task { [weak self] in
                 await Task.yield()
-                guard !Task.isCancelled, let self, let table = self.table else { return }
+                guard !Task.isCancelled, let self, let table else { return }
                 let visible = table.rows(in: table.visibleRect)
-                guard visible.length > 0, NSMaxRange(visible) >= self.revisions.count - 20 else { return }
-                self.loadMore?()
+                guard visible.length > 0, NSMaxRange(visible) >= revisions.count - 20 else { return }
+                loadMore?()
             }
         }
 
@@ -151,9 +157,11 @@ struct RevisionTable: NSViewRepresentable {
             loadMore = nil
         }
 
-        func numberOfRows(in tableView: NSTableView) -> Int { revisions.count }
+        func numberOfRows(in _: NSTableView) -> Int {
+            revisions.count
+        }
 
-        func tableViewSelectionDidChange(_ notification: Notification) {
+        func tableViewSelectionDidChange(_: Notification) {
             guard !isApplying, let table else { return }
             selection.wrappedValue = revisions.indices.contains(table.selectedRow) ? revisions[table.selectedRow].id : nil
         }
@@ -198,7 +206,7 @@ struct RevisionTable: NSViewRepresentable {
             return cell
         }
 
-        func tableView(_ tableView: NSTableView, typeSelectStringFor tableColumn: NSTableColumn?, row: Int) -> String? {
+        func tableView(_: NSTableView, typeSelectStringFor _: NSTableColumn?, row: Int) -> String? {
             revisions.indices.contains(row) ? revisions[row].summary : nil
         }
     }
@@ -251,7 +259,9 @@ private final class TextCell: NSTableCellView {
         ])
     }
 
-    required init?(coder: NSCoder) { nil }
+    required init?(coder _: NSCoder) {
+        nil
+    }
 }
 
 @MainActor
@@ -277,14 +287,18 @@ private final class DescriptionCell: NSTableCellView {
         textField = title
     }
 
-    required init?(coder: NSCoder) { nil }
+    required init?(coder _: NSCoder) {
+        nil
+    }
 
     func configure(_ revision: Revision) {
         for view in stack.arrangedSubviews {
             stack.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
-        for name in revision.bookmarks.prefix(2) { stack.addArrangedSubview(BadgeView(name, color: .systemTeal)) }
+        for name in revision.bookmarks.prefix(2) {
+            stack.addArrangedSubview(BadgeView(name, color: .systemTeal))
+        }
         if revision.bookmarks.count > 2 { stack.addArrangedSubview(BadgeView("+\(revision.bookmarks.count - 2)", color: .secondaryLabelColor)) }
         if revision.hasConflict { stack.addArrangedSubview(BadgeView(String(localized: I18n.historyConflictBadge), color: .systemOrange)) }
         if revision.isDivergent { stack.addArrangedSubview(BadgeView(String(localized: I18n.historyDivergentBadge), color: .systemPurple)) }
@@ -321,9 +335,11 @@ private final class BadgeView: NSView {
         toolTip = text
     }
 
-    required init?(coder: NSCoder) { nil }
+    required init?(coder _: NSCoder) {
+        nil
+    }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func draw(_: NSRect) {
         tint.withAlphaComponent(0.12).setFill()
         NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
     }
@@ -337,9 +353,11 @@ private final class GraphCell: NSView {
     var isWorkingCopy = false
     var isImmutable = false
     var hasConflict = false
-    override var isFlipped: Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func draw(_: NSRect) {
         guard let row, let context = NSGraphicsContext.current?.cgContext else { return }
         context.setLineWidth(1.7)
         context.setLineCap(.round)

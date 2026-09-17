@@ -3,8 +3,8 @@
 
 import PackageDescription
 
-// Generated UniFFI declarations. The application builds and links the native
-// archive via Tools/buildBackend; this package does not hide a network build.
+/// Generated UniFFI declarations. The application builds and links the native
+/// archive via Tools/buildBackend; this package does not hide a network build.
 let package = Package(
     name: "RavelBackend",
     platforms: [.macOS(.v15)],
@@ -15,5 +15,5 @@ let package = Package(
             .linkedFramework("Security"), .linkedFramework("SystemConfiguration"),
             .linkedLibrary("iconv"), .linkedLibrary("z"), .linkedLibrary("resolv"),
         ]),
-    ]
+    ],
 )

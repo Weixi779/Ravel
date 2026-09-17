@@ -1,11 +1,12 @@
 // Created by weixi on 2026/09/17.
 
 import Foundation
-import Testing
 @testable import Ravel
+import Testing
 
 nonisolated struct DiffPresentationTests {
-    @Test func treeKeepsFullHierarchyAndDistinctFileAndDirectoryIdentities() throws {
+    @Test
+    func treeKeepsFullHierarchyAndDistinctFileAndDirectoryIdentities() throws {
         let files = [file("App/Features/UI/Cell.swift"), file("App/Features/UI/Other.swift"),
                      file("README.md"), file("App", status: .removed)]
         let tree = ChangedFileNode.tree(files)
@@ -21,18 +22,22 @@ nonisolated struct DiffPresentationTests {
         #expect(tree.first(where: { $0.file?.path == "App" })?.file?.status == .removed)
     }
 
-    @Test func groupingKeepsRenameIdentityAndFullParentPath() throws {
+    @Test
+    func groupingKeepsRenameIdentityAndFullParentPath() throws {
         let renamed = ChangedFile(path: "App/UI/New.swift", sourcePath: "Legacy/Old.swift", status: .renamed)
         let groups = ChangedFileNode.grouped([renamed, file("App/UI/Second.swift"), file("README.md")])
         let group = try #require(groups.first)
         #expect(group.name == "App/UI")
+        // Swift Testing cannot infer the throwing effect of this key-path predicate.
+        // swiftformat:disable:next preferKeyPath
         #expect(group.children.allSatisfy { $0.children.isEmpty })
         #expect(group.children.first?.file == renamed)
         #expect(group.children.first?.file?.displayPath == "Legacy/Old.swift → App/UI/New.swift")
         #expect(groups.last?.file?.path == "README.md")
     }
 
-    @Test func displayStripsOnlyPatchPrefixAndMapsUTF16IncludingCRLF() throws {
+    @Test
+    func displayStripsOnlyPatchPrefixAndMapsUTF16IncludingCRLF() throws {
         let diff = try FileDiff(patch: "diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -8,2 +8,2 @@\n---literal\n+++字🙂\r\n keep\r\n")
         let document = DiffDisplayDocument(diff)
         #expect(!document.text.contains("diff --git"))
@@ -48,13 +53,14 @@ nonisolated struct DiffPresentationTests {
         #expect(document.row(atUTF16Offset: document.text.utf16.count) == nil)
     }
 
-    @Test func displayKeepsEmptyChangedLinesAndNonTextMetadata() throws {
+    @Test
+    func displayKeepsEmptyChangedLinesAndNonTextMetadata() throws {
         let diff = try FileDiff(patch: "@@ -0,0 +1,2 @@\n+\n+tail\n\\ No newline at end of file\n")
         let document = DiffDisplayDocument(diff)
         #expect(document.rows[1].range.length == 1)
         #expect(document.rows[1].line.newNumber == 1)
         #expect(document.text.contains("No newline at end of file"))
-        let mode = DiffDisplayDocument(try FileDiff(patch: "diff --git a/a b/a\nold mode 100644\nnew mode 100755\n"))
+        let mode = try DiffDisplayDocument(FileDiff(patch: "diff --git a/a b/a\nold mode 100644\nnew mode 100755\n"))
         #expect(mode.text == "old mode 100644\nnew mode 100755\n")
         #expect(mode.rows.allSatisfy { $0.line.oldNumber == nil && $0.line.newNumber == nil })
     }

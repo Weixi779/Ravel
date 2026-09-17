@@ -9,7 +9,7 @@ struct ObservedDefaultMacro: AccessorMacro {
     static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
+        in context: some MacroExpansionContext,
     ) throws -> [AccessorDeclSyntax] {
         guard let property = declaration.as(VariableDeclSyntax.self),
               property.bindingSpecifier.tokenKind == .keyword(.var),
@@ -26,7 +26,7 @@ struct ObservedDefaultMacro: AccessorMacro {
         }
         guard binding.initializer == nil, binding.accessorBlock == nil else {
             throw MacroExpansionErrorMessage(
-                "@ObservedDefault generates get/set; declare the default value in UserDefaultsKey."
+                "@ObservedDefault generates get/set; declare the default value in UserDefaultsKey.",
             )
         }
         guard binding.typeAnnotation != nil else {
@@ -37,18 +37,18 @@ struct ObservedDefaultMacro: AccessorMacro {
             return hasAttribute("Observable", in: type.attributes)
         }), !hasAttribute("ObservationIgnored", in: property.attributes) {
             throw MacroExpansionErrorMessage(
-                "Add @ObservationIgnored so @ObservedDefault owns this property's accessors."
+                "Add @ObservationIgnored so @ObservedDefault owns this property's accessors.",
             )
         }
         guard case let .argumentList(arguments) = node.arguments,
-              let key = arguments.first?.expression else {
+              let key = arguments.first?.expression
+        else {
             throw MacroExpansionErrorMessage("@ObservedDefault requires a UserDefaultsKey.")
         }
-        let store: ExprSyntax
-        if let keyPath = arguments.first(where: { $0.label?.text == "store" })?.expression {
-            store = "self[keyPath: \(keyPath)]"
+        let store: ExprSyntax = if let keyPath = arguments.first(where: { $0.label?.text == "store" })?.expression {
+            "self[keyPath: \(keyPath)]"
         } else {
-            store = "UserDefaultsKit.UserDefaultsStore.standard"
+            "UserDefaultsKit.UserDefaultsStore.standard"
         }
         return [
             """

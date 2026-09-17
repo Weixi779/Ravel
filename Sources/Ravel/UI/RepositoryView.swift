@@ -1,8 +1,8 @@
 // Created by weixi on 2026/09/09.
 
 import AppKit
-import SwiftUI
 import Localization
+import SwiftUI
 
 struct RepositoryView: View {
     @Bindable var session: LogSession

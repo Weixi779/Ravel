@@ -1,7 +1,7 @@
 // Created by weixi on 2026/09/12.
 
-import Foundation
 public import os
+import Foundation
 
 /// Creates native loggers in the host application's unified logging subsystem.
 public enum Logger {

@@ -46,14 +46,14 @@ final class UserDefaultsObservations: Sendable {
                 state.token = NotificationCenter.default.addObserver(
                     forName: UserDefaults.didChangeNotification,
                     object: reference.defaults,
-                    queue: nil
+                    queue: nil,
                 ) { [weak self] _ in
                     self?.storageDidChange()
                 }
             }
             let field = Field()
             state.entries[name] = Entry(
-                field: field, snapshot: reference.defaults.object(forKey: name)
+                field: field, snapshot: reference.defaults.object(forKey: name),
             )
             return field
         }
@@ -126,7 +126,9 @@ final class UserDefaultsObservations: Sendable {
     /// Observation tracks this reference, not a copy of the preference in each model.
     private final class Field: Observable, Sendable {
         private let registrar = ObservationRegistrar()
-        private var signal: Void { () }
+        private var signal: Void {
+            ()
+        }
 
         func access() {
             registrar.access(self, keyPath: \.signal)

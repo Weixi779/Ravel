@@ -35,7 +35,9 @@ final class DiffSession {
         fileTask?.cancel()
     }
 
-    var selectedFile: ChangedFile? { diff?.files.first { $0.id == selectedFileID } }
+    var selectedFile: ChangedFile? {
+        diff?.files.first { $0.id == selectedFileID }
+    }
 
     func selectRevision(_ request: RevisionDiffRequest?) {
         guard self.request != request else { return }
@@ -44,7 +46,8 @@ final class DiffSession {
         if let previous = self.request, let request,
            previous.repositoryURL == request.repositoryURL,
            previous.commitID == request.commitID,
-           diff != nil, errorMessage == nil, fileErrorMessage == nil {
+           diff != nil, errorMessage == nil, fileErrorMessage == nil
+        {
             self.request = request
             return
         }
@@ -65,16 +68,16 @@ final class DiffSession {
             do {
                 let diff = try await loader(request)
                 try Task.checkCancellation()
-                guard let self, self.generation == currentGeneration else { return }
+                guard let self, generation == currentGeneration else { return }
                 self.diff = diff
-                self.isLoading = false
-                self.loadTask = nil
-                self.selectFile(diff.files.first(where: { $0.id == previousPath })?.id ?? diff.files.first?.id)
+                isLoading = false
+                loadTask = nil
+                selectFile(diff.files.first(where: { $0.id == previousPath })?.id ?? diff.files.first?.id)
             } catch {
-                guard !Task.isCancelled, let self, self.generation == currentGeneration else { return }
-                self.isLoading = false
-                self.loadTask = nil
-                self.errorMessage = error.localizedDescription
+                guard !Task.isCancelled, let self, generation == currentGeneration else { return }
+                isLoading = false
+                loadTask = nil
+                errorMessage = error.localizedDescription
             }
         }
     }
@@ -95,15 +98,15 @@ final class DiffSession {
             do {
                 let content = try await fileLoader(request, file)
                 try Task.checkCancellation()
-                guard let self, self.fileGeneration == currentGeneration else { return }
-                self.fileDiff = content
-                self.isLoadingFile = false
-                self.fileTask = nil
+                guard let self, fileGeneration == currentGeneration else { return }
+                fileDiff = content
+                isLoadingFile = false
+                fileTask = nil
             } catch {
-                guard !Task.isCancelled, let self, self.fileGeneration == currentGeneration else { return }
-                self.isLoadingFile = false
-                self.fileTask = nil
-                self.fileErrorMessage = error.localizedDescription
+                guard !Task.isCancelled, let self, fileGeneration == currentGeneration else { return }
+                isLoadingFile = false
+                fileTask = nil
+                fileErrorMessage = error.localizedDescription
             }
         }
     }

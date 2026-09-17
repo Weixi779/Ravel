@@ -17,8 +17,13 @@ public struct UserDefault<Value: Sendable>: Sendable {
         nonmutating set { store.assign(newValue, for: key) }
     }
 
-    public func set(_ value: Value) throws { try store.set(value, for: key) }
-    public func reset() { store.reset(key) }
+    public func set(_ value: Value) throws {
+        try store.set(value, for: key)
+    }
+
+    public func reset() {
+        store.reset(key)
+    }
 
     /// Ordinary += and append remain separate getter/setter calls. Use this for a compound update.
     public func update(_ mutation: (inout Value) throws -> Void) throws {

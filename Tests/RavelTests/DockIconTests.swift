@@ -1,12 +1,13 @@
 // Created by weixi on 2026/09/10.
 
 import AppKit
-import Testing
 @testable import Ravel
+import Testing
 
 @MainActor
 struct DockIconTests {
-    @Test func dockFollowsAppearanceChangesWhileRunning() async throws {
+    @Test
+    func dockFollowsAppearanceChangesWhileRunning() async throws {
         // This only changes the test host's appearance, never system settings.
         let application = NSApplication.shared
         let originalAppearance = application.appearance
@@ -64,7 +65,7 @@ struct DockIconTests {
 
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while !condition() && ContinuousClock.now < deadline {
+        while !condition(), ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(10))
         }
         try #require(condition(), "Dock icon did not follow the appearance change")

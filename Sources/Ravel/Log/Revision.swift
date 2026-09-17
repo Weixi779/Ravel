@@ -17,13 +17,22 @@ nonisolated struct Revision: Identifiable, Hashable, Sendable {
     let isDivergent: Bool
     let isEmpty: Bool
 
-    var id: String { commitID }
+    var id: String {
+        commitID
+    }
+
     var summary: String {
         description.split(separator: "\n", omittingEmptySubsequences: true).first.map(String.init)
             ?? ""
     }
-    var shortChangeID: String { String(changeID.prefix(8)) }
-    var shortCommitID: String { String(commitID.prefix(8)) }
+
+    var shortChangeID: String {
+        String(changeID.prefix(8))
+    }
+
+    var shortCommitID: String {
+        String(commitID.prefix(8))
+    }
 }
 
 nonisolated struct RepositoryLog: Sendable {

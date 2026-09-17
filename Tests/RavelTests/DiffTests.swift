@@ -1,11 +1,12 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
-import Testing
 @testable import Ravel
+import Testing
 
 nonisolated struct DiffTests {
-    @Test func unifiedHunksKeepIndependentLineNumbersAndLiteralPrefixes() throws {
+    @Test
+    func unifiedHunksKeepIndependentLineNumbersAndLiteralPrefixes() throws {
         let patch = """
         diff --git a/file b/file
         --- a/file
@@ -31,7 +32,8 @@ nonisolated struct DiffTests {
         #expect(diff.lines.last?.kind == .metadata)
     }
 
-    @Test func zeroLengthRangesAndCRLFRemainReadable() throws {
+    @Test
+    func zeroLengthRangesAndCRLFRemainReadable() throws {
         let added = try FileDiff(patch: "@@ -0,0 +1,2 @@\n+你好 🧶\r\n+second\r\n")
         #expect(added.lines.map(\.newNumber) == [nil, 1, 2])
         #expect(added.lines[1].text == "+你好 🧶\r")
@@ -45,7 +47,8 @@ nonisolated struct DiffTests {
         #expect(throws: FileDiff.Failure.self) { try FileDiff(patch: patch) }
     }
 
-    @Test func binaryAndMetadataOnlyChangesHaveNoInventedLineNumbers() throws {
+    @Test
+    func binaryAndMetadataOnlyChangesHaveNoInventedLineNumbers() throws {
         let binary = try FileDiff(patch: "diff --git a/a b/a\nBinary files a/a and b/a differ\n")
         #expect(binary.isBinary)
         let mode = try FileDiff(patch: "diff --git a/a b/a\nold mode 100644\nnew mode 100755\n")
@@ -54,7 +57,8 @@ nonisolated struct DiffTests {
         #expect(try FileDiff(patch: "").lines.isEmpty)
     }
 
-    @Test func oversizedPatchesFailExplicitly() {
+    @Test
+    func oversizedPatchesFailExplicitly() {
         #expect(throws: FileDiff.Failure.self) {
             try FileDiff(patch: String(repeating: "a", count: FileDiff.byteLimit))
         }
@@ -164,5 +168,4 @@ nonisolated struct DiffTests {
     private func operation(in repo: URL) async throws -> String {
         try await runJJ(["--ignore-working-copy", "--at-op=@", "op", "log", "-G", "-n", "1", "-T", "id"], at: repo)
     }
-
 }

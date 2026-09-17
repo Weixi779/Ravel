@@ -7,7 +7,8 @@ import Testing
 import UserDefaultsKit
 
 struct UserDefaultsValueTypeTests {
-    @Test func numericStringsKeepTheirTypeAndLeadingZeros() throws {
+    @Test
+    func numericStringsKeepTheirTypeAndLeadingZeros() throws {
         try withDefaults { _, store in
             let string = UserDefaultsKey("string", default: "")
             let integer = UserDefaultsKey("integer", default: 0)
@@ -55,7 +56,8 @@ struct UserDefaultsValueTypeTests {
         }
     }
 
-    @Test func containersApplyTheSameTypeRulesToTheirValues() throws {
+    @Test
+    func containersApplyTheSameTypeRulesToTheirValues() throws {
         try withDefaults { defaults, store in
             defaults.set(true, forKey: "optional")
             defaults.set([true], forKey: "array")
@@ -85,7 +87,7 @@ struct UserDefaultsValueTypeTests {
             case .dictionary:
                 try checkTypeChange(
                     valid: ["nested": [true]], invalid: ["nested": [1]], fallback: [:],
-                    defaults: defaults, store: store
+                    defaults: defaults, store: store,
                 )
             }
         }
@@ -96,7 +98,7 @@ struct UserDefaultsValueTypeTests {
 }
 
 private func checkTypeChange<Value: UserDefaultsValue & Equatable>(
-    valid: Value, invalid: Any, fallback: Value, defaults: UserDefaults, store: UserDefaultsStore
+    valid: Value, invalid: Any, fallback: Value, defaults: UserDefaults, store: UserDefaultsStore,
 ) throws {
     let key = UserDefaultsKey(UUID().uuidString, default: fallback)
     // Exercise an actual representation change between search domains. UserDefaults

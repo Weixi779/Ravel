@@ -9,5 +9,5 @@ let package = Package(
     products: [.library(name: "Logger", targets: ["Logger"])],
     targets: [
         .target(name: "Logger"),
-    ]
+    ],
 )

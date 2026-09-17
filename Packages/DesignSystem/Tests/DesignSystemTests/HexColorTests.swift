@@ -1,12 +1,13 @@
 // Created by weixi on 2026/09/12.
 
 import AppKit
+import DesignSystem
 import SwiftUI
 import Testing
-import DesignSystem
 
 struct HexColorTests {
-    @Test func integerPreservesRGBAndAlpha() throws {
+    @Test
+    func integerPreservesRGBAndAlpha() throws {
         let native = NSColor(hex: 0x12ABEF, alpha: 0.4)
         let bridged = try #require(NSColor(Color(hex: 0x12ABEF, alpha: 0.4)).usingColorSpace(.sRGB))
         for color in [native, bridged] {
@@ -31,7 +32,8 @@ struct HexColorTests {
         #expect(Color(hex: input) == nil)
     }
 
-    @Test func colorsDefaultToOpaque() throws {
+    @Test
+    func colorsDefaultToOpaque() throws {
         #expect(NSColor(hex: 0).alphaComponent == 1)
         #expect(try #require(NSColor(hex: "#FFFFFF")).alphaComponent == 1)
         let color = try #require(NSColor(Color(hex: 0xFFFFFF)).usingColorSpace(.sRGB))

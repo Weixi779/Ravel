@@ -1,7 +1,7 @@
 // Created by weixi on 2026/09/09.
 
-import SwiftUI
 import Localization
+import SwiftUI
 
 struct RevisionDetail: View {
     let revision: Revision?

@@ -34,7 +34,7 @@ nonisolated protocol HistoryQuery: Sendable {
     func close() async
 }
 
-nonisolated final class CodeRepository: CodeRepositoryReader {
+final nonisolated class CodeRepository: CodeRepositoryReader {
     let workspaceURL: URL
     let repositoryURL: URL
     private let backend: BackendRepository
@@ -46,7 +46,8 @@ nonisolated final class CodeRepository: CodeRepositoryReader {
         repositoryURL = URL(fileURLWithPath: identity.repositoryPath, isDirectory: true)
     }
 
-    @concurrent static func open(_ url: URL) async throws -> CodeRepository {
+    @concurrent
+    static func open(_ url: URL) async throws -> CodeRepository {
         try Task.checkCancellation()
         let backend = try await backendRead { try await BackendRepository.open(path: url.path) }
         let repository = CodeRepository(backend: backend)
@@ -59,7 +60,7 @@ nonisolated final class CodeRepository: CodeRepositoryReader {
 
     @concurrent
     func history(pageSize: Int) async throws -> any HistoryQuery {
-        guard (1...5000).contains(pageSize) else { throw RepositoryReadFailure(message: "Invalid history page size") }
+        guard (1 ... 5000).contains(pageSize) else { throw RepositoryReadFailure(message: "Invalid history page size") }
         let cancellation = BackendCancellation()
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
@@ -73,7 +74,9 @@ nonisolated final class CodeRepository: CodeRepositoryReader {
     }
 
     @concurrent
-    func close() async { await backend.close() }
+    func close() async {
+        await backend.close()
+    }
 
     @concurrent
     func diff(commitID: String, at operationID: String) async throws -> RevisionDiff {
@@ -102,7 +105,7 @@ nonisolated final class CodeRepository: CodeRepositoryReader {
     }
 }
 
-nonisolated private final class RustHistoryQuery: HistoryQuery {
+private final nonisolated class RustHistoryQuery: HistoryQuery {
     let identity: HistoryIdentity
     private let backend: BackendHistory
 
@@ -129,10 +132,12 @@ nonisolated private final class RustHistoryQuery: HistoryQuery {
     }
 
     @concurrent
-    func close() async { await backend.close() }
+    func close() async {
+        await backend.close()
+    }
 }
 
-nonisolated private extension Revision {
+private nonisolated extension Revision {
     init(_ value: BackendRevision) {
         self.init(commitID: value.commitId, changeID: value.changeId, parentIDs: value.parentIds,
                   description: value.description, author: value.author, email: value.email,
@@ -142,7 +147,7 @@ nonisolated private extension Revision {
     }
 }
 
-nonisolated private extension ChangedFile {
+private nonisolated extension ChangedFile {
     init(_ value: BackendChangedFile) {
         let status: Status = switch value.status {
         case .modified: .modified
@@ -155,14 +160,16 @@ nonisolated private extension ChangedFile {
     }
 }
 
-nonisolated private struct RepositoryReadFailure: LocalizedError {
+private nonisolated struct RepositoryReadFailure: LocalizedError {
     let message: String
-    var errorDescription: String? { message }
+    var errorDescription: String? {
+        message
+    }
 }
 
-nonisolated private func backendRead<T>(_ operation: () async throws -> T) async throws -> T {
+private nonisolated func backendRead<T>(_ operation: () async throws -> T) async throws -> T {
     do { return try await operation() }
-    catch BackendError.Read(let message) { throw RepositoryReadFailure(message: message) }
+    catch let BackendError.Read(message) { throw RepositoryReadFailure(message: message) }
     catch BackendError.Cancelled { throw CancellationError() }
     catch BackendError.DiffTooLarge { throw FileDiff.Failure.tooLarge }
 }

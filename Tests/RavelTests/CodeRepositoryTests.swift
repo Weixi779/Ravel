@@ -1,8 +1,8 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
-import Testing
 @testable import Ravel
+import Testing
 
 nonisolated struct CodeRepositoryTests {
     @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")), arguments: [1, 1000, 5000])
@@ -75,7 +75,7 @@ nonisolated struct CodeRepositoryTests {
         try await Task(priority: .userInitiated) {
             let repository = try await CodeRepository.open(directory)
             do {
-                for _ in 0..<8 {
+                for _ in 0 ..< 8 {
                     let query = try await repository.history(pageSize: 1000)
                     await Task {
                         withUnsafeCurrentTask { $0?.cancel() }
@@ -119,12 +119,10 @@ nonisolated struct CodeRepositoryTests {
     '"isDivergent":' ++ json(divergent) ++ ',' ++
     '"isEmpty":' ++ json(empty) ++ "}\n"
     """#
-
-
 }
 
-// CLI JSON is an independent test oracle, not the application's domain format.
-nonisolated private struct CLIRevisionReference: Decodable {
+/// CLI JSON is an independent test oracle, not the application's domain format.
+private nonisolated struct CLIRevisionReference: Decodable {
     let commitID: String
     let changeID: String
     let parentIDs: [String]

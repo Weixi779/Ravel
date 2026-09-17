@@ -2,8 +2,8 @@
 
 import Foundation
 import Localization
-import Testing
 @testable import Ravel
+import Testing
 
 nonisolated struct LocalizedPresentationTests {
     @Test(arguments: ["", "No description", "中文 %@ 🚀\nsecond line"])
@@ -11,7 +11,7 @@ nonisolated struct LocalizedPresentationTests {
         let row = Revision(
             commitID: "commit", changeID: "change", parentIDs: [], description: description,
             author: "author", email: "email", timestamp: .distantPast, bookmarks: [],
-            isWorkingCopy: false, isImmutable: false, hasConflict: false, isDivergent: false, isEmpty: false
+            isWorkingCopy: false, isImmutable: false, hasConflict: false, isDivergent: false, isEmpty: false,
         )
         if description.isEmpty {
             #expect(row.summary.isEmpty)
@@ -22,11 +22,13 @@ nonisolated struct LocalizedPresentationTests {
         #expect(row.description == description)
     }
 
-    @Test func diffPreviewLimitIsLocalized() {
+    @Test
+    func diffPreviewLimitIsLocalized() {
         #expect(FileDiff.Failure.tooLarge.localizedDescription == String(localized: I18n.errorsDiffTooLarge))
     }
 
-    @Test func hostDeclaresTheLanguagesOfItsResourcePackage() throws {
+    @Test
+    func hostDeclaresTheLanguagesOfItsResourcePackage() throws {
         let languages = try #require(Bundle.main.object(forInfoDictionaryKey: "CFBundleLocalizations") as? [String])
         #expect(Set(languages) == ["en", "zh-Hans", "zh-Hant", "ja", "ko", "de", "fr", "es", "pt-BR"])
     }

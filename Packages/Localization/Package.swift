@@ -11,5 +11,5 @@ let package = Package(
     targets: [
         .target(name: "Localization", resources: [.process("Resources")]),
         .testTarget(name: "LocalizationTests", dependencies: ["Localization"]),
-    ]
+    ],
 )
