@@ -55,8 +55,10 @@ open /path/to/Ravel.app --args --repository /path/to/workspace
 
 Swift 6 language mode, complete concurrency checking, MainActor default isolation,
 and approachable concurrency are enabled in `Config/Concurrency.xcconfig`.
-`nonisolated` value types explicitly cross the UI boundary. There are no
-`@unchecked Sendable` or `@preconcurrency` escape hatches in Ravel's code.
+`nonisolated` value types explicitly cross the UI boundary. UI and session models
+retain checked actor isolation. UserDefaultsKit contains one internal, immutable
+`@unchecked Sendable` bridge for Foundation's documented thread-safe UserDefaults;
+its Store and accessors otherwise use checked Sendable conformances.
 
 The log follows the workspace's `revsets.log` selection and keeps jj's ordering.
 It displays up to 300 revisions and marks parents outside the loaded set with
@@ -90,11 +92,13 @@ layer in the current implementation.
 | --- | --- |
 | `Sources/Ravel/RavelApp.swift` | Window lifetime, commands, repository and executable panels |
 | `Sources/Ravel/Log/LogSession.swift` | Repository loading, selected revision, recents and refresh state |
+| `Sources/Ravel/UserDefaultsKeys.swift` | Shared declarations of typed business keys and defaults |
 | `Sources/Ravel/Log/JJClient.swift` | Process execution, executable discovery and structured log decoding |
 | `Sources/Ravel/Log/LogGraph.swift` | Lane assignment and edges for the loaded revision set |
 | `Sources/Ravel/Diff/` | Changed-file queries, patch parsing and cancellable diff state |
 | `Sources/Ravel/UI/` | SwiftUI composition, AppKit history table, graph and text diff rendering |
 | `Packages/Logger/` | Native system loggers with a shared subsystem convention |
+| `Packages/UserDefaultsKit/` | Typed storage, plain property wrapper and optional Observation macro |
 | `Tests/RavelTests/` | Swift Testing unit and temporary-repository integration tests |
 
 These are the current ownership boundaries, not a final architecture proposal.

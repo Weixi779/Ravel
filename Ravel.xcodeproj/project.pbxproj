@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0DEF00000000000000000001 /* UserDefaultsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0DEF00000000000000000002 /* UserDefaultsKit */; };
+		0DEF00000000000000000003 /* UserDefaultsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0DEF00000000000000000004 /* UserDefaultsKit */; };
+		0DEF00000000000000000006 /* UserDefaultsKitMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 0DEF00000000000000000007 /* UserDefaultsKitMacros */; };
+		0DEF00000000000000000008 /* UserDefaultsKitMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 0DEF00000000000000000009 /* UserDefaultsKitMacros */; };
 		106600000000000000000001 /* Logger in Frameworks */ = {isa = PBXBuildFile; productRef = 106600000000000000000002 /* Logger */; };
 		106600000000000000000003 /* Logger in Frameworks */ = {isa = PBXBuildFile; productRef = 106600000000000000000004 /* Logger */; };
 		10CA11000000000000000001 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000002 /* Localization */; };
@@ -27,6 +31,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0DEF00000000000000000005 /* UserDefaultsKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = UserDefaultsKit; sourceTree = "<group>"; };
 		106600000000000000000005 /* Logger */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Logger; sourceTree = "<group>"; };
 		10CA11000000000000000006 /* Localization */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Localization; sourceTree = "<group>"; };
 		681C948D238C526E9E3424E0 /* Ravel.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ravel.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -50,6 +55,8 @@
 				10CA11000000000000000001 /* Localization in Frameworks */,
 				DE5100000000000000000001 /* DesignSystem in Frameworks */,
 				106600000000000000000001 /* Logger in Frameworks */,
+				0DEF00000000000000000001 /* UserDefaultsKit in Frameworks */,
+				0DEF00000000000000000006 /* UserDefaultsKitMacros in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -60,6 +67,8 @@
 				18D917D0BA08BBFF1FF4D893 /* Subprocess in Frameworks */,
 				10CA11000000000000000003 /* Localization in Frameworks */,
 				106600000000000000000003 /* Logger in Frameworks */,
+				0DEF00000000000000000003 /* UserDefaultsKit in Frameworks */,
+				0DEF00000000000000000008 /* UserDefaultsKitMacros in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,6 +102,7 @@
 				10CA11000000000000000006 /* Localization */,
 				DE5100000000000000000003 /* DesignSystem */,
 				106600000000000000000005 /* Logger */,
+				0DEF00000000000000000005 /* UserDefaultsKit */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -121,6 +131,8 @@
 				65A0A99A790FD6D8C5DD6122 /* Subprocess */,
 				10CA11000000000000000004 /* Localization */,
 				106600000000000000000004 /* Logger */,
+				0DEF00000000000000000004 /* UserDefaultsKit */,
+				0DEF00000000000000000009 /* UserDefaultsKitMacros */,
 			);
 			productName = RavelTests;
 			productReference = F739566ED5280322FF98A798 /* RavelTests.xctest */;
@@ -147,6 +159,8 @@
 				10CA11000000000000000002 /* Localization */,
 				DE5100000000000000000002 /* DesignSystem */,
 				106600000000000000000002 /* Logger */,
+				0DEF00000000000000000002 /* UserDefaultsKit */,
+				0DEF00000000000000000007 /* UserDefaultsKitMacros */,
 			);
 			productName = Ravel;
 			productReference = 681C948D238C526E9E3424E0 /* Ravel.app */;
@@ -409,6 +423,22 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0DEF00000000000000000007 /* UserDefaultsKitMacros */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UserDefaultsKitMacros;
+		};
+		0DEF00000000000000000009 /* UserDefaultsKitMacros */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UserDefaultsKitMacros;
+		};
+		0DEF00000000000000000002 /* UserDefaultsKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UserDefaultsKit;
+		};
+		0DEF00000000000000000004 /* UserDefaultsKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UserDefaultsKit;
+		};
 		106600000000000000000002 /* Logger */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Logger;
