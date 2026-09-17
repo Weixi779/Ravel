@@ -2,8 +2,10 @@
 
 mod diff;
 mod history;
+mod worker;
 
 pub use diff::{BackendChangedFile, BackendFileStatus};
+use futures::FutureExt;
 pub use history::{BackendHistory, BackendPage, BackendRevision, HistoryInfo};
 use jj_cli::{
     config::{self, ConfigEnv},
@@ -17,10 +19,9 @@ use jj_lib::{
         default_working_copy_factories,
     },
 };
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{
-    Arc, Condvar, Mutex, Weak,
+    Arc, Mutex, Weak,
     atomic::{AtomicBool, Ordering},
 };
 
@@ -82,9 +83,25 @@ pub struct RepositoryIdentity {
 #[derive(Default)]
 struct RepositoryState {
     closed: bool,
-    queries: Vec<Weak<BackendHistory>>,
-    next_read_id: u64,
-    reads: HashMap<u64, Arc<BackendCancellation>>,
+    queries: Vec<Weak<history::HistoryWorker>>,
+    workers: Vec<ActiveWorker>,
+}
+
+#[derive(Clone)]
+struct ActiveWorker {
+    cancellation: Arc<BackendCancellation>,
+    finished: worker::Completion,
+}
+
+impl RepositoryState {
+    fn register(&mut self, cancellation: Arc<BackendCancellation>, finished: worker::Completion) {
+        self.workers
+            .retain(|worker| worker.finished.clone().now_or_never().is_none());
+        self.workers.push(ActiveWorker {
+            cancellation,
+            finished,
+        });
+    }
 }
 
 #[derive(uniffi::Object)]
@@ -92,13 +109,95 @@ pub struct BackendRepository {
     path: PathBuf,
     identity: RepositoryIdentity,
     state: Mutex<RepositoryState>,
-    reads_finished: Condvar,
 }
 
 #[uniffi::export]
 impl BackendRepository {
     #[uniffi::constructor]
-    pub fn open(path: String) -> Result<Self, BackendError> {
+    pub async fn open(path: String) -> Result<Self, BackendError> {
+        worker::spawn("ravel-open", move || Self::open_on_worker(path))?
+            .result()
+            .await
+    }
+
+    pub fn identity(&self) -> RepositoryIdentity {
+        self.identity.clone()
+    }
+
+    pub async fn diff(
+        &self,
+        operation_id: String,
+        commit_id: String,
+        cancellation: Arc<BackendCancellation>,
+    ) -> Result<Vec<BackendChangedFile>, BackendError> {
+        let path = self.path.clone();
+        self.run_read(cancellation, move |token| {
+            pollster::block_on(diff::files(&path, &operation_id, &commit_id, token))
+        })
+        .await
+    }
+
+    pub async fn file_diff(
+        &self,
+        operation_id: String,
+        commit_id: String,
+        file_path: String,
+        cancellation: Arc<BackendCancellation>,
+    ) -> Result<String, BackendError> {
+        let path = self.path.clone();
+        self.run_read(cancellation, move |token| {
+            pollster::block_on(diff::patch(
+                &path,
+                &operation_id,
+                &commit_id,
+                &file_path,
+                token,
+            ))
+        })
+        .await
+    }
+
+    pub async fn history(
+        &self,
+        page_size: u32,
+        cancellation: Arc<BackendCancellation>,
+    ) -> Result<Arc<BackendHistory>, BackendError> {
+        cancellation.check()?;
+        let pending = {
+            let mut state = self.state.lock().unwrap();
+            if state.closed {
+                return Err(BackendError::Closed);
+            }
+            let pending =
+                BackendHistory::start(self.path.clone(), page_size, cancellation.clone())?;
+            // Register before awaiting startup, so close also stops initializing queries.
+            state.queries.retain(|query| query.strong_count() > 0);
+            state.queries.push(Arc::downgrade(&pending.worker));
+            state.register(cancellation.clone(), pending.worker.finished.clone());
+            pending
+        };
+        let query = pending.ready().await?;
+        let closed = self.state.lock().unwrap().closed;
+        if closed || cancellation.check().is_err() {
+            query.close().await;
+            return Err(if closed {
+                BackendError::Closed
+            } else {
+                BackendError::Cancelled
+            });
+        }
+        Ok(query)
+    }
+
+    /// Await cleanup of every admitted worker, including initialization and dropped callers.
+    pub async fn close(&self) {
+        let workers = self.signal_close();
+        futures::future::join_all(workers.into_iter().map(|worker| worker.finished)).await;
+    }
+}
+
+impl BackendRepository {
+    fn open_on_worker(path: String) -> Result<Self, BackendError> {
         let workspace = load_workspace(Path::new(&path))?;
         let path = workspace.workspace_root().to_path_buf();
         let identity = RepositoryIdentity {
@@ -115,142 +214,53 @@ impl BackendRepository {
             path,
             identity,
             state: Mutex::default(),
-            reads_finished: Condvar::new(),
         })
     }
 
-    pub fn identity(&self) -> RepositoryIdentity {
-        self.identity.clone()
-    }
-
-    pub fn diff(
-        &self,
-        operation_id: String,
-        commit_id: String,
-        cancellation: Arc<BackendCancellation>,
-    ) -> Result<Vec<BackendChangedFile>, BackendError> {
-        self.run_read(cancellation, |token| {
-            pollster::block_on(diff::files(&self.path, &operation_id, &commit_id, token))
-        })
-    }
-
-    pub fn file_diff(
-        &self,
-        operation_id: String,
-        commit_id: String,
-        file_path: String,
-        cancellation: Arc<BackendCancellation>,
-    ) -> Result<String, BackendError> {
-        self.run_read(cancellation, |token| {
-            pollster::block_on(diff::patch(
-                &self.path,
-                &operation_id,
-                &commit_id,
-                &file_path,
-                token,
-            ))
-        })
-    }
-
-    pub fn history(
-        &self,
-        page_size: u32,
-        cancellation: Arc<BackendCancellation>,
-    ) -> Result<Arc<BackendHistory>, BackendError> {
-        cancellation.check()?;
-        if self.state.lock().unwrap().closed {
-            return Err(BackendError::Closed);
-        }
-        let query = Arc::new(BackendHistory::start(
-            self.path.clone(),
-            page_size,
-            cancellation,
-        )?);
-        let mut state = self.state.lock().unwrap();
-        if state.closed {
-            drop(state);
-            query.close();
-            return Err(BackendError::Closed);
-        }
-        state.queries.retain(|query| query.strong_count() > 0);
-        state.queries.push(Arc::downgrade(&query));
-        Ok(query)
-    }
-
-    // Waits for workers to release their read views. Call off the UI actor.
-    pub fn close(&self) {
-        let (queries, reads) = {
+    fn signal_close(&self) -> Vec<ActiveWorker> {
+        let (queries, workers) = {
             let mut state = self.state.lock().unwrap();
             state.closed = true;
             (
-                std::mem::take(&mut state.queries),
-                state.reads.values().cloned().collect::<Vec<_>>(),
+                state
+                    .queries
+                    .iter()
+                    .filter_map(Weak::upgrade)
+                    .collect::<Vec<_>>(),
+                state.workers.clone(),
             )
         };
-        for token in reads {
-            token.cancel();
+        for worker in &workers {
+            worker.cancellation.cancel();
         }
-        for query in queries.into_iter().filter_map(|query| query.upgrade()) {
-            query.close();
+        for query in queries {
+            query.signal_close();
         }
-        let state = self.state.lock().unwrap();
-        drop(
-            self.reads_finished
-                .wait_while(state, |state| !state.reads.is_empty())
-                .unwrap(),
-        );
+        workers
     }
-}
 
-impl BackendRepository {
-    fn run_read<T: Send>(
+    async fn run_read<T: Send + 'static>(
         &self,
         cancellation: Arc<BackendCancellation>,
-        read: impl FnOnce(&BackendCancellation) -> Result<T, BackendError> + Send,
+        read: impl FnOnce(&BackendCancellation) -> Result<T, BackendError> + Send + 'static,
     ) -> Result<T, BackendError> {
         cancellation.check()?;
-        let id = {
+        let worker = {
             let mut state = self.state.lock().unwrap();
             if state.closed {
                 return Err(BackendError::Closed);
             }
-            let id = state.next_read_id;
-            state.next_read_id += 1;
-            state.reads.insert(id, cancellation.clone());
-            id
+            let token = cancellation.clone();
+            let worker = worker::spawn("ravel-diff", move || {
+                token.check()?;
+                let result = read(&token)?;
+                token.check()?;
+                Ok(result)
+            })?;
+            state.register(cancellation, worker.finished.clone());
+            worker
         };
-        let _registration = ReadRegistration {
-            repository: self,
-            id,
-        };
-        // Keep jj's non-Send objects and recursive tree work on a native stack.
-        // Joining also makes completion mean all resources have been released.
-        std::thread::scope(|scope| {
-            std::thread::Builder::new()
-                .name("ravel-diff".into())
-                .stack_size(8 * 1024 * 1024)
-                .spawn_scoped(scope, || {
-                    cancellation.check()?;
-                    let result = read(&cancellation)?;
-                    cancellation.check()?;
-                    Ok(result)
-                })
-                .map_err(read_error)?
-                .join()
-                .map_err(|_| read_error("The native diff worker failed"))?
-        })
-    }
-}
-
-struct ReadRegistration<'a> {
-    repository: &'a BackendRepository,
-    id: u64,
-}
-
-impl Drop for ReadRegistration<'_> {
-    fn drop(&mut self) {
-        self.repository.state.lock().unwrap().reads.remove(&self.id);
-        self.repository.reads_finished.notify_all();
+        worker.result().await
     }
 }
 
@@ -286,27 +296,19 @@ fn load_workspace_for(path: &Path, command: &str) -> Result<Workspace, BackendEr
 
 impl Drop for BackendRepository {
     fn drop(&mut self) {
-        for query in self
-            .state
-            .get_mut()
-            .unwrap()
-            .queries
-            .iter()
-            .filter_map(Weak::upgrade)
-        {
-            query.signal_close();
-        }
+        self.signal_close();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::FutureExt;
     use std::sync::mpsc;
+    use std::time::Duration;
 
-    #[test]
-    fn close_cancels_native_reads_and_waits_for_resource_release() {
-        let repository = Arc::new(BackendRepository {
+    fn repository() -> BackendRepository {
+        BackendRepository {
             path: PathBuf::new(),
             identity: RepositoryIdentity {
                 workspace_path: String::new(),
@@ -314,50 +316,81 @@ mod tests {
                 workspace_name: String::new(),
             },
             state: Mutex::default(),
-            reads_finished: Condvar::new(),
-        });
+        }
+    }
+
+    #[test]
+    fn close_cancels_reads_and_all_callers_await_cleanup_even_after_read_is_dropped() {
+        struct Resource(Arc<AtomicBool>);
+        impl Drop for Resource {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::Release);
+            }
+        }
+        let repository = repository();
         let cancellation = Arc::new(BackendCancellation::new());
+        let cleaned_up = Arc::new(AtomicBool::new(false));
+        let resource = Resource(cleaned_up.clone());
         let (started, ready) = mpsc::channel();
-        let (cancelled, observed) = mpsc::channel();
         let (release, released) = mpsc::channel();
-        let reader = repository.clone();
-        let worker = std::thread::spawn(move || {
-            reader.run_read(cancellation, move |token| {
-                started.send(()).unwrap();
-                while token.check().is_ok() {
-                    std::thread::yield_now();
-                }
-                cancelled.send(()).unwrap();
-                released.recv().unwrap();
-                Ok(())
-            })
-        });
-        ready.recv().unwrap();
-        let closer = repository.clone();
-        let (closed, completed) = mpsc::channel();
-        let close = std::thread::spawn(move || {
-            closer.close();
-            closed.send(()).unwrap();
-        });
-        observed.recv().unwrap();
-        assert!(matches!(
-            completed.try_recv(),
-            Err(mpsc::TryRecvError::Empty)
-        ));
+        let mut read = Box::pin(repository.run_read(cancellation.clone(), move |token| {
+            let _resource = resource;
+            started.send(()).unwrap();
+            released.recv().unwrap();
+            token.check()
+        }));
+        assert!(read.as_mut().now_or_never().is_none());
+        ready.recv_timeout(Duration::from_secs(5)).unwrap();
+        let mut first_close = Box::pin(repository.close());
+        let mut second_close = Box::pin(repository.close());
+        assert!(first_close.as_mut().now_or_never().is_none());
+        assert!(second_close.as_mut().now_or_never().is_none());
+        assert!(matches!(cancellation.check(), Err(BackendError::Cancelled)));
+        assert!(!cleaned_up.load(Ordering::Acquire));
+        // Dropping the async caller must not remove a still-running worker from close.
+        drop(read);
+        assert!(first_close.as_mut().now_or_never().is_none());
         release.send(()).unwrap();
+        pollster::block_on(async {
+            futures::join!(first_close, second_close);
+        });
+        assert!(cleaned_up.load(Ordering::Acquire));
         assert!(matches!(
-            worker.join().unwrap(),
-            Err(BackendError::Cancelled)
-        ));
-        completed.recv().unwrap();
-        close.join().unwrap();
-        assert!(matches!(
-            repository.diff(
-                String::new(),
-                String::new(),
-                Arc::new(BackendCancellation::new())
+            pollster::block_on(
+                repository.run_read(Arc::new(BackendCancellation::new()), |_| Ok(()))
             ),
             Err(BackendError::Closed)
         ));
+    }
+
+    #[test]
+    fn cancelled_read_is_rejected_before_work_starts() {
+        let repository = repository();
+        let cancellation = Arc::new(BackendCancellation::new());
+        cancellation.cancel();
+        let result = pollster::block_on(repository.run_read::<()>(cancellation, |_| {
+            panic!("a pre-cancelled read must not run")
+        }));
+        assert!(matches!(result, Err(BackendError::Cancelled)));
+        assert!(repository.state.lock().unwrap().workers.is_empty());
+    }
+
+    #[test]
+    fn cancellation_during_work_discards_result_after_cleanup() {
+        let repository = repository();
+        let cancellation = Arc::new(BackendCancellation::new());
+        let (release, released) = mpsc::channel();
+        let mut read = Box::pin(repository.run_read(cancellation.clone(), move |_| {
+            released.recv().unwrap();
+            Ok(42)
+        }));
+        assert!(read.as_mut().now_or_never().is_none());
+        cancellation.cancel();
+        release.send(()).unwrap();
+        assert!(matches!(
+            pollster::block_on(read),
+            Err(BackendError::Cancelled)
+        ));
+        pollster::block_on(repository.close());
     }
 }

@@ -58,6 +58,15 @@ delivered page. Swift retains accepted rows for the table. Memory therefore grow
 with displayed rows in Swift; this is pagination, not eviction or unlimited
 constant-memory browsing.
 
+Opening, query initialization, pagination, Diff reads and explicit close are
+async UniFFI exports. Swift 6.2+ `@concurrent` adapters await their generated
+continuations; they do not synchronously receive a channel result or join a Rust
+thread on Swift's cooperative executor. Rust uses oneshot result channels and a
+shared cleanup completion. Blocking jj work stays on native workers with 8 MB
+stacks and explicit user-initiated QoS on Apple platforms. The history worker's
+request receive and jj's internal synchronous waits remain confined to those
+workers. Task priority does not automatically propagate across this boundary.
+
 A cursor contains the query identity and offset. It is valid only on that query;
 Swift rejects foreign query identities and Rust rejects offsets other than the
 next cursor or the most recently delivered cursor. A retry of that last cursor
@@ -67,11 +76,17 @@ silently skipping a failed stream item. Metadata failures retain the current ID
 for retry.
 
 Cancellation uses an explicit native token, checked between metadata operations.
+UniFFI 0.32's Swift async wrapper does not forward task cancellation to the Rust
+future, so the adapter retains its cancellation handler and publication checks.
 A running jj call cannot be interrupted halfway through an individual object or
 tree read. Swift checks task cancellation again before publishing. Query close
-signals the worker and waits for cleanup off the main actor; implicit destruction
-signals without blocking the actor. Repository close rejects new queries and
-closes its registered queries. New read queries can coexist with old read views;
+signals the worker and asynchronously awaits cleanup; implicit destruction only
+signals. Repository close rejects new work, cancels admitted reads and waits for
+all their native resources to be released, including queries still initializing
+and operations whose callers have stopped waiting. Registration occurs before
+the first await. Concurrent/repeated close calls await the same completion; the
+completion promises resource release, not that the OS thread has finished its
+exit bookkeeping. New read queries can coexist with old read views;
 there is no reader-wide global queue.
 
 ## Session and table behavior

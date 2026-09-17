@@ -5,8 +5,8 @@ import Testing
 @testable import Ravel
 
 nonisolated struct CodeRepositoryTests {
-    @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")))
-    func rustHistoryMatchesCLIAndPreservesWorkingDirectoryAndOperations() async throws {
+    @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")), arguments: [1, 1000, 5000])
+    func rustHistoryMatchesCLIAndPreservesWorkingDirectoryAndOperations(pageSize: Int) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Ravel test '中文' \(UUID())", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -18,7 +18,7 @@ nonisolated struct CodeRepositoryTests {
         try "not snapshotted".write(to: file, atomically: true, encoding: .utf8)
 
         let repository = try await CodeRepository.open(directory)
-        let query = try await repository.history(pageSize: 1)
+        let query = try await repository.history(pageSize: pageSize)
         var records: [Revision] = []
         var cursor: HistoryCursor?
         repeat {
@@ -62,6 +62,45 @@ nonisolated struct CodeRepositoryTests {
         let diff = try await repository.diff(commitID: workingCopy.id, at: before)
         #expect(diff.files.isEmpty)
         await repository.close()
+    }
+
+    @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")), .timeLimit(.minutes(1)))
+    func userInitiatedReadsRecoverFromCancellationAndAllowConcurrentClose() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Ravel bridge \(UUID())", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        _ = try await runJJ(["git", "init", "--colocate"], at: directory)
+
+        // Exercise the actual generated async bridge at the priority in the warning.
+        try await Task(priority: .userInitiated) {
+            let repository = try await CodeRepository.open(directory)
+            do {
+                for _ in 0..<8 {
+                    let query = try await repository.history(pageSize: 1000)
+                    await Task {
+                        withUnsafeCurrentTask { $0?.cancel() }
+                        await #expect(throws: CancellationError.self) { try await query.page(after: nil) }
+                    }.value
+                    let page = try await query.page(after: nil)
+                    #expect(page.revisions.count == 2) // Working copy and root.
+                    #expect(page.nextCursor == nil)
+                    let workingCopy = try #require(page.revisions.first { $0.isWorkingCopy })
+                    let diff = try await repository.diff(commitID: workingCopy.id, at: query.identity.operationID)
+                    #expect(diff.files.isEmpty)
+                    async let firstClose: Void = query.close()
+                    async let secondClose: Void = query.close()
+                    _ = await (firstClose, secondClose)
+                    await #expect(throws: (any Error).self) { try await query.page(after: nil) }
+                }
+            } catch {
+                await repository.close()
+                throw error
+            }
+            async let firstClose: Void = repository.close()
+            async let secondClose: Void = repository.close()
+            _ = await (firstClose, secondClose)
+            await #expect(throws: (any Error).self) { try await repository.history(pageSize: 1000) }
+        }.value
     }
 
     static let logTemplate = #"""

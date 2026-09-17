@@ -48,48 +48,53 @@ nonisolated final class CodeRepository: CodeRepositoryReader {
 
     @concurrent static func open(_ url: URL) async throws -> CodeRepository {
         try Task.checkCancellation()
-        let repository = try CodeRepository(backend: backendRead { try BackendRepository.open(path: url.path) })
+        let backend = try await backendRead { try await BackendRepository.open(path: url.path) }
+        let repository = CodeRepository(backend: backend)
         if Task.isCancelled {
-            repository.backend.close()
+            await repository.backend.close()
             throw CancellationError()
         }
         return repository
     }
 
-    @concurrent func history(pageSize: Int) async throws -> any HistoryQuery {
+    @concurrent
+    func history(pageSize: Int) async throws -> any HistoryQuery {
         guard (1...5000).contains(pageSize) else { throw RepositoryReadFailure(message: "Invalid history page size") }
         let cancellation = BackendCancellation()
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
-            let query = try backendRead { try backend.history(pageSize: UInt32(pageSize), cancellation: cancellation) }
+            let query = try await backendRead { try await backend.history(pageSize: UInt32(pageSize), cancellation: cancellation) }
             if Task.isCancelled {
-                query.close()
+                await query.close()
                 throw CancellationError()
             }
             return RustHistoryQuery(backend: query)
         } onCancel: { cancellation.cancel() }
     }
 
-    @concurrent func close() async { backend.close() }
+    @concurrent
+    func close() async { await backend.close() }
 
-    @concurrent func diff(commitID: String, at operationID: String) async throws -> RevisionDiff {
+    @concurrent
+    func diff(commitID: String, at operationID: String) async throws -> RevisionDiff {
         let cancellation = BackendCancellation()
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
-            let files = try backendRead {
-                try backend.diff(operationId: operationID, commitId: commitID, cancellation: cancellation)
+            let files = try await backendRead {
+                try await backend.diff(operationId: operationID, commitId: commitID, cancellation: cancellation)
             }
             try Task.checkCancellation()
             return RevisionDiff(files: files.map(ChangedFile.init))
         } onCancel: { cancellation.cancel() }
     }
 
-    @concurrent func fileDiff(commitID: String, path: String, at operationID: String) async throws -> FileDiff {
+    @concurrent
+    func fileDiff(commitID: String, path: String, at operationID: String) async throws -> FileDiff {
         let cancellation = BackendCancellation()
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
-            let patch = try backendRead {
-                try backend.fileDiff(operationId: operationID, commitId: commitID, filePath: path, cancellation: cancellation)
+            let patch = try await backendRead {
+                try await backend.fileDiff(operationId: operationID, commitId: commitID, filePath: path, cancellation: cancellation)
             }
             try Task.checkCancellation()
             return try FileDiff(patch: patch)
@@ -109,12 +114,13 @@ nonisolated private final class RustHistoryQuery: HistoryQuery {
                                    backendVersion: info.backendVersion)
     }
 
-    @concurrent func page(after cursor: HistoryCursor?) async throws -> HistoryPage {
+    @concurrent
+    func page(after cursor: HistoryCursor?) async throws -> HistoryPage {
         if let cursor, cursor.queryID != identity.queryID { throw BackendError.InvalidCursor }
         let cancellation = BackendCancellation()
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
-            let page = try backendRead { try backend.page(cursor: cursor?.offset ?? 0, cancellation: cancellation) }
+            let page = try await backendRead { try await backend.page(cursor: cursor?.offset ?? 0, cancellation: cancellation) }
             try Task.checkCancellation()
             return HistoryPage(revisions: page.revisions.map(Revision.init), nextCursor: page.nextCursor.map {
                 HistoryCursor(queryID: identity.queryID, offset: $0)
@@ -122,7 +128,8 @@ nonisolated private final class RustHistoryQuery: HistoryQuery {
         } onCancel: { cancellation.cancel() }
     }
 
-    @concurrent func close() async { backend.close() }
+    @concurrent
+    func close() async { await backend.close() }
 }
 
 nonisolated private extension Revision {
@@ -153,8 +160,8 @@ nonisolated private struct RepositoryReadFailure: LocalizedError {
     var errorDescription: String? { message }
 }
 
-nonisolated private func backendRead<T>(_ operation: () throws -> T) throws -> T {
-    do { return try operation() }
+nonisolated private func backendRead<T>(_ operation: () async throws -> T) async throws -> T {
+    do { return try await operation() }
     catch BackendError.Read(let message) { throw RepositoryReadFailure(message: message) }
     catch BackendError.Cancelled { throw CancellationError() }
     catch BackendError.DiffTooLarge { throw FileDiff.Failure.tooLarge }

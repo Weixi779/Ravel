@@ -709,11 +709,11 @@ public func FfiConverterTypeBackendCancellation_lower(_ value: BackendCancellati
 
 public protocol BackendHistoryProtocol: AnyObject, Sendable {
     
-    func close() 
+    func close() async 
     
     func info()  -> HistoryInfo
     
-    func page(cursor: UInt64, cancellation: BackendCancellation) throws  -> BackendPage
+    func page(cursor: UInt64, cancellation: BackendCancellation) async throws  -> BackendPage
     
 }
 open class BackendHistory: BackendHistoryProtocol, @unchecked Sendable {
@@ -769,12 +769,21 @@ open class BackendHistory: BackendHistoryProtocol, @unchecked Sendable {
     
 
     
-open func close()  {try! rustCall() {
-        uniffiCallStatus in
-    uniffi_ravel_backend_fn_method_backendhistory_close(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-}
+open func close()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendhistory_close(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_void,
+            completeFunc: ffi_ravel_backend_rust_future_complete_void,
+            freeFunc: ffi_ravel_backend_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
 }
     
 open func info() -> HistoryInfo  {
@@ -786,15 +795,20 @@ open func info() -> HistoryInfo  {
 })
 }
     
-open func page(cursor: UInt64, cancellation: BackendCancellation)throws  -> BackendPage  {
-    return try  FfiConverterTypeBackendPage_lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
-        uniffiCallStatus in
-    uniffi_ravel_backend_fn_method_backendhistory_page(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt64.lower(cursor),
-        FfiConverterTypeBackendCancellation_lower(cancellation),uniffiCallStatus
-    )
-})
+open func page(cursor: UInt64, cancellation: BackendCancellation)async throws  -> BackendPage  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendhistory_page(
+                        self.uniffiCloneHandle(),FfiConverterUInt64.lower(cursor),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendPage_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
 }
     
 
@@ -849,13 +863,16 @@ public func FfiConverterTypeBackendHistory_lower(_ value: BackendHistory) -> UIn
 
 public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
-    func close() 
+    /**
+     * Await cleanup of every admitted worker, including initialization and dropped callers.
+     */
+    func close() async 
     
-    func diff(operationId: String, commitId: String, cancellation: BackendCancellation) throws  -> [BackendChangedFile]
+    func diff(operationId: String, commitId: String, cancellation: BackendCancellation) async throws  -> [BackendChangedFile]
     
-    func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation) throws  -> String
+    func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation) async throws  -> String
     
-    func history(pageSize: UInt32, cancellation: BackendCancellation) throws  -> BackendHistory
+    func history(pageSize: UInt32, cancellation: BackendCancellation) async throws  -> BackendHistory
     
     func identity()  -> RepositoryIdentity
     
@@ -911,59 +928,89 @@ open class BackendRepository: BackendRepositoryProtocol, @unchecked Sendable {
     }
 
     
-public static func `open`(path: String)throws  -> BackendRepository  {
-    return try  FfiConverterTypeBackendRepository_lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
-        uniffiCallStatus in
-    uniffi_ravel_backend_fn_constructor_backendrepository_open(
-        FfiConverterString.lower(path),uniffiCallStatus
-    )
-})
+public static func `open`(path: String)async throws  -> BackendRepository  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_constructor_backendrepository_open(FfiConverterString.lower(path)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_u64,
+            completeFunc: ffi_ravel_backend_rust_future_complete_u64,
+            freeFunc: ffi_ravel_backend_rust_future_free_u64,
+            liftFunc: FfiConverterTypeBackendRepository_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
 }
     
 
     
-open func close()  {try! rustCall() {
-        uniffiCallStatus in
-    uniffi_ravel_backend_fn_method_backendrepository_close(
-            self.uniffiCloneHandle(),uniffiCallStatus
-    )
-}
-}
-    
-open func diff(operationId: String, commitId: String, cancellation: BackendCancellation)throws  -> [BackendChangedFile]  {
-    return try  FfiConverterSequenceTypeBackendChangedFile.lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
-        uniffiCallStatus in
-    uniffi_ravel_backend_fn_method_backendrepository_diff(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(operationId),
-        FfiConverterString.lower(commitId),
-        FfiConverterTypeBackendCancellation_lower(cancellation),uniffiCallStatus
-    )
-})
-}
-    
-open func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
-        uniffiCallStatus in
-    uniffi_ravel_backend_fn_method_backendrepository_file_diff(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(operationId),
-        FfiConverterString.lower(commitId),
-        FfiConverterString.lower(filePath),
-        FfiConverterTypeBackendCancellation_lower(cancellation),uniffiCallStatus
-    )
-})
+    /**
+     * Await cleanup of every admitted worker, including initialization and dropped callers.
+     */
+open func close()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_close(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_void,
+            completeFunc: ffi_ravel_backend_rust_future_complete_void,
+            freeFunc: ffi_ravel_backend_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
 }
     
-open func history(pageSize: UInt32, cancellation: BackendCancellation)throws  -> BackendHistory  {
-    return try  FfiConverterTypeBackendHistory_lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
-        uniffiCallStatus in
-    uniffi_ravel_backend_fn_method_backendrepository_history(
-            self.uniffiCloneHandle(),
-        FfiConverterUInt32.lower(pageSize),
-        FfiConverterTypeBackendCancellation_lower(cancellation),uniffiCallStatus
-    )
-})
+open func diff(operationId: String, commitId: String, cancellation: BackendCancellation)async throws  -> [BackendChangedFile]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_diff(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(operationId),FfiConverterString.lower(commitId),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeBackendChangedFile.lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_file_diff(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(operationId),FfiConverterString.lower(commitId),FfiConverterString.lower(filePath),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func history(pageSize: UInt32, cancellation: BackendCancellation)async throws  -> BackendHistory  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_history(
+                        self.uniffiCloneHandle(),FfiConverterUInt32.lower(pageSize),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_u64,
+            completeFunc: ffi_ravel_backend_rust_future_complete_u64,
+            freeFunc: ffi_ravel_backend_rust_future_free_u64,
+            liftFunc: FfiConverterTypeBackendHistory_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
 }
     
 open func identity() -> RepositoryIdentity  {
@@ -1632,6 +1679,54 @@ fileprivate struct FfiConverterSequenceTypeBackendRevision: FfiConverterRustBuff
         return seq
     }
 }
+private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
+private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
+
+fileprivate let uniffiContinuationHandleMap = UniffiHandleMap<UnsafeContinuation<Int8, Never>>()
+
+fileprivate func uniffiRustCallAsync<F, T>(
+    rustFutureFunc: () -> UInt64,
+    pollFunc: (UInt64, @escaping UniffiRustFutureContinuationCallback, UInt64) -> (),
+    completeFunc: (UInt64, UnsafeMutablePointer<RustCallStatus>) -> F,
+    freeFunc: (UInt64) -> (),
+    liftFunc: (F) throws -> T,
+    errorHandler: ((RustBuffer) throws -> Swift.Error)?
+) async throws -> T {
+    // Make sure to call the ensure init function since future creation doesn't have a
+    // RustCallStatus param, so doesn't use makeRustCall()
+    uniffiEnsureRavelBackendInitialized()
+    let rustFuture = rustFutureFunc()
+    defer {
+        freeFunc(rustFuture)
+    }
+    var pollResult: Int8;
+    repeat {
+        pollResult = await withUnsafeContinuation {
+            pollFunc(
+                rustFuture,
+                { handle, pollResult in
+                    uniffiFutureContinuationCallback(handle: handle, pollResult: pollResult)
+                },
+                uniffiContinuationHandleMap.insert(obj: $0)
+            )
+        }
+    } while pollResult != UNIFFI_RUST_FUTURE_POLL_READY
+
+    return try liftFunc(makeRustCall(
+        { completeFunc(rustFuture, $0) },
+        errorHandler: errorHandler
+    ))
+}
+
+// Callback handlers for an async calls.  These are invoked by Rust when the future is ready.  They
+// lift the return value or error and resume the suspended function.
+fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: Int8) {
+    if let continuation = try? uniffiContinuationHandleMap.remove(handle: handle) {
+        continuation.resume(returning: pollResult)
+    } else {
+        print("uniffiFutureContinuationCallback invalid handle")
+    }
+}
 
 private enum InitializationResult {
     case ok
@@ -1651,34 +1746,34 @@ private let initializationResult: InitializationResult = {
     if (uniffi_ravel_backend_checksum_method_backendcancellation_cancel() != 44595) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_method_backendrepository_close() != 25092) {
+    if (uniffi_ravel_backend_checksum_method_backendrepository_close() != 58431) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_method_backendrepository_diff() != 23872) {
+    if (uniffi_ravel_backend_checksum_method_backendrepository_diff() != 58992) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_method_backendrepository_file_diff() != 51446) {
+    if (uniffi_ravel_backend_checksum_method_backendrepository_file_diff() != 37310) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_method_backendrepository_history() != 64729) {
+    if (uniffi_ravel_backend_checksum_method_backendrepository_history() != 24013) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_identity() != 30316) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_method_backendhistory_close() != 61979) {
+    if (uniffi_ravel_backend_checksum_method_backendhistory_close() != 41414) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendhistory_info() != 28068) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_method_backendhistory_page() != 59521) {
+    if (uniffi_ravel_backend_checksum_method_backendhistory_page() != 37485) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_constructor_backendcancellation_new() != 39060) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_constructor_backendrepository_open() != 53807) {
+    if (uniffi_ravel_backend_checksum_constructor_backendrepository_open() != 43486) {
         return InitializationResult.apiChecksumMismatch
     }
 

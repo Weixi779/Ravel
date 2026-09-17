@@ -1,7 +1,7 @@
 // Created by weixi on 2026/09/17.
 
-use crate::{BackendCancellation, BackendError, load_workspace, read_error};
-use futures::StreamExt;
+use crate::{BackendCancellation, BackendError, load_workspace, read_error, worker};
+use futures::{StreamExt, channel::oneshot};
 use jj_cli::{config::load_aliases_map, ui::Ui};
 use jj_lib::{
     backend::CommitId,
@@ -20,11 +20,10 @@ use std::{
     collections::{HashMap, VecDeque},
     path::PathBuf,
     sync::{
-        Arc, Mutex,
+        Arc,
         atomic::{AtomicBool, Ordering},
         mpsc,
     },
-    thread,
 };
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
@@ -61,7 +60,7 @@ enum Request {
     Page {
         cursor: u64,
         cancellation: Arc<BackendCancellation>,
-        reply: mpsc::SyncSender<Result<BackendPage, BackendError>>,
+        reply: oneshot::Sender<Result<BackendPage, BackendError>>,
     },
     Stop,
 }
@@ -69,60 +68,98 @@ enum Request {
 #[derive(uniffi::Object)]
 pub struct BackendHistory {
     info: HistoryInfo,
-    requests: mpsc::Sender<Request>,
-    closed: Arc<AtomicBool>,
-    worker: Mutex<Option<thread::JoinHandle<()>>>,
+    worker: Arc<HistoryWorker>,
 }
 
-impl BackendHistory {
+pub(crate) struct HistoryWorker {
+    requests: mpsc::Sender<Request>,
+    closed: Arc<AtomicBool>,
+    pub(crate) finished: worker::Completion,
+}
+
+impl HistoryWorker {
     pub(crate) fn signal_close(&self) {
         self.closed.store(true, Ordering::Release);
         let _ = self.requests.send(Request::Stop);
     }
 
+    async fn close(&self) {
+        self.signal_close();
+        self.finished.clone().await;
+    }
+}
+
+impl Drop for HistoryWorker {
+    fn drop(&mut self) {
+        // Destruction only signals; explicit close awaits native resource cleanup.
+        self.signal_close();
+    }
+}
+
+pub(crate) struct PendingHistory {
+    pub(crate) worker: Arc<HistoryWorker>,
+    startup: oneshot::Receiver<Result<HistoryInfo, BackendError>>,
+}
+
+impl PendingHistory {
+    pub(crate) async fn ready(self) -> Result<Arc<BackendHistory>, BackendError> {
+        match self.startup.await.unwrap_or_else(|_| {
+            Err(read_error(
+                "The history worker stopped during initialization",
+            ))
+        }) {
+            Ok(info) => Ok(Arc::new(BackendHistory {
+                info,
+                worker: self.worker,
+            })),
+            Err(error) => {
+                self.worker.close().await;
+                Err(error)
+            }
+        }
+    }
+}
+
+impl BackendHistory {
     pub(crate) fn start(
         path: PathBuf,
         page_size: u32,
         cancellation: Arc<BackendCancellation>,
-    ) -> Result<Self, BackendError> {
+    ) -> Result<PendingHistory, BackendError> {
         if !(1..=5000).contains(&page_size) {
             return Err(read_error("Page size must be between 1 and 5000"));
         }
         let (requests, receiver) = mpsc::channel();
-        let (ready, startup) = mpsc::sync_channel(1);
+        let (ready, startup) = oneshot::channel();
         let closed = Arc::new(AtomicBool::new(false));
         let worker_closed = closed.clone();
-        let worker = thread::Builder::new()
-            .name("ravel-history".into())
-            .stack_size(8 * 1024 * 1024)
-            .spawn(move || {
-                // jj's revset stream borrows its repository and is not Send. Keep its
-                // entire lifetime on this worker, with demand-driven page requests.
-                let result = pollster::block_on(run(
-                    path,
-                    page_size as usize,
-                    cancellation,
-                    receiver,
-                    &ready,
-                    &worker_closed,
-                ));
-                if let Err(error) = result {
-                    let _ = ready.send(Err(error));
-                }
-            })
-            .map_err(read_error)?;
-        match startup.recv().map_err(read_error)? {
-            Ok(info) => Ok(Self {
-                info,
+        let worker = worker::spawn("ravel-history", move || {
+            let mut ready = Some(ready);
+            // jj's revset stream borrows its repository and is not Send. Keep its
+            // entire lifetime on this worker, with demand-driven page requests.
+            let result = pollster::block_on(run(
+                path,
+                page_size as usize,
+                cancellation,
+                receiver,
+                &mut ready,
+                &worker_closed,
+            ));
+            if let Err(error) = result
+                && let Some(ready) = ready.take()
+            {
+                let _ = ready.send(Err(error));
+            }
+            Ok(())
+        })?;
+        Ok(PendingHistory {
+            worker: Arc::new(HistoryWorker {
                 requests,
                 closed,
-                worker: Mutex::new(Some(worker)),
+                finished: worker.finished,
             }),
-            Err(error) => {
-                let _ = worker.join();
-                Err(error)
-            }
-        }
+            startup,
+        })
     }
 }
 
@@ -134,39 +171,29 @@ impl BackendHistory {
 
     // A cursor is valid only on this query. Retrying the last delivered cursor
     // returns the same page, including after Swift discarded a cancelled result.
-    pub fn page(
+    pub async fn page(
         &self,
         cursor: u64,
         cancellation: Arc<BackendCancellation>,
     ) -> Result<BackendPage, BackendError> {
-        if self.closed.load(Ordering::Acquire) {
+        if self.worker.closed.load(Ordering::Acquire) {
             return Err(BackendError::Closed);
         }
         cancellation.check()?;
-        let (reply, result) = mpsc::sync_channel(1);
-        self.requests
+        let (reply, result) = oneshot::channel();
+        self.worker
+            .requests
             .send(Request::Page {
                 cursor,
                 cancellation,
                 reply,
             })
             .map_err(|_| BackendError::Closed)?;
-        result.recv().map_err(|_| BackendError::Closed)?
+        result.await.map_err(|_| BackendError::Closed)?
     }
 
-    pub fn close(&self) {
-        self.signal_close();
-        if let Some(worker) = self.worker.lock().unwrap().take() {
-            let _ = worker.join();
-        }
-    }
-}
-
-impl Drop for BackendHistory {
-    fn drop(&mut self) {
-        // Drop must not block Swift's actor; explicit close provides a cleanup
-        // completion boundary. The worker owns no reference back to this object.
-        self.signal_close();
+    pub async fn close(&self) {
+        self.worker.close().await;
     }
 }
 
@@ -175,7 +202,7 @@ async fn run(
     page_size: usize,
     cancellation: Arc<BackendCancellation>,
     receiver: mpsc::Receiver<Request>,
-    ready: &mpsc::SyncSender<Result<HistoryInfo, BackendError>>,
+    ready: &mut Option<oneshot::Sender<Result<HistoryInfo, BackendError>>>,
     closed: &AtomicBool,
 ) -> Result<(), BackendError> {
     let workspace = load_workspace(&path)?;
@@ -286,13 +313,18 @@ async fn run(
         }
     }
     cancellation.check()?;
+    if closed.load(Ordering::Acquire) {
+        return Err(BackendError::Closed);
+    }
     ready
+        .take()
+        .unwrap()
         .send(Ok(HistoryInfo {
             operation_id: head.hex(),
             workspace_path: workspace.workspace_root().to_string_lossy().into_owned(),
             backend_version: "jj-lib 0.41.0".into(),
         }))
-        .map_err(read_error)?;
+        .map_err(|_| BackendError::Closed)?;
 
     let mut offset = 0;
     let mut last_page: Option<(u64, BackendPage)> = None;
@@ -391,4 +423,114 @@ async fn run(
         let _ = reply.send(result);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::FutureExt;
+
+    // Exercise the exported page/close futures with a controlled native producer.
+    fn query() -> (BackendHistory, mpsc::Receiver<Request>, oneshot::Sender<()>) {
+        let (requests, receiver) = mpsc::channel();
+        let (release, released) = oneshot::channel();
+        let worker = Arc::new(HistoryWorker {
+            requests,
+            closed: Arc::new(AtomicBool::new(false)),
+            finished: released.map(|_| ()).boxed().shared(),
+        });
+        (
+            BackendHistory {
+                info: HistoryInfo {
+                    operation_id: String::new(),
+                    workspace_path: String::new(),
+                    backend_version: String::new(),
+                },
+                worker,
+            },
+            receiver,
+            release,
+        )
+    }
+
+    #[test]
+    fn page_suspends_until_reply_and_close_suspends_until_cleanup() {
+        let (query, requests, cleanup) = query();
+        let token = Arc::new(BackendCancellation::new());
+        let mut page = Box::pin(query.page(0, token.clone()));
+        assert!(page.as_mut().now_or_never().is_none());
+        let Request::Page {
+            cursor,
+            cancellation,
+            reply,
+        } = requests.try_recv().unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(cursor, 0);
+        assert!(Arc::ptr_eq(&token, &cancellation));
+        let expected = BackendPage {
+            revisions: vec![],
+            next_cursor: Some(7),
+        };
+        reply.send(Ok(expected.clone())).unwrap();
+        assert_eq!(pollster::block_on(page).unwrap(), expected);
+        let mut first = Box::pin(query.close());
+        let mut second = Box::pin(query.close());
+        assert!(first.as_mut().now_or_never().is_none());
+        assert!(second.as_mut().now_or_never().is_none());
+        assert!(query.worker.closed.load(Ordering::Acquire));
+        assert!(matches!(
+            pollster::block_on(query.page(7, token)),
+            Err(BackendError::Closed)
+        ));
+        cleanup.send(()).unwrap();
+        pollster::block_on(async {
+            futures::join!(first, second);
+        });
+    }
+
+    #[test]
+    fn startup_failure_waits_for_cleanup_before_returning() {
+        let (query, _requests, cleanup) = query();
+        let (ready, startup) = oneshot::channel();
+        let mut starting = Box::pin(
+            PendingHistory {
+                worker: query.worker.clone(),
+                startup,
+            }
+            .ready(),
+        );
+        assert!(starting.as_mut().now_or_never().is_none());
+        ready.send(Err(BackendError::Cancelled)).ok().unwrap();
+        assert!(starting.as_mut().now_or_never().is_none());
+        assert!(query.worker.closed.load(Ordering::Acquire));
+        cleanup.send(()).unwrap();
+        assert!(matches!(
+            pollster::block_on(starting),
+            Err(BackendError::Cancelled)
+        ));
+    }
+
+    #[test]
+    fn cancelled_page_is_not_enqueued_and_dropped_reply_does_not_hang() {
+        let (query, requests, _cleanup) = query();
+        let token = Arc::new(BackendCancellation::new());
+        token.cancel();
+        assert!(matches!(
+            pollster::block_on(query.page(0, token)),
+            Err(BackendError::Cancelled)
+        ));
+        assert!(matches!(
+            requests.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+        let mut page = Box::pin(query.page(0, Arc::new(BackendCancellation::new())));
+        assert!(page.as_mut().now_or_never().is_none());
+        drop(requests.try_recv().unwrap());
+        assert!(matches!(
+            pollster::block_on(page),
+            Err(BackendError::Closed)
+        ));
+    }
 }

@@ -55,9 +55,10 @@ open /path/to/Ravel.app --args --repository /path/to/workspace
 - Pure Swift incrementally assigns graph lanes, retaining parents across pages.
 - The Rust reader enumerates changed files and renders Git patches in process,
   using the selected history operation and full commit ID.
-- Window state is `@MainActor` and observable. Native calls run off the main actor;
-  cancellation tokens and generation checks prevent replaced requests from
-  publishing stale pages.
+- Window state is `@MainActor` and observable. Swift awaits async UniFFI calls;
+  native workers own blocking jj operations at user-initiated QoS. Cancellation
+  tokens and generation checks prevent replaced requests from publishing stale
+  pages, and explicit close awaits native resource cleanup.
 
 Swift 6 language mode, complete concurrency checking, MainActor default isolation,
 and approachable concurrency are enabled in `Config/Concurrency.xcconfig`.
@@ -206,6 +207,15 @@ repository close cancels active reads and waits for cleanup, and that patch outp
 enforces preview limits and cancellation. `Tools/testBackend` isolates jj
 configuration; set `RAVEL_TEST_JJ` to override the fixture executable. Swift tests
 also compare the real Rust bridge output against CLI metadata.
+
+The shared Ravel test plan enables Xcode's Thread Performance Checker. Bridge
+tests cover page sizes 1/1,000/5,000, user-initiated reads, cancellation recovery
+and concurrent close. Rust tests use controlled completion signals to verify that
+waiting futures yield, cancelled results are discarded, and every close caller
+waits for native resource release even after the read future is dropped. On Apple
+platforms they also check the worker's actual QoS. These tests establish lifecycle
+guarantees; exercise a representative large repository in the app as well when
+checking runtime warnings or responsiveness.
 
 After changing the native interface, run `Tools/generateBackendBindings` and
 include its generated Swift/header/module-map changes. Both native and Swift

@@ -85,7 +85,7 @@ fn fixture(count: usize) -> TempDir {
     directory
 }
 fn open(path: &Path) -> BackendRepository {
-    BackendRepository::open(path.to_str().unwrap().into()).unwrap()
+    pollster::block_on(BackendRepository::open(path.to_str().unwrap().into())).unwrap()
 }
 fn ids(path: &Path) -> Vec<String> {
     jj(
@@ -109,7 +109,7 @@ fn collect(query: &BackendHistory, start: u64) -> Vec<BackendRevision> {
     let mut cursor = start;
     let mut records = vec![];
     loop {
-        let page = query.page(cursor, token()).unwrap();
+        let page = pollster::block_on(query.page(cursor, token())).unwrap();
         records.extend(page.revisions);
         if let Some(next) = page.next_cursor {
             cursor = next;
@@ -140,13 +140,13 @@ fn pages_all_visible_history_to_root_without_snapshot_or_import() {
     );
     std::fs::write(path.join("unrecorded.txt"), "unsaved in jj").unwrap();
     let repository = open(path);
-    let query = repository.history(37, token()).unwrap();
+    let query = pollster::block_on(repository.history(37, token())).unwrap();
     let records = collect(&query, 0);
-    let large_query = repository.history(5000, token()).unwrap();
-    let large_page = large_query.page(0, token()).unwrap();
+    let large_query = pollster::block_on(repository.history(5000, token())).unwrap();
+    let large_page = pollster::block_on(large_query.page(0, token())).unwrap();
     assert_eq!(large_page.revisions.len(), expected.len());
     assert!(large_page.next_cursor.is_none());
-    large_query.close();
+    pollster::block_on(large_query.close());
     assert_eq!(
         records
             .iter()
@@ -196,10 +196,13 @@ fn pages_all_visible_history_to_root_without_snapshot_or_import() {
         ),
         before
     );
-    repository.close();
-    assert!(matches!(query.page(0, token()), Err(BackendError::Closed)));
+    pollster::block_on(repository.close());
     assert!(matches!(
-        repository.history(37, token()),
+        pollster::block_on(query.page(0, token())),
+        Err(BackendError::Closed)
+    ));
+    assert!(matches!(
+        pollster::block_on(repository.history(37, token())),
         Err(BackendError::Closed)
     ));
 }
@@ -210,17 +213,17 @@ fn query_is_pinned_and_last_page_is_replayable_after_cancellation() {
     let path = directory.path();
     let repository = open(path);
     let expected = ids(path);
-    let query = repository.history(7, token()).unwrap();
-    let first = query.page(0, token()).unwrap();
-    assert_eq!(query.page(0, token()).unwrap(), first);
+    let query = pollster::block_on(repository.history(7, token())).unwrap();
+    let first = pollster::block_on(query.page(0, token())).unwrap();
+    assert_eq!(pollster::block_on(query.page(0, token())).unwrap(), first);
     let cancelled = token();
     cancelled.cancel();
     assert!(matches!(
-        query.page(7, cancelled),
+        pollster::block_on(query.page(7, cancelled)),
         Err(BackendError::Cancelled)
     ));
     assert!(matches!(
-        query.page(3, token()),
+        pollster::block_on(query.page(3, token())),
         Err(BackendError::InvalidCursor)
     ));
     jj(path, &["new", "-m", "new operation"]);
@@ -233,7 +236,7 @@ fn query_is_pinned_and_last_page_is_replayable_after_cancellation() {
             .collect::<Vec<_>>(),
         expected
     );
-    let fresh = repository.history(7, token()).unwrap();
+    let fresh = pollster::block_on(repository.history(7, token())).unwrap();
     assert_ne!(query.info().operation_id, fresh.info().operation_id);
     assert_eq!(
         collect(&fresh, 0)
@@ -242,8 +245,8 @@ fn query_is_pinned_and_last_page_is_replayable_after_cancellation() {
             .collect::<Vec<_>>(),
         ids(path)
     );
-    query.close();
-    fresh.close();
+    pollster::block_on(query.close());
+    pollster::block_on(fresh.close());
 }
 
 #[test]
@@ -284,12 +287,12 @@ fn concurrent_operations_are_not_reconciled_by_reader() {
     assert!(before.len() > 1);
     let repository = open(path);
     assert!(matches!(
-        repository.history(1, token()),
+        pollster::block_on(repository.history(1, token())),
         Err(BackendError::Read { .. })
     ));
     assert_eq!(heads(), before);
     jj(path, &["status"]);
-    let query = repository.history(1, token()).unwrap();
+    let query = pollster::block_on(repository.history(1, token())).unwrap();
     let records = collect(&query, 0);
     assert!(records.iter().filter(|record| record.is_divergent).count() >= 2);
     assert_eq!(
@@ -299,19 +302,22 @@ fn concurrent_operations_are_not_reconciled_by_reader() {
             .collect::<Vec<_>>(),
         ids(path)
     );
-    repository.close();
+    pollster::block_on(repository.close());
 }
 
 #[test]
 fn close_interrupts_queued_reads_and_is_idempotent() {
     let directory = fixture(8);
     let repository = open(directory.path());
-    let query = repository.history(1, token()).unwrap();
+    let query = pollster::block_on(repository.history(1, token())).unwrap();
     let reader = query.clone();
-    let request = std::thread::spawn(move || reader.page(0, token()));
-    query.close();
+    let request = std::thread::spawn(move || pollster::block_on(reader.page(0, token())));
+    pollster::block_on(query.close());
     let result = request.join().unwrap();
     assert!(result.is_ok() || matches!(result, Err(BackendError::Closed)));
-    query.close();
-    assert!(matches!(query.page(0, token()), Err(BackendError::Closed)));
+    pollster::block_on(query.close());
+    assert!(matches!(
+        pollster::block_on(query.page(0, token())),
+        Err(BackendError::Closed)
+    ));
 }
