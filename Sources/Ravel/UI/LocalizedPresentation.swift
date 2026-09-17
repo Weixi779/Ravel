@@ -21,23 +21,6 @@ nonisolated extension ChangedFile.Status {
     }
 }
 
-nonisolated extension JJClient.Failure: LocalizedError {
-    var errorDescription: String? {
-        switch self {
-        case .executableNotFound:
-            String(localized: I18n.errorsExecutableNotFound)
-        case .invalidExecutable(let path):
-            String(localized: I18n.errorsInvalidExecutable(path))
-        case .unsupportedVersion(let version):
-            String(localized: I18n.errorsUnsupportedVersion(version))
-        case .commandFailed(let message):
-            message
-        case .commandExited(let status):
-            String(localized: I18n.errorsCommandExited(status))
-        }
-    }
-}
-
 nonisolated extension FileDiff.Failure: LocalizedError {
     var errorDescription: String? {
         switch self {

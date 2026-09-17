@@ -35,4 +35,18 @@ actor RepositoryWorkspace {
         requestedURL = nil
         await previous?.close()
     }
+
+    func diff(_ request: RevisionDiffRequest) async throws -> RevisionDiff {
+        try await reader(for: request).diff(commitID: request.commitID, at: request.operationID)
+    }
+
+    func fileDiff(_ request: RevisionDiffRequest, file: ChangedFile) async throws -> FileDiff {
+        try await reader(for: request).fileDiff(commitID: request.commitID, path: file.path, at: request.operationID)
+    }
+
+    private func reader(for request: RevisionDiffRequest) throws -> CodeRepository {
+        let normalized = request.repositoryURL.standardizedFileURL.resolvingSymlinksInPath()
+        guard let repository, repository.workspaceURL == normalized else { throw CancellationError() }
+        return repository
+    }
 }

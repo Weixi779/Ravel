@@ -48,7 +48,7 @@ actor StubHistory: HistoryQuery {
     func finish(_ offset: UInt64, failing: Bool = false) {
         paused.remove(offset)
         let continuation = pending.removeValue(forKey: offset)
-        if failing { continuation?.resume(throwing: JJClient.Failure.commandFailed("Page failed")) }
+        if failing { continuation?.resume(throwing: TestFailure("Page failed")) }
         else { continuation?.resume(returning: result(at: offset)) }
     }
 

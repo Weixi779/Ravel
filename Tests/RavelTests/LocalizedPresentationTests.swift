@@ -22,10 +22,7 @@ nonisolated struct LocalizedPresentationTests {
         #expect(row.description == description)
     }
 
-    @Test func jjDiagnosticsRemainLiteralAndFallbackIsLocalized() {
-        let diagnostic = "jj: 错误 %@\n  path/한글.swift"
-        #expect(JJClient.Failure.commandFailed(diagnostic).localizedDescription == diagnostic)
-        #expect(JJClient.Failure.commandExited("exit(7)").localizedDescription == String(localized: I18n.errorsCommandExited("exit(7)")))
+    @Test func diffPreviewLimitIsLocalized() {
         #expect(FileDiff.Failure.tooLarge.localizedDescription == String(localized: I18n.errorsDiffTooLarge))
     }
 

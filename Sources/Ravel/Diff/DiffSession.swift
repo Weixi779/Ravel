@@ -25,7 +25,7 @@ final class DiffSession {
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var fileGeneration = 0
 
-    init(loader: @escaping Loader = JJClient.loadDiff, fileLoader: @escaping FileLoader = JJClient.loadFileDiff) {
+    init(loader: @escaping Loader, fileLoader: @escaping FileLoader) {
         self.loader = loader
         self.fileLoader = fileLoader
     }
@@ -44,7 +44,6 @@ final class DiffSession {
         if let previous = self.request, let request,
            previous.repositoryURL == request.repositoryURL,
            previous.commitID == request.commitID,
-           previous.executablePath == request.executablePath,
            diff != nil, errorMessage == nil, fileErrorMessage == nil {
             self.request = request
             return

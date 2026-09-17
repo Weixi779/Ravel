@@ -1,16 +1,10 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
-import Subprocess
 import Testing
 @testable import Ravel
 
-nonisolated struct JJClientTests {
-    @Test(arguments: [("jj 0.40.0", false), ("jj 0.41.0", true), ("jj 0.41.1", true), ("jj 1.0.0", true), ("unexpected", false)])
-    func versionCompatibility(value: String, supported: Bool) {
-        #expect(JJClient.supportsVersion(value) == supported)
-    }
-
+nonisolated struct CodeRepositoryTests {
     @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")))
     func rustHistoryMatchesCLIAndPreservesWorkingDirectoryAndOperations() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Ravel test '中文' \(UUID())", isDirectory: true)
@@ -54,7 +48,6 @@ nonisolated struct JJClientTests {
         await #expect(throws: (any Error).self) {
             try await query.page(after: HistoryCursor(queryID: UUID(), offset: 0))
         }
-        await repository.close()
         let after = try await runJJ(["--ignore-working-copy", "--at-op=@", "op", "log", "--no-graph", "--limit", "1", "--template", "id"], at: directory)
         #expect(before == after)
         #expect(try String(contentsOf: file, encoding: .utf8) == "not snapshotted")
@@ -66,9 +59,9 @@ nonisolated struct JJClientTests {
         _ = try await runJJ(["describe", "--at-op", before, "-m", "Concurrent one"], at: directory)
         _ = try await runJJ(["describe", "--at-op", before, "-m", "Concurrent two"], at: directory)
         let workingCopy = try #require(records.first { $0.isWorkingCopy })
-        let diff = try await JJClient.loadDiff(RevisionDiffRequest(repositoryURL: directory,
-            commitID: workingCopy.id, executablePath: "/opt/homebrew/bin/jj", operationID: before))
+        let diff = try await repository.diff(commitID: workingCopy.id, at: before)
         #expect(diff.files.isEmpty)
+        await repository.close()
     }
 
     static let logTemplate = #"""
@@ -89,17 +82,6 @@ nonisolated struct JJClientTests {
     """#
 
 
-    private func runJJ(_ arguments: [String], at directory: URL) async throws -> String {
-        let result = try await Subprocess.run(
-            .path("/opt/homebrew/bin/jj"),
-            arguments: .init(["--no-pager", "--color=never"] + arguments),
-            workingDirectory: .init(directory.path),
-            output: .string(limit: 1_048_576),
-            error: .string(limit: 65_536)
-        )
-        try #require(result.terminationStatus.isSuccess, "\(result.standardError)")
-        return result.standardOutput
-    }
 }
 
 // CLI JSON is an independent test oracle, not the application's domain format.

@@ -851,6 +851,10 @@ public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
     func close() 
     
+    func diff(operationId: String, commitId: String, cancellation: BackendCancellation) throws  -> [BackendChangedFile]
+    
+    func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation) throws  -> String
+    
     func history(pageSize: UInt32, cancellation: BackendCancellation) throws  -> BackendHistory
     
     func identity()  -> RepositoryIdentity
@@ -926,6 +930,31 @@ open func close()  {try! rustCall() {
 }
 }
     
+open func diff(operationId: String, commitId: String, cancellation: BackendCancellation)throws  -> [BackendChangedFile]  {
+    return try  FfiConverterSequenceTypeBackendChangedFile.lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
+        uniffiCallStatus in
+    uniffi_ravel_backend_fn_method_backendrepository_diff(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(operationId),
+        FfiConverterString.lower(commitId),
+        FfiConverterTypeBackendCancellation_lower(cancellation),uniffiCallStatus
+    )
+})
+}
+    
+open func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
+        uniffiCallStatus in
+    uniffi_ravel_backend_fn_method_backendrepository_file_diff(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(operationId),
+        FfiConverterString.lower(commitId),
+        FfiConverterString.lower(filePath),
+        FfiConverterTypeBackendCancellation_lower(cancellation),uniffiCallStatus
+    )
+})
+}
+    
 open func history(pageSize: UInt32, cancellation: BackendCancellation)throws  -> BackendHistory  {
     return try  FfiConverterTypeBackendHistory_lift(try rustCallWithError(FfiConverterTypeBackendError_lift) {
         uniffiCallStatus in
@@ -992,6 +1021,64 @@ public func FfiConverterTypeBackendRepository_lower(_ value: BackendRepository) 
 }
 
 
+
+
+public struct BackendChangedFile: Equatable, Hashable {
+    public var path: String
+    public var sourcePath: String
+    public var status: BackendFileStatus
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(path: String, sourcePath: String, status: BackendFileStatus) {
+        self.path = path
+        self.sourcePath = sourcePath
+        self.status = status
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendChangedFile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendChangedFile: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendChangedFile {
+        return
+            try BackendChangedFile(
+                path: FfiConverterString.read(from: &buf), 
+                sourcePath: FfiConverterString.read(from: &buf), 
+                status: FfiConverterTypeBackendFileStatus.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendChangedFile, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterString.write(value.sourcePath, into: &buf)
+        FfiConverterTypeBackendFileStatus.write(value.status, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendChangedFile_lift(_ buf: RustBuffer) throws -> BackendChangedFile {
+    return try FfiConverterTypeBackendChangedFile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendChangedFile_lower(_ value: BackendChangedFile) -> RustBuffer {
+    return FfiConverterTypeBackendChangedFile.lower(value)
+}
 
 
 public struct BackendPage: Equatable, Hashable {
@@ -1272,6 +1359,7 @@ enum BackendError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
     case Cancelled
     case Closed
     case InvalidCursor
+    case DiffTooLarge
 
     
 
@@ -1307,6 +1395,7 @@ public struct FfiConverterTypeBackendError: FfiConverterRustBuffer {
         case 2: return .Cancelled
         case 3: return .Closed
         case 4: return .InvalidCursor
+        case 5: return .DiffTooLarge
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1335,6 +1424,10 @@ public struct FfiConverterTypeBackendError: FfiConverterRustBuffer {
         case .InvalidCursor:
             writeInt(&buf, Int32(4))
         
+        
+        case .DiffTooLarge:
+            writeInt(&buf, Int32(5))
+        
         }
     }
 }
@@ -1353,6 +1446,93 @@ public func FfiConverterTypeBackendError_lift(_ buf: RustBuffer) throws -> Backe
 public func FfiConverterTypeBackendError_lower(_ value: BackendError) -> RustBuffer {
     return FfiConverterTypeBackendError.lower(value)
 }
+
+
+
+public enum BackendFileStatus: Equatable, Hashable {
+    
+    case modified
+    case added
+    case removed
+    case copied
+    case renamed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BackendFileStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendFileStatus: FfiConverterRustBuffer {
+    typealias SwiftType = BackendFileStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendFileStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .modified
+        
+        case 2: return .added
+        
+        case 3: return .removed
+        
+        case 4: return .copied
+        
+        case 5: return .renamed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BackendFileStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .modified:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .added:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .removed:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .copied:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .renamed:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileStatus_lift(_ buf: RustBuffer) throws -> BackendFileStatus {
+    return try FfiConverterTypeBackendFileStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileStatus_lower(_ value: BackendFileStatus) -> RustBuffer {
+    return FfiConverterTypeBackendFileStatus.lower(value)
+}
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -1406,6 +1586,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBackendChangedFile: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendChangedFile]
+
+    public static func write(_ value: [BackendChangedFile], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendChangedFile.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendChangedFile] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendChangedFile]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendChangedFile.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeBackendRevision: FfiConverterRustBuffer {
     typealias SwiftType = [BackendRevision]
 
@@ -1447,6 +1652,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_close() != 25092) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_diff() != 23872) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_file_diff() != 51446) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_history() != 64729) {

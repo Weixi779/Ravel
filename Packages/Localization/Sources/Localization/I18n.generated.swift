@@ -233,15 +233,6 @@ public nonisolated enum I18n {
     }
 
     /**
-     Used only when jj produced no stderr. Argument is the raw termination status.
-     
-     Localized string for key “errorsCommandExited” in table “Localizable.xcstrings”.
-     */
-    public static func errorsCommandExited(_ arg1: String) -> LocalizedStringResource {
-        LocalizedStringResource("errorsCommandExited", defaultValue: "\(arg1)", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
      Preview size limit. Keep the limits consistent with FileDiff.
      
      Localized string for key “errorsDiffTooLarge” in table “Localizable.xcstrings”.
@@ -251,39 +242,12 @@ public nonisolated enum I18n {
     }
 
     /**
-     Recovery instruction when executable discovery fails.
-     
-     Localized string for key “errorsExecutableNotFound” in table “Localizable.xcstrings”.
-     */
-    public static var errorsExecutableNotFound: LocalizedStringResource {
-        LocalizedStringResource("errorsExecutableNotFound", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
-     Argument is a literal executable path.
-     
-     Localized string for key “errorsInvalidExecutable” in table “Localizable.xcstrings”.
-     */
-    public static func errorsInvalidExecutable(_ arg1: String) -> LocalizedStringResource {
-        LocalizedStringResource("errorsInvalidExecutable", defaultValue: "\(arg1)", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
      Malformed or incomplete patch.
      
      Localized string for key “errorsMalformedPatch” in table “Localizable.xcstrings”.
      */
     public static var errorsMalformedPatch: LocalizedStringResource {
         LocalizedStringResource("errorsMalformedPatch", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
-     Argument is the version reported by jj. Keep the minimum required version.
-     
-     Localized string for key “errorsUnsupportedVersion” in table “Localizable.xcstrings”.
-     */
-    public static func errorsUnsupportedVersion(_ arg1: String) -> LocalizedStringResource {
-        LocalizedStringResource("errorsUnsupportedVersion", defaultValue: "\(arg1)", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -571,39 +535,12 @@ public nonisolated enum I18n {
     }
 
     /**
-     Command opening the executable picker.
-     
-     Localized string for key “repositoryChooseExecutable” in table “Localizable.xcstrings”.
-     */
-    public static var repositoryChooseExecutable: LocalizedStringResource {
-        LocalizedStringResource("repositoryChooseExecutable", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
      Repository picker instructions.
      
      Localized string for key “repositoryChooseWorkspace” in table “Localizable.xcstrings”.
      */
     public static var repositoryChooseWorkspace: LocalizedStringResource {
         LocalizedStringResource("repositoryChooseWorkspace", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
-     Executable picker instructions.
-     
-     Localized string for key “repositoryExecutableHelp” in table “Localizable.xcstrings”.
-     */
-    public static var repositoryExecutableHelp: LocalizedStringResource {
-        LocalizedStringResource("repositoryExecutableHelp", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
-     Executable picker title.
-     
-     Localized string for key “repositoryExecutableTitle” in table “Localizable.xcstrings”.
-     */
-    public static var repositoryExecutableTitle: LocalizedStringResource {
-        LocalizedStringResource("repositoryExecutableTitle", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -676,15 +613,6 @@ public nonisolated enum I18n {
      */
     public static var repositorySubtitle: LocalizedStringResource {
         LocalizedStringResource("repositorySubtitle", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
-     Confirm the selected executable.
-     
-     Localized string for key “repositoryUseExecutable” in table “Localizable.xcstrings”.
-     */
-    public static var repositoryUseExecutable: LocalizedStringResource {
-        LocalizedStringResource("repositoryUseExecutable", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**

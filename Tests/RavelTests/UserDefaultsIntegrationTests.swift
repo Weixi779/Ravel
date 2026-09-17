@@ -39,14 +39,11 @@ struct UserDefaultsIntegrationTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set("/repo", forKey: "lastRepositoryPath")
         defaults.set(["/repo", "/other"], forKey: "recentRepositoryPaths")
-        defaults.set("/bin/jj", forKey: "jjExecutablePath")
 
         let session = LogSession(defaults: defaults)
         #expect(session.recentPaths == ["/repo", "/other"])
-        session.setExecutable(URL(fileURLWithPath: "/new/jj"))
         session.forget("/repo")
         #expect(defaults.object(forKey: "lastRepositoryPath") == nil)
-        #expect(defaults.string(forKey: "jjExecutablePath") == "/new/jj")
         #expect(defaults.stringArray(forKey: "recentRepositoryPaths") == ["/other"])
     }
 
@@ -86,13 +83,9 @@ struct UserDefaultsIntegrationTests {
         let first = LogSession(defaults: firstDefaults)
         let second = LogSession(defaults: secondDefaults)
         first.forget("/first")
-        first.setExecutable(URL(fileURLWithPath: "/first/jj"))
-        second.setExecutable(URL(fileURLWithPath: "/second/jj"))
         #expect(first.recentPaths.isEmpty)
         #expect(second.recentPaths == ["/second"])
         #expect(firstDefaults.stringArray(forKey: "recentRepositoryPaths") == [])
         #expect(secondDefaults.stringArray(forKey: "recentRepositoryPaths") == ["/second"])
-        #expect(firstDefaults.string(forKey: "jjExecutablePath") == "/first/jj")
-        #expect(secondDefaults.string(forKey: "jjExecutablePath") == "/second/jj")
     }
 }

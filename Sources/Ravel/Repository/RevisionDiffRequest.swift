@@ -5,7 +5,6 @@ import Foundation
 nonisolated struct RevisionDiffRequest: Hashable, Sendable {
     let repositoryURL: URL
     let commitID: String
-    var executablePath: String?
+    let operationID: String
     var refreshedAt: Date?
-    var operationID: String?
 }

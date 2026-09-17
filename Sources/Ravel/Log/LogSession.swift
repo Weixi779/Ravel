@@ -29,10 +29,6 @@ final class LogSession {
     @ObservationIgnored
     private var lastWorkspacePath: String?
 
-    @ObservedDefault(.jjExecutablePath, store: \Self.store)
-    @ObservationIgnored
-    private var jjExecutablePath: String?
-
     @ObservedDefault(.historyPageSize, store: \Self.store)
     @ObservationIgnored
     private var storedHistoryPageSize: Int
@@ -70,13 +66,12 @@ final class LogSession {
     }
 
     var diffRequest: RevisionDiffRequest? {
-        guard let repositoryURL = log?.repositoryURL, let selectedRevision else { return nil }
+        guard let repositoryURL = log?.repositoryURL, let selectedRevision, let query else { return nil }
         return RevisionDiffRequest(
             repositoryURL: repositoryURL,
             commitID: selectedRevision.commitID,
-            executablePath: jjExecutablePath,
-            refreshedAt: lastUpdated,
-            operationID: query?.identity.operationID
+            operationID: query.identity.operationID,
+            refreshedAt: lastUpdated
         )
     }
 
@@ -212,10 +207,6 @@ final class LogSession {
         try RepositoryLog(repositoryURL: identity.repositoryURL, revisions: revisions,
                           graph: LogGraph(revisions: revisions),
                           hasMore: hasMore, backendVersion: identity.backendVersion)
-    }
-
-    func setExecutable(_ url: URL) {
-        jjExecutablePath = url.path
     }
 
     func setHistoryPageSize(_ size: Int) {

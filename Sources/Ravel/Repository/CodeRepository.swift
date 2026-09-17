@@ -6,6 +6,8 @@ import RavelBackend
 /// Application-facing read capability. Rust handles never escape this adapter.
 nonisolated protocol CodeRepositoryReader: Sendable {
     func history(pageSize: Int) async throws -> any HistoryQuery
+    func diff(commitID: String, at operationID: String) async throws -> RevisionDiff
+    func fileDiff(commitID: String, path: String, at operationID: String) async throws -> FileDiff
     func close() async
 }
 
@@ -69,6 +71,30 @@ nonisolated final class CodeRepository: CodeRepositoryReader {
     }
 
     @concurrent func close() async { backend.close() }
+
+    @concurrent func diff(commitID: String, at operationID: String) async throws -> RevisionDiff {
+        let cancellation = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            let files = try backendRead {
+                try backend.diff(operationId: operationID, commitId: commitID, cancellation: cancellation)
+            }
+            try Task.checkCancellation()
+            return RevisionDiff(files: files.map(ChangedFile.init))
+        } onCancel: { cancellation.cancel() }
+    }
+
+    @concurrent func fileDiff(commitID: String, path: String, at operationID: String) async throws -> FileDiff {
+        let cancellation = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            let patch = try backendRead {
+                try backend.fileDiff(operationId: operationID, commitId: commitID, filePath: path, cancellation: cancellation)
+            }
+            try Task.checkCancellation()
+            return try FileDiff(patch: patch)
+        } onCancel: { cancellation.cancel() }
+    }
 }
 
 nonisolated private final class RustHistoryQuery: HistoryQuery {
@@ -109,6 +135,19 @@ nonisolated private extension Revision {
     }
 }
 
+nonisolated private extension ChangedFile {
+    init(_ value: BackendChangedFile) {
+        let status: Status = switch value.status {
+        case .modified: .modified
+        case .added: .added
+        case .removed: .removed
+        case .copied: .copied
+        case .renamed: .renamed
+        }
+        self.init(path: value.path, sourcePath: value.sourcePath, status: status)
+    }
+}
+
 nonisolated private struct RepositoryReadFailure: LocalizedError {
     let message: String
     var errorDescription: String? { message }
@@ -118,4 +157,5 @@ nonisolated private func backendRead<T>(_ operation: () throws -> T) throws -> T
     do { return try operation() }
     catch BackendError.Read(let message) { throw RepositoryReadFailure(message: message) }
     catch BackendError.Cancelled { throw CancellationError() }
+    catch BackendError.DiffTooLarge { throw FileDiff.Failure.tooLarge }
 }

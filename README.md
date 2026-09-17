@@ -22,10 +22,10 @@ and identity. The last successfully opened workspace is restored at launch.
 - macOS 15 or later
 - Xcode 26 or later with Swift 6.2 or later
 - Rust 1.96.0 through rustup (pinned in `Backend/rust-toolchain.toml`)
-- Jujutsu (`jj`) 0.41 or later for the Diff inspector and integration fixtures
+- Jujutsu (`jj`) 0.41 or later only for creating integration-test fixtures
 
-Open `Ravel.xcodeproj`, select the **Ravel** scheme, and run. Swift Package Manager
-resolves Swift Subprocess 1.0.0. The build phase runs `Tools/buildBackend` and
+Open `Ravel.xcodeproj`, select the **Ravel** scheme, and run.
+The build phase runs `Tools/buildBackend` and
 statically links jj-lib 0.41.0 through UniFFI. The first build downloads Cargo
 dependencies. For a universal Release build, install both Rust targets:
 `rustup target add --toolchain 1.96.0 aarch64-apple-darwin x86_64-apple-darwin`.
@@ -33,8 +33,8 @@ The app uses local ad-hoc signing and does not require a development team.
 
 Choose **File → Open Repository…** (`⌘O`) and select an existing jj workspace.
 Refresh with `⌘R`, or return to the app after working in the terminal. `⌘0` selects
-the working-copy revision. The Ravel menu includes **Choose jj Executable…** for
-installations outside the usual Homebrew/PATH locations.
+the working-copy revision. Browsing history and diffs does not require an
+installed jj executable.
 
 An explicit workspace can also be provided when launching the built app:
 
@@ -53,7 +53,8 @@ open /path/to/Ravel.app --args --repository /path/to/workspace
 - Rust owns a fixed-operation history view and demand-driven revset traversal.
   `CodeRepositoryReader` and `HistoryQuery` expose application values to Swift.
 - Pure Swift incrementally assigns graph lanes, retaining parents across pages.
-- The existing Diff adapter uses Swift Subprocess with direct argument arrays.
+- The Rust reader enumerates changed files and renders Git patches in process,
+  using the selected history operation and full commit ID.
 - Window state is `@MainActor` and observable. Native calls run off the main actor;
   cancellation tokens and generation checks prevent replaced requests from
   publishing stale pages.
@@ -82,8 +83,8 @@ from different views.
 
 Diffs use the selected full commit ID and jj's `diff --revisions` semantics,
 including comparison against the automatic merge of all parents for a merge
-revision. The file list is decoded from explicit JSON fields; file previews use
-an escaped exact path fileset and the built-in Git diff format. Both revision and
+revision. The file list crosses the native bridge as typed records; file previews
+use an exact repository-path matcher and the built-in Git diff format. Both revision and
 file requests are cancelled on replacement, with generation checks preventing
 obsolete results from appearing. Binary files and empty revisions have explicit
 states; mode-only changes remain visible. Each file preview is limited to 2 MB
@@ -91,12 +92,12 @@ or 20,000 lines, with an error instead of a partial patch.
 
 Refreshing an unchanged commit keeps the loaded file and reading position.
 
-History uses the bundled Rust backend; Diff still requires a locally installed jj.
-Diff requests carry the history operation ID as well as the full commit ID. The
-macOS target remains non-sandboxed to access repositories and the executable.
+History and Diff use the bundled Rust backend. Diff requests carry the history
+operation ID as well as the full commit ID. The macOS target remains non-sandboxed
+to access repositories.
 
 The accepted reader/writer ownership, write preprocessing and cancellation
-contract, integration details, and remaining Diff migration are documented in
+contract and integration details are documented in
 [Repository architecture](Documentation/RepositoryArchitecture.md). No write
 commands or write UI are implemented in this slice.
 
@@ -104,10 +105,10 @@ commands or write UI are implemented in this slice.
 
 | Entry | Responsibility |
 | --- | --- |
-| `Sources/Ravel/RavelApp.swift` | Window lifetime, commands, repository and executable panels |
+| `Sources/Ravel/RavelApp.swift` | Window lifetime, feature composition, commands and repository panel |
 | `Sources/Ravel/Log/LogSession.swift` | Loaded pages, selected revision, recents, refresh and retry state |
 | `Sources/Ravel/UserDefaultsKeys.swift` | Shared declarations of typed business keys and defaults |
-| `Sources/Ravel/Repository/` | Workspace lifetime, repository reader, query cursor and CLI compatibility adapter |
+| `Sources/Ravel/Repository/` | Workspace lifetime, native repository reader, query cursor and diff requests |
 | `Sources/Ravel/Log/LogGraph.swift` | Lane assignment and edges for the loaded revision set |
 | `Sources/Ravel/Diff/` | Changed-file queries, patch parsing and cancellable diff state |
 | `Sources/Ravel/UI/` | SwiftUI composition, AppKit history table, graph and text diff rendering |
@@ -161,12 +162,11 @@ ignored. The Xcode project, shared scheme, and `Package.resolved` are tracked.
 
 The next milestones are open for discussion, rather than a fixed delivery plan:
 
-- Migrate changed-file queries and patch generation from the CLI to the repository reader.
 - Add history search and filtering without confusing filtered edges with unloaded parents.
 - Detect repository changes while the window stays active.
 - Improve diff navigation, large-file handling and side-by-side presentation.
 - Implement the first writer against the documented preparation, serialization and outcome contract.
-- Decide on jj distribution, app sandboxing, signing, notarization and updates.
+- Decide on app sandboxing, signing, notarization and updates.
 
 ## Artwork
 
@@ -191,9 +191,9 @@ xcodebuild -project Ravel.xcodeproj -scheme Ravel \
   -destination 'platform=macOS' -derivedDataPath .build/DerivedData test
 ```
 
-Swift Testing covers graph continuity, merges, hidden ancestry, divergent changes,
-version checks, stale pages, retry cursors, failed refreshes, diff hunk line
-numbers, CRLF, missing final newlines, and preview limits. CLI integration tests
+Swift Testing covers graph continuity, merges, pending ancestry, divergent changes,
+stale pages, retry cursors, failed refreshes, diff hunk line
+numbers, CRLF, missing final newlines, and preview limits. Native integration tests
 use isolated temporary repositories and run when `/opt/homebrew/bin/jj` is
 available. They cover rename and mode changes, binary files, special filenames,
 and merge semantics, and verify that reading leaves both the working directory
@@ -201,7 +201,9 @@ and operation history unchanged.
 
 Rust integration tests traverse more than 450 commits through root, verify fixed
 views across external operations, replay after cancellation, read-only state,
-concurrent-operation errors and close behavior. `Tools/testBackend` isolates jj
+concurrent-operation errors and close behavior. Native unit tests also verify that
+repository close cancels active reads and waits for cleanup, and that patch output
+enforces preview limits and cancellation. `Tools/testBackend` isolates jj
 configuration; set `RAVEL_TEST_JJ` to override the fixture executable. Swift tests
 also compare the real Rust bridge output against CLI metadata.
 

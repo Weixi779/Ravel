@@ -17,8 +17,6 @@
 		10CA11000000000000000003 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000004 /* Localization */; };
 		BAC000000000000000000001 /* RavelBackend in Frameworks */ = {isa = PBXBuildFile; productRef = BAC000000000000000000002 /* RavelBackend */; };
 		DE5100000000000000000001 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = DE5100000000000000000002 /* DesignSystem */; };
-		18D917D0BA08BBFF1FF4D893 /* Subprocess in Frameworks */ = {isa = PBXBuildFile; productRef = 65A0A99A790FD6D8C5DD6122 /* Subprocess */; };
-		A2AB82AC98A7E77AA21EF181 /* Subprocess in Frameworks */ = {isa = PBXBuildFile; productRef = E4DC2BAD49EDAEB98758B37A /* Subprocess */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,7 +51,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A2AB82AC98A7E77AA21EF181 /* Subprocess in Frameworks */,
 				BAC000000000000000000001 /* RavelBackend in Frameworks */,
 				10CA11000000000000000001 /* Localization in Frameworks */,
 				DE5100000000000000000001 /* DesignSystem in Frameworks */,
@@ -67,7 +64,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				18D917D0BA08BBFF1FF4D893 /* Subprocess in Frameworks */,
 				10CA11000000000000000003 /* Localization in Frameworks */,
 				106600000000000000000003 /* Logger in Frameworks */,
 				0DEF00000000000000000003 /* UserDefaultsKit in Frameworks */,
@@ -132,7 +128,6 @@
 			);
 			name = RavelTests;
 			packageProductDependencies = (
-				65A0A99A790FD6D8C5DD6122 /* Subprocess */,
 				10CA11000000000000000004 /* Localization */,
 				106600000000000000000004 /* Logger */,
 				0DEF00000000000000000004 /* UserDefaultsKit */,
@@ -160,7 +155,6 @@
 			);
 			name = Ravel;
 			packageProductDependencies = (
-				E4DC2BAD49EDAEB98758B37A /* Subprocess */,
 				BAC000000000000000000002 /* RavelBackend */,
 				10CA11000000000000000002 /* Localization */,
 				DE5100000000000000000002 /* DesignSystem */,
@@ -209,7 +203,6 @@
 			);
 			mainGroup = 0D6E4079E36703EBD37C0072;
 			packageReferences = (
-				9077EBBCEA07F49CAA26D37B /* XCRemoteSwiftPackageReference "swift-subprocess" */,
 			);
 			productRefGroup = 0A3E27B8CA818264D75C8D81 /* Products */;
 			projectDirPath = "";
@@ -446,17 +439,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		9077EBBCEA07F49CAA26D37B /* XCRemoteSwiftPackageReference "swift-subprocess" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/swiftlang/swift-subprocess.git";
-			requirement = {
-				kind = exactVersion;
-				version = 1.0.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
 		0DEF00000000000000000002 /* UserDefaultsKit */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -497,16 +479,6 @@
 		DE5100000000000000000002 /* DesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DesignSystem;
-		};
-		65A0A99A790FD6D8C5DD6122 /* Subprocess */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9077EBBCEA07F49CAA26D37B /* XCRemoteSwiftPackageReference "swift-subprocess" */;
-			productName = Subprocess;
-		};
-		E4DC2BAD49EDAEB98758B37A /* Subprocess */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9077EBBCEA07F49CAA26D37B /* XCRemoteSwiftPackageReference "swift-subprocess" */;
-			productName = Subprocess;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

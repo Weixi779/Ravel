@@ -6,7 +6,7 @@ import Localization
 struct RevisionInspector: View {
     let revision: Revision?
     let request: RevisionDiffRequest?
-    @State private var diff = DiffSession()
+    @Bindable var diff: DiffSession
     @State private var showsDetails = false
 
     var body: some View {
@@ -45,7 +45,6 @@ struct RevisionInspector: View {
                 placeholder(String(localized: I18n.diffLoadFailed), symbol: "exclamationmark.triangle", detail: error)
             } else if let changes = diff.diff {
                 VStack(spacing: 0) {
-                    if let warning = changes.warning { warningBar(warning) }
                     if changes.files.isEmpty {
                         placeholder(String(localized: I18n.diffEmptyTitle), symbol: "checkmark.circle", detail: String(localized: I18n.diffEmptyDetail))
                     } else {
@@ -136,7 +135,6 @@ struct RevisionInspector: View {
             } else if let error = diff.fileErrorMessage {
                 placeholder(String(localized: I18n.diffDisplayFailed), symbol: "exclamationmark.triangle", detail: error)
             } else if let content = diff.fileDiff {
-                if let warning = content.warning { warningBar(warning) }
                 if content.isBinary {
                     placeholder(String(localized: I18n.diffBinaryTitle), symbol: "doc.zipper", detail: String(localized: I18n.diffBinaryDetail))
                 } else if content.lines.isEmpty {
@@ -161,11 +159,6 @@ struct RevisionInspector: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func warningBar(_ text: String) -> some View {
-        Text(text).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
-            .padding(8).frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func statusColor(_ status: ChangedFile.Status) -> Color {

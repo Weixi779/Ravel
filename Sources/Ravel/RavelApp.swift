@@ -13,16 +13,18 @@ struct RavelApp: App {
     @NSApplicationDelegateAdaptor(RavelAppDelegate.self) private var appDelegate
     private let workspace: RepositoryWorkspace
     @State private var session: LogSession
+    @State private var diffSession: DiffSession
 
     init() {
         let workspace = RepositoryWorkspace()
         self.workspace = workspace
         _session = State(initialValue: LogSession(workspace: workspace))
+        _diffSession = State(initialValue: DiffSession(loader: workspace.diff, fileLoader: workspace.fileDiff))
     }
 
     var body: some Scene {
         Window("Ravel", id: "repository") {
-            RepositoryView(session: session)
+            RepositoryView(session: session, diffSession: diffSession)
                 .frame(minWidth: 920, minHeight: 560)
                 .task {
                     guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
@@ -56,9 +58,6 @@ struct RavelApp: App {
                 Button(String(localized: I18n.historyGoToWorkingCopy), systemImage: "scope") { session.selectWorkingCopy() }
                     .keyboardShortcut("0")
                     .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
-            }
-            CommandGroup(after: .appSettings) {
-                Button(String(localized: I18n.repositoryChooseExecutable)) { RepositoryPanel.chooseExecutable(using: session) }
             }
         }
 
@@ -111,16 +110,4 @@ enum RepositoryPanel {
         if panel.runModal() == .OK, let url = panel.url { session.open(url) }
     }
 
-    static func chooseExecutable(using session: LogSession) {
-        let panel = NSOpenPanel()
-        panel.title = String(localized: I18n.repositoryExecutableTitle)
-        panel.message = String(localized: I18n.repositoryExecutableHelp)
-        panel.prompt = String(localized: I18n.repositoryUseExecutable)
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.showsHiddenFiles = true
-        panel.directoryURL = URL(fileURLWithPath: "/opt/homebrew/bin", isDirectory: true)
-        if panel.runModal() == .OK, let url = panel.url { session.setExecutable(url) }
-    }
 }

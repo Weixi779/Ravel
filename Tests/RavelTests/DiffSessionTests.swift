@@ -13,9 +13,9 @@ struct DiffSessionTests {
         try await gate.waitForRequest("old")
         session.selectRevision(request("new"))
         try await gate.waitForRequest("new")
-        await gate.finish("new", with: RevisionDiff(files: [file("new")], warning: nil))
+        await gate.finish("new", with: RevisionDiff(files: [file("new")]))
         try await waitUntil { session.selectedFileID == "new" }
-        await gate.finish("old", with: RevisionDiff(files: [file("old")], warning: nil))
+        await gate.finish("old", with: RevisionDiff(files: [file("old")]))
         try await gate.waitForReturn("old")
         try await waitUntil { !session.isLoadingFile }
         #expect(session.diff?.files.map(\.path) == ["new"])
@@ -25,7 +25,7 @@ struct DiffSessionTests {
     @Test func obsoleteFileCannotReplaceNewFileAndRepositorySwitchClearsContent() async throws {
         let gate = DiffGate<FileDiff>()
         let files = [file("one"), file("two")]
-        let session = DiffSession(loader: { _ in RevisionDiff(files: files, warning: nil) },
+        let session = DiffSession(loader: { _ in RevisionDiff(files: files) },
                                   fileLoader: { _, file in try await gate.load(file.id) })
         session.selectRevision(request("commit"))
         try await gate.waitForRequest("one")
@@ -44,8 +44,8 @@ struct DiffSessionTests {
 
     @Test func failedFileLoadDoesNotLeavePreviousContentsVisible() async throws {
         let files = [file("good"), file("bad")]
-        let session = DiffSession(loader: { _ in RevisionDiff(files: files, warning: nil) }, fileLoader: { _, file in
-            if file.id == "bad" { throw JJClient.Failure.commandFailed("File unavailable") }
+        let session = DiffSession(loader: { _ in RevisionDiff(files: files) }, fileLoader: { _, file in
+            if file.id == "bad" { throw TestFailure("File unavailable") }
             return try FileDiff(patch: "content\n")
         })
         session.selectRevision(request("commit"))
@@ -59,7 +59,7 @@ struct DiffSessionTests {
 
     @Test func refreshingTheSameCommitKeepsTheLoadedFile() async throws {
         let files = [file("one"), file("two")]
-        let session = DiffSession(loader: { _ in RevisionDiff(files: files, warning: nil) },
+        let session = DiffSession(loader: { _ in RevisionDiff(files: files) },
                                   fileLoader: { _, _ in try FileDiff(patch: "content\n") })
         var selection = request("commit")
         session.selectRevision(selection)
@@ -75,7 +75,7 @@ struct DiffSessionTests {
     }
 
     private func request(_ id: String) -> RevisionDiffRequest {
-        .init(repositoryURL: URL(fileURLWithPath: "/repo"), commitID: id)
+        .init(repositoryURL: URL(fileURLWithPath: "/repo"), commitID: id, operationID: "operation")
     }
 
     private func file(_ path: String) -> ChangedFile {

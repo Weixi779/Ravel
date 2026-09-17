@@ -6,6 +6,7 @@ import Localization
 
 struct RepositoryView: View {
     @Bindable var session: LogSession
+    let diffSession: DiffSession
 
     var body: some View {
         NavigationSplitView {
@@ -161,7 +162,7 @@ struct RepositoryView: View {
                         }
                     }
                     .frame(minHeight: 180, idealHeight: 350)
-                    RevisionInspector(revision: session.selectedRevision, request: session.diffRequest)
+                    RevisionInspector(revision: session.selectedRevision, request: session.diffRequest, diff: diffSession)
                         .frame(minHeight: 240, idealHeight: 350)
                 }
             }

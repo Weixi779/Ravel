@@ -1,6 +1,6 @@
 # Repository access and history pagination
 
-Status: history reader implemented; writer contract accepted in design, not yet implemented.
+Status: history and Diff readers implemented; writer contract accepted in design, not yet implemented.
 
 ## Ownership
 
@@ -8,6 +8,8 @@ Status: history reader implemented; writer contract accepted in design, not yet 
 flowchart TD
     App[RavelApp / workspace composition] --> Workspace[RepositoryWorkspace]
     App --> Log[LogSession: selection, pages, refresh]
+    App --> Diff[DiffSession: file selection, previews]
+    Diff --> Workspace
     Workspace --> Repository[CodeRepository]
     Repository --> Reader[CodeRepositoryReader]
     Repository -. future capability .-> Writer[CodeRepositoryWriter]
@@ -15,7 +17,7 @@ flowchart TD
     Reader --> Query
     Repository --> Native[UniFFI / Rust BackendRepository]
     Query --> Worker[Rust query worker / ReadonlyRepo / revset stream]
-    Diff[DiffSession] --> CLI[Temporary CLI diff reader]
+    Native --> DiffWorker[Rust diff worker / fixed operation / merged parent trees]
 ```
 
 `CodeRepository` is the application access boundary for a workspace, not a feature
@@ -156,8 +158,9 @@ commands, generic transaction API, remote transport or database layer.
 ## Integration and remaining transition
 
 The backend pins Rust 1.96.0, jj-lib/jj-cli 0.41.0 and UniFFI 0.32.0. The jj-cli
-**library** supplies official configuration layers and alias loading; history does
-not launch the jj executable. Keep Cargo.lock checked in and review jj upgrades
+**library** supplies official configuration layers, alias loading, copy records
+and Git patch rendering. No application read launches the jj executable or an
+external diff tool. Keep Cargo.lock checked in and review jj upgrades
 as repository-format and semantics changes. Release keeps Rust debug metadata
 unstripped to avoid [Rust issue #157750](https://github.com/rust-lang/rust/issues/157750)
 with host macro libraries on macOS 27. `Tools/buildBackend` builds the static
@@ -165,13 +168,29 @@ archive for Xcode's architectures, and Xcode links it into the app. Generated Sw
 bindings/header/module map are checked in. After changing the exported API, run
 `Tools/generateBackendBindings` with the pinned toolchain and include the output.
 
-Diff is a deliberate intermediate boundary: it still launches the installed jj
-CLI using full commit IDs and `--ignore-working-copy --at-op=<history operation>`.
-Its DTO and request are independent of `LogSession`; the selected history query
-supplies the operation ID, so a refresh or concurrent external operation does not
-silently change the inspector's read context. It loads that operation separately
-from the native read view. Migrating changed-file enumeration and patch generation behind
-the repository reader is a separate implementation slice. A local jj executable
-remains necessary for Diff, not for browsing history. CLI selection preferences
-remain until that migration is complete. Changing the executable updates the
-inspector request without refreshing the native history query.
+`CodeRepositoryReader.diff` and `fileDiff` require an explicit operation ID and
+full commit ID. `RepositoryWorkspace` routes requests only to its current
+repository; an obsolete request cannot reopen a previous workspace. The selected
+history query supplies the operation ID. Each native Diff call loads that exact
+operation independently, so concurrent external heads do not change the view or
+trigger reconciliation. Swift receives typed changed-file records and a bounded
+Git patch; native objects stay on the worker. The app composition injects both
+feature sessions with this same workspace owner.
+
+Diff compares a commit against the automatic merge of all its parents. Copy
+records preserve rename/copy identity. A file request uses an exact repository
+path, with no shell or fileset interpolation. Built-in patch rendering ignores
+external formatter configuration and preserves the existing three-line context,
+binary, conflict, permission and missing-newline behavior. Swift still derives
+line numbers and presentation from the patch.
+
+Repository close rejects new Diff calls, cancels active reads and waits for their
+workers to release resources. Cancellation is checked between repository/tree
+phases, while enumerating entries, and on patch output writes. An individual jj
+tree merge or content-diff calculation is not interruptible; close waits for it
+to reach the next check. Patch output is bounded to fewer than 2 MB and at most
+20,000 lines; limits fail the preview without publishing a partial patch.
+
+`JJClient`, executable-selection UI/preferences and the Swift Subprocess package
+have been removed. Tests alone launch jj to build fixtures and provide an
+independent comparison; end users do not need a jj executable for these readers.

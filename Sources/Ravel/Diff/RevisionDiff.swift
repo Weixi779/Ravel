@@ -2,8 +2,8 @@
 
 import Foundation
 
-nonisolated struct ChangedFile: Decodable, Identifiable, Hashable, Sendable {
-    enum Status: String, Decodable, Sendable {
+nonisolated struct ChangedFile: Identifiable, Hashable, Sendable {
+    enum Status: Sendable {
         case modified, added, removed, copied, renamed
 
         var letter: String {
@@ -26,7 +26,6 @@ nonisolated struct ChangedFile: Decodable, Identifiable, Hashable, Sendable {
 
 nonisolated struct RevisionDiff: Sendable {
     let files: [ChangedFile]
-    let warning: String?
 }
 
 nonisolated struct FileDiff: Identifiable, Sendable {
@@ -48,9 +47,8 @@ nonisolated struct FileDiff: Identifiable, Sendable {
     let id = UUID()
     let lines: [Line]
     let isBinary: Bool
-    let warning: String?
 
-    init(patch: String, warning: String? = nil) throws {
+    init(patch: String) throws {
         guard patch.utf8.count < Self.byteLimit else { throw Failure.tooLarge }
         var lines: [Line] = []
         var oldNumber = 0
@@ -105,7 +103,6 @@ nonisolated struct FileDiff: Identifiable, Sendable {
         guard oldRemaining == 0, newRemaining == 0 else { throw Failure.malformedPatch }
         self.lines = lines
         self.isBinary = binary
-        self.warning = warning
     }
 
     private static func hunkRange(_ text: Substring, sign: Character) -> (Int, Int)? {
