@@ -28,18 +28,12 @@ nonisolated extension JJClient.Failure: LocalizedError {
             String(localized: I18n.errorsExecutableNotFound)
         case .invalidExecutable(let path):
             String(localized: I18n.errorsInvalidExecutable(path))
-        case .invalidDirectory(let path):
-            String(localized: I18n.errorsInvalidDirectory(path))
         case .unsupportedVersion(let version):
             String(localized: I18n.errorsUnsupportedVersion(version))
         case .commandFailed(let message):
             message
         case .commandExited(let status):
             String(localized: I18n.errorsCommandExited(status))
-        case .malformedOutput(let line):
-            String(localized: I18n.errorsMalformedOutput(line))
-        case .duplicateCommit:
-            String(localized: I18n.errorsDuplicateCommit)
         }
     }
 }

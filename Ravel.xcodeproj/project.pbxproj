@@ -15,9 +15,10 @@
 		106600000000000000000003 /* Logger in Frameworks */ = {isa = PBXBuildFile; productRef = 106600000000000000000004 /* Logger */; };
 		10CA11000000000000000001 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000002 /* Localization */; };
 		10CA11000000000000000003 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000004 /* Localization */; };
+		BAC000000000000000000001 /* RavelBackend in Frameworks */ = {isa = PBXBuildFile; productRef = BAC000000000000000000002 /* RavelBackend */; };
+		DE5100000000000000000001 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = DE5100000000000000000002 /* DesignSystem */; };
 		18D917D0BA08BBFF1FF4D893 /* Subprocess in Frameworks */ = {isa = PBXBuildFile; productRef = 65A0A99A790FD6D8C5DD6122 /* Subprocess */; };
 		A2AB82AC98A7E77AA21EF181 /* Subprocess in Frameworks */ = {isa = PBXBuildFile; productRef = E4DC2BAD49EDAEB98758B37A /* Subprocess */; };
-		DE5100000000000000000001 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = DE5100000000000000000002 /* DesignSystem */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,6 +38,7 @@
 		681C948D238C526E9E3424E0 /* Ravel.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ravel.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		711A6108BA2CE6CA93DD47D6 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		9D3678D486CFCA2896AF75ED /* Config/Concurrency.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Concurrency.xcconfig; sourceTree = "<group>"; };
+		BAC000000000000000000003 /* RavelBackend */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RavelBackend; sourceTree = "<group>"; };
 		DE5100000000000000000003 /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = DesignSystem; sourceTree = "<group>"; };
 		F739566ED5280322FF98A798 /* RavelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RavelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -52,6 +54,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A2AB82AC98A7E77AA21EF181 /* Subprocess in Frameworks */,
+				BAC000000000000000000001 /* RavelBackend in Frameworks */,
 				10CA11000000000000000001 /* Localization in Frameworks */,
 				DE5100000000000000000001 /* DesignSystem in Frameworks */,
 				106600000000000000000001 /* Logger in Frameworks */,
@@ -103,6 +106,7 @@
 				DE5100000000000000000003 /* DesignSystem */,
 				106600000000000000000005 /* Logger */,
 				0DEF00000000000000000005 /* UserDefaultsKit */,
+				BAC000000000000000000003 /* RavelBackend */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -142,6 +146,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7BCEE9A04133D8A2FED7D4D3 /* Build configuration list for PBXNativeTarget "Ravel" */;
 			buildPhases = (
+				BAC000000000000000000004 /* Build Rust Backend */,
 				AFF87A50730392B6633ACECE /* Sources */,
 				7A4C2DC8FCA657188648E999 /* Frameworks */,
 				F9187E824FE171A6F0EFAE28 /* Resources */,
@@ -156,6 +161,7 @@
 			name = Ravel;
 			packageProductDependencies = (
 				E4DC2BAD49EDAEB98758B37A /* Subprocess */,
+				BAC000000000000000000002 /* RavelBackend */,
 				10CA11000000000000000002 /* Localization */,
 				DE5100000000000000000002 /* DesignSystem */,
 				106600000000000000000002 /* Logger */,
@@ -232,6 +238,25 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		BAC000000000000000000004 /* Build Rust Backend */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Backend";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/libravel_backend.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/Tools/buildBackend\"";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		9569AB05B95108EFEC78F5D3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -290,6 +315,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Ravel;
@@ -299,6 +325,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)/libravel_backend.a",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.weixi.Ravel;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -364,6 +394,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Ravel;
@@ -373,6 +404,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)/libravel_backend.a",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.weixi.Ravel;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -423,14 +458,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		0DEF00000000000000000007 /* UserDefaultsKitMacros */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = UserDefaultsKitMacros;
-		};
-		0DEF00000000000000000009 /* UserDefaultsKitMacros */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = UserDefaultsKitMacros;
-		};
 		0DEF00000000000000000002 /* UserDefaultsKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UserDefaultsKit;
@@ -438,6 +465,14 @@
 		0DEF00000000000000000004 /* UserDefaultsKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UserDefaultsKit;
+		};
+		0DEF00000000000000000007 /* UserDefaultsKitMacros */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UserDefaultsKitMacros;
+		};
+		0DEF00000000000000000009 /* UserDefaultsKitMacros */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UserDefaultsKitMacros;
 		};
 		106600000000000000000002 /* Logger */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -455,14 +490,18 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = Localization;
 		};
-		65A0A99A790FD6D8C5DD6122 /* Subprocess */ = {
+		BAC000000000000000000002 /* RavelBackend */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9077EBBCEA07F49CAA26D37B /* XCRemoteSwiftPackageReference "swift-subprocess" */;
-			productName = Subprocess;
+			productName = RavelBackend;
 		};
 		DE5100000000000000000002 /* DesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DesignSystem;
+		};
+		65A0A99A790FD6D8C5DD6122 /* Subprocess */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9077EBBCEA07F49CAA26D37B /* XCRemoteSwiftPackageReference "swift-subprocess" */;
+			productName = Subprocess;
 		};
 		E4DC2BAD49EDAEB98758B37A /* Subprocess */ = {
 			isa = XCSwiftPackageProductDependency;

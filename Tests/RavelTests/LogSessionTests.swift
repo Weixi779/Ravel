@@ -1,6 +1,8 @@
 // Created by weixi on 2026/09/09.
 
 import Foundation
+import Observation
+import Synchronization
 import Testing
 @testable import Ravel
 
@@ -46,6 +48,33 @@ struct LogSessionTests {
         #expect(session.errorMessage != nil)
     }
 
+    @Test func changingCLIExecutableUpdatesDiffWithoutReloadingHistory() async throws {
+        let suite = "RavelTests.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = try StubHistory(log: repositoryLog("/repo", revisions: [revision("saved")]))
+        let session = LogSession(defaults: defaults) { _, _ in history }
+        session.open(URL(fileURLWithPath: "/repo"))
+        try await waitUntil { !session.isLoading }
+        let snapshot = try #require(session.log?.snapshotID)
+        let request = try #require(session.diffRequest)
+        let changes = Mutex(0)
+        withObservationTracking {
+            _ = session.diffRequest
+        } onChange: {
+            changes.withLock { $0 += 1 }
+        }
+
+        session.setExecutable(URL(fileURLWithPath: "/new/jj"))
+
+        #expect(changes.withLock { $0 } == 1)
+        #expect(session.diffRequest?.executablePath == "/new/jj")
+        #expect(session.diffRequest?.operationID == request.operationID)
+        #expect(!session.isLoading)
+        #expect(session.log?.snapshotID == snapshot)
+        #expect(await history.requests == [0])
+    }
+
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
         while !condition() && ContinuousClock.now < deadline {
@@ -56,12 +85,12 @@ struct LogSessionTests {
 }
 
 private actor LoaderGate {
-    private var pending: [String: CheckedContinuation<RepositoryLog, any Error>] = [:]
+    private var pending: [String: CheckedContinuation<any HistoryQuery, any Error>] = [:]
     private var startedWaiters: [String: CheckedContinuation<Void, Never>] = [:]
     private var returned = Set<String>()
     private var returnWaiters: [String: CheckedContinuation<Void, Never>] = [:]
 
-    func load(_ url: URL) async throws -> RepositoryLog {
+    func load(_ url: URL) async throws -> any HistoryQuery {
         let result = try await withCheckedThrowingContinuation { continuation in
             pending[url.path] = continuation
             startedWaiters.removeValue(forKey: url.path)?.resume()
@@ -77,7 +106,7 @@ private actor LoaderGate {
     }
 
     func finish(_ path: String, with log: RepositoryLog) {
-        pending.removeValue(forKey: path)?.resume(returning: log)
+        pending.removeValue(forKey: path)?.resume(returning: StubHistory(log: log))
     }
 
     func fail(_ path: String) {

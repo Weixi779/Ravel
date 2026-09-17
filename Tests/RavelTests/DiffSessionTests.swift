@@ -74,7 +74,7 @@ struct DiffSessionTests {
         #expect(!session.isLoading && !session.isLoadingFile)
     }
 
-    private func request(_ id: String) -> DiffSession.Request {
+    private func request(_ id: String) -> RevisionDiffRequest {
         .init(repositoryURL: URL(fileURLWithPath: "/repo"), commitID: id)
     }
 

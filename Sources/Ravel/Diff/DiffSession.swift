@@ -6,15 +6,8 @@ import Observation
 @MainActor
 @Observable
 final class DiffSession {
-    nonisolated struct Request: Hashable, Sendable {
-        let repositoryURL: URL
-        let commitID: String
-        var executablePath: String?
-        var refreshedAt: Date?
-    }
-
-    typealias Loader = @Sendable (Request) async throws -> RevisionDiff
-    typealias FileLoader = @Sendable (Request, ChangedFile) async throws -> FileDiff
+    typealias Loader = @Sendable (RevisionDiffRequest) async throws -> RevisionDiff
+    typealias FileLoader = @Sendable (RevisionDiffRequest, ChangedFile) async throws -> FileDiff
 
     private(set) var diff: RevisionDiff?
     private(set) var fileDiff: FileDiff?
@@ -26,7 +19,7 @@ final class DiffSession {
 
     @ObservationIgnored private let loader: Loader
     @ObservationIgnored private let fileLoader: FileLoader
-    @ObservationIgnored private var request: Request?
+    @ObservationIgnored private var request: RevisionDiffRequest?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var fileTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
@@ -44,7 +37,7 @@ final class DiffSession {
 
     var selectedFile: ChangedFile? { diff?.files.first { $0.id == selectedFileID } }
 
-    func selectRevision(_ request: Request?) {
+    func selectRevision(_ request: RevisionDiffRequest?) {
         guard self.request != request else { return }
         // A commit's contents are immutable. A log refresh with the same commit
         // should preserve the reader's file selection, text selection and scroll.

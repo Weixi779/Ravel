@@ -11,7 +11,14 @@ import Localization
 @main
 struct RavelApp: App {
     @NSApplicationDelegateAdaptor(RavelAppDelegate.self) private var appDelegate
-    @State private var session = LogSession()
+    private let workspace: RepositoryWorkspace
+    @State private var session: LogSession
+
+    init() {
+        let workspace = RepositoryWorkspace()
+        self.workspace = workspace
+        _session = State(initialValue: LogSession(workspace: workspace))
+    }
 
     var body: some Scene {
         Window("Ravel", id: "repository") {
@@ -53,6 +60,25 @@ struct RavelApp: App {
             CommandGroup(after: .appSettings) {
                 Button(String(localized: I18n.repositoryChooseExecutable)) { RepositoryPanel.chooseExecutable(using: session) }
             }
+        }
+
+        Settings {
+            Form {
+                Picker(String(localized: I18n.historyPageSize), selection: Binding(
+                    get: { session.historyPageSize },
+                    set: { session.setHistoryPageSize($0) }
+                )) {
+                    ForEach(LogSession.historyPageSizes, id: \.self) { size in
+                        Text(size.formatted()).tag(size)
+                    }
+                }
+                Text(I18n.historyPageSizeHelp)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .formStyle(.grouped)
+            .frame(width: 440)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

@@ -26,7 +26,6 @@ nonisolated struct LocalizedPresentationTests {
         let diagnostic = "jj: 错误 %@\n  path/한글.swift"
         #expect(JJClient.Failure.commandFailed(diagnostic).localizedDescription == diagnostic)
         #expect(JJClient.Failure.commandExited("exit(7)").localizedDescription == String(localized: I18n.errorsCommandExited("exit(7)")))
-        #expect(JJClient.Failure.malformedOutput(42).localizedDescription == String(localized: I18n.errorsMalformedOutput(42)))
         #expect(FileDiff.Failure.tooLarge.localizedDescription == String(localized: I18n.errorsDiffTooLarge))
     }
 

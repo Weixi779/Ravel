@@ -6,31 +6,13 @@ import Testing
 @testable import Ravel
 
 nonisolated struct JJClientTests {
-    @Test func decodesEscapedDescriptionsAndStructuredParents() throws {
-        let data = Data(#"""
-        {"commitID":"one","changeID":"same","parentIDs":["base","other"],"description":"A \"quote\"\n中文 🚀\tend","author":"weixi","email":"weixi@example.com","timestamp":"2026-09-09T01:02:03Z","bookmarks":["feature/player@origin"],"isWorkingCopy":true,"isImmutable":false,"hasConflict":true,"isDivergent":true,"isEmpty":false}
-        {"commitID":"two","changeID":"same","parentIDs":[],"description":"","author":"weixi","email":"weixi@example.com","timestamp":"2026-09-09T01:02:03Z","bookmarks":[],"isWorkingCopy":false,"isImmutable":false,"hasConflict":false,"isDivergent":true,"isEmpty":true}
-        """#.utf8)
-        let rows = try JJClient.decodeLog(data)
-        #expect(rows.count == 2)
-        #expect(rows[0].description == "A \"quote\"\n中文 🚀\tend")
-        #expect(rows[0].parentIDs == ["base", "other"])
-        #expect(rows[0].hasConflict && rows[0].isDivergent && rows[0].isWorkingCopy)
-        #expect(rows[1].summary.isEmpty)
-        #expect(rows[0].id != rows[1].id)
-    }
-
-    @Test func invalidOutputFailsInsteadOfDisplayingAPartialGraph() {
-        #expect(throws: JJClient.Failure.self) { try JJClient.decodeLog(Data("not JSON\n".utf8)) }
-    }
-
     @Test(arguments: [("jj 0.40.0", false), ("jj 0.41.0", true), ("jj 0.41.1", true), ("jj 1.0.0", true), ("unexpected", false)])
     func versionCompatibility(value: String, supported: Bool) {
         #expect(JJClient.supportsVersion(value) == supported)
     }
 
     @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")))
-    func realJJLogPreservesWorkingDirectoryAndOperationHistory() async throws {
+    func rustHistoryMatchesCLIAndPreservesWorkingDirectoryAndOperations() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Ravel test '中文' \(UUID())", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -41,14 +23,71 @@ nonisolated struct JJClientTests {
         let file = directory.appendingPathComponent("unrecorded.txt")
         try "not snapshotted".write(to: file, atomically: true, encoding: .utf8)
 
-        let log = try await JJClient.loadLog(at: directory, executablePath: "/opt/homebrew/bin/jj")
+        let repository = try await CodeRepository.open(directory)
+        let query = try await repository.history(pageSize: 1)
+        var records: [Revision] = []
+        var cursor: HistoryCursor?
+        repeat {
+            let page = try await query.page(after: cursor)
+            records.append(contentsOf: page.revisions)
+            cursor = page.nextCursor
+        } while cursor != nil
+        let reference = try await runJJ(["--ignore-working-copy", "--at-op=@", "log", "-r", "all()", "--no-graph", "-T", Self.logTemplate], at: directory)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let expected = try reference.utf8.split(separator: 0x0A).map { try decoder.decode(CLIRevisionReference.self, from: Data($0)) }
+        #expect(records.map(\.id) == expected.map(\.commitID))
+        for (actual, expected) in zip(records, expected) {
+            #expect(actual.changeID == expected.changeID)
+            #expect(actual.parentIDs == expected.parentIDs)
+            #expect(actual.description == expected.description)
+            #expect(actual.author == expected.author)
+            #expect(actual.email == expected.email)
+            #expect(actual.bookmarks == expected.bookmarks)
+            #expect(actual.isImmutable == expected.isImmutable)
+            #expect(actual.isWorkingCopy == expected.isWorkingCopy)
+            #expect(actual.hasConflict == expected.hasConflict)
+            #expect(actual.isDivergent == expected.isDivergent)
+            #expect(actual.isEmpty == expected.isEmpty)
+            #expect(abs(actual.timestamp.timeIntervalSince(expected.timestamp)) < 1)
+        }
+        await #expect(throws: (any Error).self) {
+            try await query.page(after: HistoryCursor(queryID: UUID(), offset: 0))
+        }
+        await repository.close()
         let after = try await runJJ(["--ignore-working-copy", "--at-op=@", "op", "log", "--no-graph", "--limit", "1", "--template", "id"], at: directory)
         #expect(before == after)
         #expect(try String(contentsOf: file, encoding: .utf8) == "not snapshotted")
-        #expect(log.revisions.filter(\.isWorkingCopy).count == 1)
-        #expect(log.revisions.contains { $0.description.contains("\"quoted\"\n第二行") })
-        #expect(log.revisions.first(where: \.isWorkingCopy)?.isEmpty == true)
+        #expect(records.filter(\.isWorkingCopy).count == 1)
+        #expect(records.contains { $0.description.contains("\"quoted\"\n第二行") })
+        #expect(records.first(where: \.isWorkingCopy)?.isEmpty == true)
+
+        // Concurrent new operations must not change this inspector's read view.
+        _ = try await runJJ(["describe", "--at-op", before, "-m", "Concurrent one"], at: directory)
+        _ = try await runJJ(["describe", "--at-op", before, "-m", "Concurrent two"], at: directory)
+        let workingCopy = try #require(records.first { $0.isWorkingCopy })
+        let diff = try await JJClient.loadDiff(RevisionDiffRequest(repositoryURL: directory,
+            commitID: workingCopy.id, executablePath: "/opt/homebrew/bin/jj", operationID: before))
+        #expect(diff.files.isEmpty)
     }
+
+    static let logTemplate = #"""
+    '{' ++
+    '"commitID":' ++ json(commit_id) ++ ',' ++
+    '"changeID":' ++ json(change_id) ++ ',' ++
+    '"parentIDs":' ++ json(parents.map(|p| p.commit_id())) ++ ',' ++
+    '"description":' ++ json(description) ++ ',' ++
+    '"author":' ++ json(author.name()) ++ ',' ++
+    '"email":' ++ json(stringify(author.email())) ++ ',' ++
+    '"timestamp":' ++ json(committer.timestamp().utc().format("%Y-%m-%dT%H:%M:%SZ")) ++ ',' ++
+    '"bookmarks":' ++ json(bookmarks.map(|b| stringify(b))) ++ ',' ++
+    '"isWorkingCopy":' ++ json(current_working_copy) ++ ',' ++
+    '"isImmutable":' ++ json(immutable) ++ ',' ++
+    '"hasConflict":' ++ json(conflict) ++ ',' ++
+    '"isDivergent":' ++ json(divergent) ++ ',' ++
+    '"isEmpty":' ++ json(empty) ++ "}\n"
+    """#
+
 
     private func runJJ(_ arguments: [String], at directory: URL) async throws -> String {
         let result = try await Subprocess.run(
@@ -61,4 +100,21 @@ nonisolated struct JJClientTests {
         try #require(result.terminationStatus.isSuccess, "\(result.standardError)")
         return result.standardOutput
     }
+}
+
+// CLI JSON is an independent test oracle, not the application's domain format.
+nonisolated private struct CLIRevisionReference: Decodable {
+    let commitID: String
+    let changeID: String
+    let parentIDs: [String]
+    let description: String
+    let author: String
+    let email: String
+    let timestamp: Date
+    let bookmarks: [String]
+    let isWorkingCopy: Bool
+    let isImmutable: Bool
+    let hasConflict: Bool
+    let isDivergent: Bool
+    let isEmpty: Bool
 }

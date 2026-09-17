@@ -14,10 +14,7 @@ struct RepositoryView: View {
         } detail: {
             VStack(spacing: 0) {
                 if let error = session.errorMessage {
-                    notice(error, symbol: "exclamationmark.triangle", isError: true)
-                }
-                if let warning = session.log?.warning {
-                    notice(warning, symbol: "exclamationmark.bubble", isError: false)
+                    errorNotice(error)
                 }
 
                 if let log = session.log {
@@ -127,8 +124,8 @@ struct RepositoryView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                if log.isLimited {
-                    Text(I18n.historyShowingFirst(JJClient.revisionLimit))
+                if !log.hasMore {
+                    Text(I18n.historyReachedRoot)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -142,8 +139,28 @@ struct RepositoryView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VSplitView {
-                    RevisionTable(log: log, selection: $session.selectedRevisionID)
-                        .frame(minHeight: 180, idealHeight: 350)
+                    VStack(spacing: 0) {
+                        RevisionTable(log: log, selection: $session.selectedRevisionID) { session.loadMore() }
+                        if session.isLoadingMore || session.pageErrorMessage != nil || log.hasMore {
+                            Divider()
+                            HStack {
+                                if session.isLoadingMore {
+                                    ProgressView().controlSize(.small)
+                                    Text(I18n.historyLoadingMore)
+                                } else if let error = session.pageErrorMessage {
+                                    Text(error).lineLimit(2).textSelection(.enabled)
+                                    Button(String(localized: I18n.commonRetry)) { session.loadMore(retry: true) }
+                                } else {
+                                    Button(String(localized: I18n.historyLoadMore)) { session.loadMore() }
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(8)
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .frame(minHeight: 180, idealHeight: 350)
                     RevisionInspector(revision: session.selectedRevision, request: session.diffRequest)
                         .frame(minHeight: 240, idealHeight: 350)
                 }
@@ -151,21 +168,18 @@ struct RepositoryView: View {
         }
     }
 
-    private func notice(_ text: String, symbol: String, isError: Bool) -> some View {
+    private func errorNotice(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: symbol).foregroundStyle(isError ? Color.orange : Color.secondary)
+            Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
             Text(text)
                 .font(.callout)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if isError {
-                Button(String(localized: I18n.repositoryLocateExecutable)) { RepositoryPanel.chooseExecutable(using: session) }
-                Button(String(localized: I18n.commonRetry)) { session.refresh() }
-                    .disabled(session.isLoading)
-            }
+            Button(String(localized: I18n.commonRetry)) { session.refresh() }
+                .disabled(session.isLoading)
         }
         .padding(12)
-        .background(Color.orange.opacity(isError ? 0.08 : 0.04))
+        .background(Color.orange.opacity(0.08))
         .overlay(alignment: .bottom) { Divider() }
     }
 
@@ -179,7 +193,7 @@ struct RepositoryView: View {
                 Text(session.log == nil ? String(localized: I18n.historyLoadFailed) : String(localized: I18n.historyRefreshFailed))
             } else if let log = session.log {
                 Circle().fill(Color.accentColor).frame(width: 5, height: 5)
-                Text(log.jjVersion)
+                Text(log.backendVersion)
                 Text("·").foregroundStyle(.tertiary)
                 Text(I18n.historyRecordedState)
                     .help(String(localized: I18n.historyRecordedStateHelp))

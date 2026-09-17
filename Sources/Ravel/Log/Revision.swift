@@ -2,7 +2,7 @@
 
 import Foundation
 
-nonisolated struct Revision: Decodable, Identifiable, Hashable, Sendable {
+nonisolated struct Revision: Identifiable, Hashable, Sendable {
     let commitID: String
     let changeID: String
     let parentIDs: [String]
@@ -28,9 +28,9 @@ nonisolated struct Revision: Decodable, Identifiable, Hashable, Sendable {
 
 nonisolated struct RepositoryLog: Sendable {
     let repositoryURL: URL
-    let revisions: [Revision]
-    let graph: LogGraph
-    let isLimited: Bool
-    let jjVersion: String
-    let warning: String?
+    let snapshotID = UUID()
+    var revisions: [Revision]
+    var graph: LogGraph
+    var hasMore: Bool
+    let backendVersion: String
 }

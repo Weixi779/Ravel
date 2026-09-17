@@ -11,9 +11,9 @@ extension JJClient {
     """#
 
     @concurrent
-    static func loadDiff(_ request: DiffSession.Request) async throws -> RevisionDiff {
-        let executable = try findExecutable(customPath: request.executablePath)
-        let result = try await execute(executable, readOptions + [
+    static func loadDiff(_ request: RevisionDiffRequest) async throws -> RevisionDiff {
+        let executable = try await checkedExecutable(at: request.repositoryURL, customPath: request.executablePath)
+        let result = try await execute(executable, readOptions(at: request.operationID) + [
             "diff", "--revisions", request.commitID, "--template", changedFilesTemplate,
         ], at: request.repositoryURL)
         let decoder = JSONDecoder()
@@ -29,12 +29,12 @@ extension JJClient {
     }
 
     @concurrent
-    static func loadFileDiff(_ request: DiffSession.Request, file: ChangedFile) async throws -> FileDiff {
-        let executable = try findExecutable(customPath: request.executablePath)
+    static func loadFileDiff(_ request: RevisionDiffRequest, file: ChangedFile) async throws -> FileDiff {
+        let executable = try await checkedExecutable(at: request.repositoryURL, customPath: request.executablePath)
         // An exact fileset prevents quotes, globs and operators in a filename from
         // selecting unrelated files. jj follows rename sources for the target path.
         do {
-            let result = try await execute(executable, readOptions + [
+            let result = try await execute(executable, readOptions(at: request.operationID) + [
                 "diff", "--revisions", request.commitID, "--git", "--context", "3",
                 "--", "root-file:" + filesetString(file.path),
             ], at: request.repositoryURL, outputLimit: FileDiff.byteLimit)

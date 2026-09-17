@@ -5,7 +5,7 @@ import Localization
 
 struct RevisionInspector: View {
     let revision: Revision?
-    let request: DiffSession.Request?
+    let request: RevisionDiffRequest?
     @State private var diff = DiffSession()
     @State private var showsDetails = false
 

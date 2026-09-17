@@ -7,6 +7,7 @@ import Localization
 struct RevisionTable: NSViewRepresentable {
     let log: RepositoryLog
     @Binding var selection: String?
+    var loadMore: () -> Void = {}
 
     func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
 
@@ -48,15 +49,18 @@ struct RevisionTable: NSViewRepresentable {
         scroll.autohidesScrollers = true
         scroll.borderType = .noBorder
         context.coordinator.table = table
+        scroll.onViewportChange = { [weak coordinator = context.coordinator] in coordinator?.schedulePrefetch() }
         return scroll
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        context.coordinator.update(log: log, selection: $selection)
+        context.coordinator.update(log: log, selection: $selection, loadMore: loadMore)
         (scrollView as? RevisionScrollView)?.fitColumns()
     }
 
     static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
+        (view as? RevisionScrollView)?.onViewportChange = nil
+        coordinator.stopPrefetch()
         coordinator.table?.delegate = nil
         coordinator.table?.dataSource = nil
     }
@@ -69,6 +73,10 @@ struct RevisionTable: NSViewRepresentable {
         private var graph: LogGraph?
         private var repositoryURL: URL?
         private var isApplying = false
+        private var snapshotID: UUID?
+        private var selectedID: String?
+        private var loadMore: (() -> Void)?
+        private var prefetchTask: Task<Void, Never>?
         private let dateFormatter: DateFormatter = {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
@@ -79,32 +87,68 @@ struct RevisionTable: NSViewRepresentable {
 
         init(selection: Binding<String?>) { self.selection = selection }
 
-        func update(log: RepositoryLog, selection: Binding<String?>) {
+        func update(log: RepositoryLog, selection: Binding<String?>, loadMore: @escaping () -> Void) {
             guard let table else { return }
             self.selection = selection
+            self.loadMore = loadMore
+            let changedSelection = selectedID != selection.wrappedValue
+            selectedID = selection.wrappedValue
             isApplying = true
             defer { isApplying = false }
             let changedRepository = repositoryURL != log.repositoryURL
-            if changedRepository || revisions != log.revisions {
+            if changedRepository || snapshotID != log.snapshotID || revisions.count != log.revisions.count {
+                let oldCount = revisions.count
+                let appending = !changedRepository && snapshotID == log.snapshotID && log.revisions.count > oldCount
+                let visible = table.rows(in: table.visibleRect)
+                let anchorID = revisions.indices.contains(visible.location) ? revisions[visible.location].id : nil
+                let anchorOffset = table.visibleRect.minY - CGFloat(visible.location) * table.rowHeight
                 revisions = log.revisions
                 graph = log.graph
                 repositoryURL = log.repositoryURL
+                snapshotID = log.snapshotID
                 if let column = table.tableColumn(withIdentifier: .init("graph")) {
                     let width = max(70, CGFloat(log.graph.columnCount) * GraphCell.laneWidth + 28)
                     column.minWidth = width
                     column.width = width
                 }
-                table.reloadData()
+                if appending {
+                    table.insertRows(at: IndexSet(integersIn: oldCount..<revisions.count), withAnimation: [])
+                } else {
+                    table.reloadData()
+                    if !changedRepository, let anchorID, let row = revisions.firstIndex(where: { $0.id == anchorID }),
+                       let scroll = table.enclosingScrollView {
+                        scroll.contentView.scroll(to: NSPoint(x: table.visibleRect.minX, y: CGFloat(row) * table.rowHeight + anchorOffset))
+                        scroll.reflectScrolledClipView(scroll.contentView)
+                    }
+                }
             }
             if let selected = selection.wrappedValue,
                let index = revisions.firstIndex(where: { $0.id == selected }) {
                 if table.selectedRow != index {
                     table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
-                    table.scrollRowToVisible(index)
+                    if changedRepository || changedSelection { table.scrollRowToVisible(index) }
                 }
             } else {
                 table.deselectAll(nil)
             }
+            schedulePrefetch()
+        }
+
+        func schedulePrefetch() {
+            prefetchTask?.cancel()
+            prefetchTask = Task { [weak self] in
+                await Task.yield()
+                guard !Task.isCancelled, let self, let table = self.table else { return }
+                let visible = table.rows(in: table.visibleRect)
+                guard visible.length > 0, NSMaxRange(visible) >= self.revisions.count - 20 else { return }
+                self.loadMore?()
+            }
+        }
+
+        func stopPrefetch() {
+            prefetchTask?.cancel()
+            prefetchTask = nil
+            loadMore = nil
         }
 
         func numberOfRows(in tableView: NSTableView) -> Int { revisions.count }
@@ -163,6 +207,12 @@ struct RevisionTable: NSViewRepresentable {
 @MainActor
 private final class RevisionScrollView: NSScrollView {
     private var isFittingColumns = false
+    var onViewportChange: (() -> Void)?
+
+    override func reflectScrolledClipView(_ clipView: NSClipView) {
+        super.reflectScrolledClipView(clipView)
+        onViewportChange?()
+    }
 
     override func tile() {
         super.tile()
@@ -298,7 +348,6 @@ private final class GraphCell: NSView {
             let start = point(segment.start)
             let end = point(segment.end)
             context.setStrokeColor(Self.colors[segment.color % Self.colors.count].withAlphaComponent(0.82).cgColor)
-            context.setLineDash(phase: 0, lengths: segment.isBoundary ? [2, 3] : [])
             context.beginPath()
             context.move(to: start)
             if start.x == end.x {
@@ -308,17 +357,10 @@ private final class GraphCell: NSView {
                 context.addCurve(to: end, control1: CGPoint(x: start.x, y: middle), control2: CGPoint(x: end.x, y: middle))
             }
             context.strokePath()
-            if segment.isBoundary {
-                context.setLineDash(phase: 0, lengths: [])
-                context.move(to: CGPoint(x: end.x - 2.5, y: end.y))
-                context.addLine(to: CGPoint(x: end.x + 2.5, y: end.y))
-                context.strokePath()
-            }
         }
 
         let center = CGPoint(x: 17 + CGFloat(row.nodeColumn) * Self.laneWidth, y: bounds.midY)
         let color = hasConflict ? NSColor.systemOrange : Self.colors[row.color % Self.colors.count]
-        context.setLineDash(phase: 0, lengths: [])
         context.setFillColor(NSColor.textBackgroundColor.cgColor)
         context.fillEllipse(in: CGRect(x: center.x - 5, y: center.y - 5, width: 10, height: 10))
         context.setStrokeColor(color.cgColor)

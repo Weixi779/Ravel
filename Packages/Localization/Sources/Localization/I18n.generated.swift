@@ -251,15 +251,6 @@ public nonisolated enum I18n {
     }
 
     /**
-     Invalid structured log output.
-     
-     Localized string for key “errorsDuplicateCommit” in table “Localizable.xcstrings”.
-     */
-    public static var errorsDuplicateCommit: LocalizedStringResource {
-        LocalizedStringResource("errorsDuplicateCommit", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
      Recovery instruction when executable discovery fails.
      
      Localized string for key “errorsExecutableNotFound” in table “Localizable.xcstrings”.
@@ -269,30 +260,12 @@ public nonisolated enum I18n {
     }
 
     /**
-     Argument is a literal repository path.
-     
-     Localized string for key “errorsInvalidDirectory” in table “Localizable.xcstrings”.
-     */
-    public static func errorsInvalidDirectory(_ arg1: String) -> LocalizedStringResource {
-        LocalizedStringResource("errorsInvalidDirectory", defaultValue: "\(arg1)", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
      Argument is a literal executable path.
      
      Localized string for key “errorsInvalidExecutable” in table “Localizable.xcstrings”.
      */
     public static func errorsInvalidExecutable(_ arg1: String) -> LocalizedStringResource {
         LocalizedStringResource("errorsInvalidExecutable", defaultValue: "\(arg1)", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
-     Argument is the one-based output record number.
-     
-     Localized string for key “errorsMalformedOutput” in table “Localizable.xcstrings”.
-     */
-    public static func errorsMalformedOutput(_ arg1: Int) -> LocalizedStringResource {
-        LocalizedStringResource("errorsMalformedOutput", defaultValue: "\(arg1, specifier: "%lld")", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -440,12 +413,53 @@ public nonisolated enum I18n {
     }
 
     /**
+     History pagination status or action.
+     
+     Localized string for key “historyLoadMore” in table “Localizable.xcstrings”.
+     */
+    public static var historyLoadMore: LocalizedStringResource {
+        LocalizedStringResource("historyLoadMore", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     History pagination status or action.
+     
+     Localized string for key “historyLoadingMore” in table “Localizable.xcstrings”.
+     */
+    public static var historyLoadingMore: LocalizedStringResource {
+        LocalizedStringResource("historyLoadingMore", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Graph cell accessibility label.
      
      Localized string for key “historyMutableCommit” in table “Localizable.xcstrings”.
      */
     public static var historyMutableCommit: LocalizedStringResource {
         LocalizedStringResource("historyMutableCommit", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “historyPageSize” in table “Localizable.xcstrings”.
+     */
+    public static var historyPageSize: LocalizedStringResource {
+        LocalizedStringResource("historyPageSize", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “historyPageSizeHelp” in table “Localizable.xcstrings”.
+     */
+    public static var historyPageSizeHelp: LocalizedStringResource {
+        LocalizedStringResource("historyPageSizeHelp", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     History pagination status or action.
+     
+     Localized string for key “historyReachedRoot” in table “Localizable.xcstrings”.
+     */
+    public static var historyReachedRoot: LocalizedStringResource {
+        LocalizedStringResource("historyReachedRoot", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -521,15 +535,6 @@ public nonisolated enum I18n {
     }
 
     /**
-     The log is limited to this many revisions.
-     
-     Localized string for key “historyShowingFirst” in table “Localizable.xcstrings”.
-     */
-    public static func historyShowingFirst(_ arg1: Int) -> LocalizedStringResource {
-        LocalizedStringResource("historyShowingFirst", defaultValue: "\(arg1, specifier: "%lld")", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
      Revision history heading.
      
      Localized string for key “historyTitle” in table “Localizable.xcstrings”.
@@ -599,15 +604,6 @@ public nonisolated enum I18n {
      */
     public static var repositoryExecutableTitle: LocalizedStringResource {
         LocalizedStringResource("repositoryExecutableTitle", table: "Localizable", bundle: resourceBundleDescription)
-    }
-
-    /**
-     Recovery action when jj is unavailable.
-     
-     Localized string for key “repositoryLocateExecutable” in table “Localizable.xcstrings”.
-     */
-    public static var repositoryLocateExecutable: LocalizedStringResource {
-        LocalizedStringResource("repositoryLocateExecutable", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**

@@ -21,11 +21,15 @@ and identity. The last successfully opened workspace is restored at launch.
 
 - macOS 15 or later
 - Xcode 26 or later with Swift 6.2 or later
-- Jujutsu (`jj`) 0.41 or later; the first implementation is verified with 0.41.0
+- Rust 1.96.0 through rustup (pinned in `Backend/rust-toolchain.toml`)
+- Jujutsu (`jj`) 0.41 or later for the Diff inspector and integration fixtures
 
 Open `Ravel.xcodeproj`, select the **Ravel** scheme, and run. Swift Package Manager
-resolves Swift Subprocess 1.0.0. The app uses local ad-hoc signing and does not
-require a development team for local use.
+resolves Swift Subprocess 1.0.0. The build phase runs `Tools/buildBackend` and
+statically links jj-lib 0.41.0 through UniFFI. The first build downloads Cargo
+dependencies. For a universal Release build, install both Rust targets:
+`rustup target add --toolchain 1.96.0 aarch64-apple-darwin x86_64-apple-darwin`.
+The app uses local ad-hoc signing and does not require a development team.
 
 Choose **File → Open Repository…** (`⌘O`) and select an existing jj workspace.
 Refresh with `⌘R`, or return to the app after working in the terminal. `⌘0` selects
@@ -46,12 +50,13 @@ open /path/to/Ravel.app --args --repository /path/to/workspace
   File contents load on selection, with separate old/new line-number gutters,
   addition/deletion colors, and native text selection and copying. Gutters are
   excluded from copied text. Details remains available beside Changes.
-- Pure Swift assigns graph lanes from jj's topological output.
-- Swift Subprocess executes jj directly with argument arrays; no login shell.
-- A custom JSONL template provides explicit fields, decoded into `Sendable` values.
-- Window state is `@MainActor` and observable. `@concurrent` keeps process work,
-  decoding, and graph layout off the main actor. Replaced requests are cancelled
-  and cannot publish stale results.
+- Rust owns a fixed-operation history view and demand-driven revset traversal.
+  `CodeRepositoryReader` and `HistoryQuery` expose application values to Swift.
+- Pure Swift incrementally assigns graph lanes, retaining parents across pages.
+- The existing Diff adapter uses Swift Subprocess with direct argument arrays.
+- Window state is `@MainActor` and observable. Native calls run off the main actor;
+  cancellation tokens and generation checks prevent replaced requests from
+  publishing stale pages.
 
 Swift 6 language mode, complete concurrency checking, MainActor default isolation,
 and approachable concurrency are enabled in `Config/Concurrency.xcconfig`.
@@ -60,16 +65,20 @@ retain checked actor isolation. UserDefaultsKit contains one internal, immutable
 `@unchecked Sendable` bridge for Foundation's documented thread-safe UserDefaults;
 its Store and accessors otherwise use checked Sendable conformances.
 
-The log follows the workspace's `revsets.log` selection and keeps jj's ordering.
-It displays up to 300 revisions and marks parents outside the loaded set with
-dotted, capped edges. It does not imply that a hidden parent is a direct edge to
-another visible revision. Commit IDs identify rows; Change IDs are retained
-separately, including divergent changes.
+History loads all visible commits and their ancestors, down to the root commit,
+in jj's topological order. It ignores `revsets.log` and excludes abandoned or
+superseded hidden versions. Settings offers batches of 100, 200, 500, 1,000 or
+5,000 revisions, with 1,000 as the default; changes apply on the next refresh or
+repository open. Scrolling near the loaded end requests the next page.
+Loading more preserves selection and existing graph
+rows. Page failures keep the cursor for explicit Retry. Refresh replaces the view
+only after successfully reading the previously loaded depth.
 
-Reads use `--ignore-working-copy --at-op=@`: opening or refreshing does not
-snapshot files, update the working copy, or merge concurrent operations. Changes
-made only in an editor become visible after jj records them. Concurrent operation
-heads are reported as an error for the user to handle in jj.
+Read access does not snapshot files, import Git refs, update the working copy, or
+merge concurrent operations. Editor changes appear after jj records them.
+Concurrent operation heads are reported for the user to handle in jj. Every
+history query pins one operation, so external repository changes cannot mix pages
+from different views.
 
 Diffs use the selected full commit ID and jj's `diff --revisions` semantics,
 including comparison against the automatic merge of all parents for a merge
@@ -82,21 +91,28 @@ or 20,000 lines, with an error instead of a partial patch.
 
 Refreshing an unchanged commit keeps the loaded file and reading position.
 
-The first version requires a locally installed jj and uses a non-sandboxed macOS
-target to access repositories and the executable. There is no Rust backend or FFI
-layer in the current implementation.
+History uses the bundled Rust backend; Diff still requires a locally installed jj.
+Diff requests carry the history operation ID as well as the full commit ID. The
+macOS target remains non-sandboxed to access repositories and the executable.
+
+The accepted reader/writer ownership, write preprocessing and cancellation
+contract, integration details, and remaining Diff migration are documented in
+[Repository architecture](Documentation/RepositoryArchitecture.md). No write
+commands or write UI are implemented in this slice.
 
 ### Code map
 
 | Entry | Responsibility |
 | --- | --- |
 | `Sources/Ravel/RavelApp.swift` | Window lifetime, commands, repository and executable panels |
-| `Sources/Ravel/Log/LogSession.swift` | Repository loading, selected revision, recents and refresh state |
+| `Sources/Ravel/Log/LogSession.swift` | Loaded pages, selected revision, recents, refresh and retry state |
 | `Sources/Ravel/UserDefaultsKeys.swift` | Shared declarations of typed business keys and defaults |
-| `Sources/Ravel/Log/JJClient.swift` | Process execution, executable discovery and structured log decoding |
+| `Sources/Ravel/Repository/` | Workspace lifetime, repository reader, query cursor and CLI compatibility adapter |
 | `Sources/Ravel/Log/LogGraph.swift` | Lane assignment and edges for the loaded revision set |
 | `Sources/Ravel/Diff/` | Changed-file queries, patch parsing and cancellable diff state |
 | `Sources/Ravel/UI/` | SwiftUI composition, AppKit history table, graph and text diff rendering |
+| `Backend/` | Pinned jj-lib, read-only operation views and streaming history queries |
+| `Packages/RavelBackend/` | Generated UniFFI Swift declarations and C module |
 | `Packages/Logger/` | Native system loggers with a shared subsystem convention |
 | `Packages/UserDefaultsKit/` | Typed storage, plain property wrapper and optional Observation macro |
 | `Tests/RavelTests/` | Swift Testing unit and temporary-repository integration tests |
@@ -145,12 +161,11 @@ ignored. The Xcode project, shared scheme, and `Package.resolved` are tracked.
 
 The next milestones are open for discussion, rather than a fixed delivery plan:
 
-- Revisit state ownership, the CLI boundary, and rendering responsibilities using
-  the existing history and diff flows as concrete consumers.
-- Load more than the first 300 revisions; add search and filtering.
+- Migrate changed-file queries and patch generation from the CLI to the repository reader.
+- Add history search and filtering without confusing filtered edges with unloaded parents.
 - Detect repository changes while the window stays active.
 - Improve diff navigation, large-file handling and side-by-side presentation.
-- Design repository mutations and conflict workflows before adding write actions.
+- Implement the first writer against the documented preparation, serialization and outcome contract.
 - Decide on jj distribution, app sandboxing, signing, notarization and updates.
 
 ## Artwork
@@ -171,17 +186,28 @@ generation and integration details are recorded in [Artwork/README.md](Artwork/R
 ## Verify
 
 ```sh
+Tools/testBackend
 xcodebuild -project Ravel.xcodeproj -scheme Ravel \
   -destination 'platform=macOS' -derivedDataPath .build/DerivedData test
 ```
 
 Swift Testing covers graph continuity, merges, hidden ancestry, divergent changes,
-JSON escaping, version checks, stale requests, failed refreshes, diff hunk line
+version checks, stale pages, retry cursors, failed refreshes, diff hunk line
 numbers, CRLF, missing final newlines, and preview limits. CLI integration tests
 use isolated temporary repositories and run when `/opt/homebrew/bin/jj` is
 available. They cover rename and mode changes, binary files, special filenames,
 and merge semantics, and verify that reading leaves both the working directory
 and operation history unchanged.
+
+Rust integration tests traverse more than 450 commits through root, verify fixed
+views across external operations, replay after cancellation, read-only state,
+concurrent-operation errors and close behavior. `Tools/testBackend` isolates jj
+configuration; set `RAVEL_TEST_JJ` to override the fixture executable. Swift tests
+also compare the real Rust bridge output against CLI metadata.
+
+After changing the native interface, run `Tools/generateBackendBindings` and
+include its generated Swift/header/module-map changes. Both native and Swift
+callers must be built from the same interface version.
 
 The Dock icon regression test changes only the test host's appearance. It checks
 light/dark updates, resizing while detached from a window, nontransparent rendered

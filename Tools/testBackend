@@ -1,0 +1,13 @@
+#!/bin/sh
+# Created by weixi on 2026/09/17.
+set -eu
+ravel_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ravel_root/Tools/rustEnvironment"
+# Both the native reader and fixture CLI use the same isolated config roots.
+# jj 0.41 stores secure repository config under XDG_CONFIG_HOME, not JJ_CONFIG.
+config_root=$(mktemp -d "${TMPDIR:-/tmp}/ravel-backend-tests.XXXXXX")
+trap 'rm -rf "$config_root"' EXIT HUP INT TERM
+export XDG_CONFIG_HOME="$config_root"
+export JJ_CONFIG="$config_root/config.toml"
+export RUSTUP_TOOLCHAIN=1.96.0
+cargo test --manifest-path "$ravel_root/Backend/Cargo.toml" --locked "$@"

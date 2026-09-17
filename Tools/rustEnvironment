@@ -1,0 +1,7 @@
+#!/bin/sh
+# Created by weixi on 2026/09/17.
+# Source from build scripts after setting ravel_root. Xcode does not inherit the
+# interactive shell's PATH; the toolchain itself is pinned by rust-toolchain.toml.
+export PATH="${HOME}/.cargo/bin:/opt/homebrew/bin:$PATH"
+export CARGO_TARGET_DIR="$ravel_root/.build/rust-target"
+export MACOSX_DEPLOYMENT_TARGET=15.0

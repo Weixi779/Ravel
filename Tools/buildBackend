@@ -1,0 +1,24 @@
+#!/bin/sh
+# Created by weixi on 2026/09/17.
+set -eu
+ravel_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ravel_root/Tools/rustEnvironment"
+cd "$ravel_root/Backend"
+export RUSTUP_TOOLCHAIN=1.96.0
+profile=debug
+release_flag=
+if [ "${CONFIGURATION:-Debug}" = Release ]; then profile=release; release_flag=--release; fi
+output_dir=${BUILT_PRODUCTS_DIR:-"$ravel_root/.build/rust-lib"}
+mkdir -p "$output_dir"
+set --
+for arch in ${ARCHS:-$(uname -m)}; do
+    case "$arch" in
+        arm64) target=aarch64-apple-darwin ;;
+        x86_64) target=x86_64-apple-darwin ;;
+        *) echo "Unsupported Rust target architecture: $arch" >&2; exit 1 ;;
+    esac
+    cargo build --lib --locked --target "$target" $release_flag
+    set -- "$@" "$CARGO_TARGET_DIR/$target/$profile/libravel_backend.a"
+done
+if [ "$#" -eq 1 ]; then cp "$1" "$output_dir/libravel_backend.a";
+else lipo -create "$@" -output "$output_dir/libravel_backend.a"; fi

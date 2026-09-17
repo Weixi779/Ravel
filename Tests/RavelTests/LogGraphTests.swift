@@ -29,12 +29,14 @@ nonisolated struct LogGraphTests {
         #expect(graph.rows[3].nodeColumn == 0)
     }
 
-    @Test func hiddenParentsEndAtBoundaryRatherThanConnectingToAnotherHead() throws {
-        let graph = try LogGraph(revisions: [revision("tip", parents: ["hidden"]), revision("unrelated")])
+    @Test func pendingParentsContinuePastUnrelatedHeads() throws {
+        var graph = try LogGraph(revisions: [revision("tip", parents: ["parent"]), revision("unrelated")])
         let edge = try #require(graph.rows[0].segments.first)
-        #expect(edge.isBoundary)
-        #expect(edge.end.fraction < 1)
-        #expect(graph.rows[1].segments.isEmpty)
+        #expect(edge.end.fraction == 1)
+        #expect(graph.rows[1].nodeColumn != edge.end.column)
+        #expect(graph.rows[1].segments.contains { $0.start.column == edge.end.column && $0.end.column == edge.end.column })
+        try graph.append([revision("parent")])
+        #expect(graph.rows[2].nodeColumn == edge.end.column)
     }
 
     @Test func divergentChangeIDsRemainDistinctNodes() throws {
@@ -45,6 +47,16 @@ nonisolated struct LogGraphTests {
         ])
         #expect(graph.rows.count == 3)
         #expect(graph.rows[0].nodeColumn != graph.rows[1].nodeColumn)
+    }
+
+    @Test func pageBoundaryKeepsMergeParentsAndExistingRowsStable() throws {
+        let revisions = [revision("merge", parents: ["left", "right"]),
+                         revision("left", parents: ["root"]), revision("right", parents: ["root"]), revision("root")]
+        var paged = try LogGraph(revisions: Array(revisions.prefix(2)))
+        let prefix = paged.rows
+        try paged.append(Array(revisions.suffix(2)))
+        #expect(Array(paged.rows.prefix(2)) == prefix)
+        #expect(paged.rows == (try LogGraph(revisions: revisions)).rows)
     }
 
     @Test func unrelatedRootsDoNotInventAnEdge() throws {
@@ -65,6 +77,6 @@ nonisolated func revision(_ id: String, change: String? = nil, parents: [String]
 nonisolated func repositoryLog(_ path: String, revisions: [Revision]) throws -> RepositoryLog {
     try RepositoryLog(
         repositoryURL: URL(fileURLWithPath: path, isDirectory: true), revisions: revisions,
-        graph: LogGraph(revisions: revisions), isLimited: false, jjVersion: "jj 0.41.0", warning: nil
+        graph: LogGraph(revisions: revisions), hasMore: false, backendVersion: "Test"
     )
 }

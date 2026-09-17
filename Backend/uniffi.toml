@@ -1,0 +1,5 @@
+[bindings.swift]
+module_name = "RavelBackend"
+ffi_module_name = "RavelBackendFFI"
+generate_module_map = true
+omit_argument_labels = false

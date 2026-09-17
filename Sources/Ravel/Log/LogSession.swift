@@ -10,12 +10,15 @@ import UserDefaultsKitMacros
 @Observable
 final class LogSession {
     private static let logger = Logger.make(category: "Repository")
-    typealias Loader = @Sendable (URL, String?) async throws -> RepositoryLog
+    typealias Loader = @Sendable (URL, Int) async throws -> any HistoryQuery
+    static let historyPageSizes = [100, 200, 500, 1000, 5000]
 
     private(set) var repositoryURL: URL?
     private(set) var log: RepositoryLog?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
+    private(set) var isLoadingMore = false
+    private(set) var pageErrorMessage: String?
     @ObservedDefault(.recentWorkspacePaths, store: \Self.store)
     @ObservationIgnored
     private(set) var recentPaths: [String]
@@ -30,36 +33,50 @@ final class LogSession {
     @ObservationIgnored
     private var jjExecutablePath: String?
 
+    @ObservedDefault(.historyPageSize, store: \Self.store)
+    @ObservationIgnored
+    private var storedHistoryPageSize: Int
+
+    var historyPageSize: Int {
+        Self.historyPageSizes.contains(storedHistoryPageSize) ? storedHistoryPageSize : UserDefaultsKey<Int>.historyPageSize.defaultValue
+    }
+
     private let store: UserDefaultsStore
     @ObservationIgnored private let loader: Loader
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var pageTask: Task<Void, Never>?
+    @ObservationIgnored private var query: (any HistoryQuery)?
+    @ObservationIgnored private var cursor: HistoryCursor?
     @ObservationIgnored private var requestID = 0
     @ObservationIgnored private var didRestore = false
 
-    init(store: UserDefaultsStore = .standard, loader: @escaping Loader = JJClient.loadLog) {
+    init(store: UserDefaultsStore = .standard, workspace: RepositoryWorkspace = RepositoryWorkspace(), loader: Loader? = nil) {
         self.store = store
-        self.loader = loader
+        self.loader = loader ?? { url, pageSize in try await workspace.history(at: url, pageSize: pageSize) }
     }
 
-    convenience init(defaults: UserDefaults, loader: @escaping Loader = JJClient.loadLog) {
+    convenience init(defaults: UserDefaults, loader: Loader? = nil) {
         self.init(store: UserDefaultsStore(defaults: defaults), loader: loader)
     }
 
     isolated deinit {
         loadTask?.cancel()
+        pageTask?.cancel()
+        if let query { Task { await query.close() } }
     }
 
     var selectedRevision: Revision? {
         log?.revisions.first { $0.id == selectedRevisionID }
     }
 
-    var diffRequest: DiffSession.Request? {
+    var diffRequest: RevisionDiffRequest? {
         guard let repositoryURL = log?.repositoryURL, let selectedRevision else { return nil }
-        return DiffSession.Request(
+        return RevisionDiffRequest(
             repositoryURL: repositoryURL,
             commitID: selectedRevision.commitID,
             executablePath: jjExecutablePath,
-            refreshedAt: lastUpdated
+            refreshedAt: lastUpdated,
+            operationID: query?.identity.operationID
         )
     }
 
@@ -77,6 +94,9 @@ final class LogSession {
     func open(_ url: URL) {
         let normalized = url.standardizedFileURL
         if repositoryURL != normalized {
+            if let query { Task { await query.close() } }
+            query = nil
+            cursor = nil
             log = nil
             selectedRevisionID = nil
             lastUpdated = nil
@@ -94,40 +114,54 @@ final class LogSession {
     func refresh() {
         guard let directory = repositoryURL else { return }
         loadTask?.cancel()
+        pageTask?.cancel()
+        pageTask = nil
+        isLoadingMore = false
+        pageErrorMessage = nil
         requestID += 1
         let request = requestID
         let previousSelection = selectedRevision
-        let executable = jjExecutablePath
+        let pageSize = historyPageSize
+        let desiredCount = max(pageSize, log?.revisions.count ?? 0)
         let loader = loader
         isLoading = true
         errorMessage = nil
-        let logger = Self.logger
-        let operationID = UUID().uuidString
         let started = ContinuousClock.now
-        logger.debug("Repository refresh started requestID=\(operationID, privacy: .public)")
+        let logger = Self.logger
+        logger.debug("Repository refresh started generation=\(request)")
 
         loadTask = Task { [weak self] in
+            var candidate: (any HistoryQuery)?
             do {
-                let log = try await loader(directory, executable)
+                let history = try await loader(directory, pageSize)
+                candidate = history
+                var revisions: [Revision] = []
+                var cursor: HistoryCursor?
+                repeat {
+                    let page = try await history.page(after: cursor)
+                    try Task.checkCancellation()
+                    revisions.append(contentsOf: page.revisions)
+                    cursor = page.nextCursor
+                } while cursor != nil && revisions.count < desiredCount
+                let log = try await Self.makeLog(identity: history.identity, revisions: revisions, hasMore: cursor != nil)
                 try Task.checkCancellation()
                 guard let self, self.requestID == request else {
-                    logger.debug("Repository refresh superseded requestID=\(operationID, privacy: .public)")
+                    await history.close()
                     return
                 }
+                let previous = self.query
+                self.query = history
+                self.cursor = cursor
                 self.log = log
                 self.repositoryURL = log.repositoryURL
                 self.lastUpdated = .now
                 self.isLoading = false
                 self.loadTask = nil
                 self.remember(log.repositoryURL)
-                logger.info("""
-                    Repository refreshed requestID=\(operationID, privacy: .public) revisionCount=\(log.revisions.count) \
-                    duration=\(String(describing: started.duration(to: .now)), privacy: .public)
-                    """)
+                logger.info("Repository refreshed generation=\(request) revisionCount=\(log.revisions.count) duration=\(String(describing: started.duration(to: .now)), privacy: .public)")
+                if let previous { Task { await previous.close() } }
 
-                if let selected = self.selectedRevisionID, log.revisions.contains(where: { $0.id == selected }) {
-                    return
-                }
+                if let selected = self.selectedRevisionID, log.revisions.contains(where: { $0.id == selected }) { return }
                 // Preserve a rewritten change only if the mapping is unambiguous.
                 if let previousSelection {
                     let matches = log.revisions.filter { $0.changeID == previousSelection.changeID }
@@ -138,25 +172,55 @@ final class LogSession {
                 }
                 self.selectedRevisionID = log.revisions.first(where: \.isWorkingCopy)?.id ?? log.revisions.first?.id
             } catch {
-                guard !Task.isCancelled, let self, self.requestID == request else {
-                    logger.debug("Repository refresh cancelled or superseded requestID=\(operationID, privacy: .public)")
-                    return
-                }
+                await candidate?.close()
+                guard !Task.isCancelled, let self, self.requestID == request else { return }
                 self.isLoading = false
                 self.loadTask = nil
                 self.errorMessage = error.localizedDescription
-                logger.error("""
-                    Repository refresh failed requestID=\(operationID, privacy: .public) \
-                    errorType=\(String(reflecting: type(of: error)), privacy: .public) \
-                    duration=\(String(describing: started.duration(to: .now)), privacy: .public)
-                    """)
+                Self.logger.error("Repository refresh failed: \(String(reflecting: type(of: error)), privacy: .public)")
             }
         }
     }
 
+    func loadMore(retry: Bool = false) {
+        guard !isLoading, !isLoadingMore, retry || pageErrorMessage == nil,
+              let query, let cursor else { return }
+        let request = requestID
+        isLoadingMore = true
+        pageErrorMessage = nil
+        pageTask = Task { [weak self] in
+            do {
+                let page = try await query.page(after: cursor)
+                try Task.checkCancellation()
+                guard let self, self.requestID == request else { return }
+                try self.log?.graph.append(page.revisions)
+                self.log?.revisions.append(contentsOf: page.revisions)
+                self.log?.hasMore = page.nextCursor != nil
+                self.cursor = page.nextCursor
+                self.isLoadingMore = false
+                self.pageTask = nil
+            } catch {
+                guard !Task.isCancelled, let self, self.requestID == request else { return }
+                self.isLoadingMore = false
+                self.pageTask = nil
+                self.pageErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    @concurrent private static func makeLog(identity: HistoryIdentity, revisions: [Revision], hasMore: Bool) async throws -> RepositoryLog {
+        try RepositoryLog(repositoryURL: identity.repositoryURL, revisions: revisions,
+                          graph: LogGraph(revisions: revisions),
+                          hasMore: hasMore, backendVersion: identity.backendVersion)
+    }
+
     func setExecutable(_ url: URL) {
         jjExecutablePath = url.path
-        refresh()
+    }
+
+    func setHistoryPageSize(_ size: Int) {
+        guard Self.historyPageSizes.contains(size) else { return }
+        storedHistoryPageSize = size
     }
 
     func selectWorkingCopy() {
