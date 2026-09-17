@@ -53,6 +53,13 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “diffAbsent” in table “Localizable.xcstrings”.
+     */
+    public static var diffAbsent: LocalizedStringResource {
+        LocalizedStringResource("diffAbsent", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Accessibility label for the native diff text view.
      
      Localized string for key “diffAccessibilityLabel” in table “Localizable.xcstrings”.
@@ -68,6 +75,20 @@ public nonisolated enum I18n {
      */
     public static var diffAdded: LocalizedStringResource {
         LocalizedStringResource("diffAdded", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffAfter” in table “Localizable.xcstrings”.
+     */
+    public static var diffAfter: LocalizedStringResource {
+        LocalizedStringResource("diffAfter", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffBefore” in table “Localizable.xcstrings”.
+     */
+    public static var diffBefore: LocalizedStringResource {
+        LocalizedStringResource("diffBefore", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -98,12 +119,33 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “diffClearSearch” in table “Localizable.xcstrings”.
+     */
+    public static var diffClearSearch: LocalizedStringResource {
+        LocalizedStringResource("diffClearSearch", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Read-only diff viewer control.
      
      Localized string for key “diffCollapseFolders” in table “Localizable.xcstrings”.
      */
     public static var diffCollapseFolders: LocalizedStringResource {
         LocalizedStringResource("diffCollapseFolders", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffConflict” in table “Localizable.xcstrings”.
+     */
+    public static var diffConflict: LocalizedStringResource {
+        LocalizedStringResource("diffConflict", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffConflicts” in table “Localizable.xcstrings”.
+     */
+    public static var diffConflicts: LocalizedStringResource {
+        LocalizedStringResource("diffConflicts", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -116,12 +158,17 @@ public nonisolated enum I18n {
     }
 
     /**
-     Tooltip and accessibility label for copying the selected file’s Git patch.
-     
-     Localized string for key “diffCopy” in table “Localizable.xcstrings”.
+     Localized string for key “diffCopyAbsolutePath” in table “Localizable.xcstrings”.
      */
-    public static var diffCopy: LocalizedStringResource {
-        LocalizedStringResource("diffCopy", table: "Localizable", bundle: resourceBundleDescription)
+    public static var diffCopyAbsolutePath: LocalizedStringResource {
+        LocalizedStringResource("diffCopyAbsolutePath", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffCopyName” in table “Localizable.xcstrings”.
+     */
+    public static var diffCopyName: LocalizedStringResource {
+        LocalizedStringResource("diffCopyName", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -131,6 +178,13 @@ public nonisolated enum I18n {
      */
     public static var diffCopyPath: LocalizedStringResource {
         LocalizedStringResource("diffCopyPath", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffDirectory” in table “Localizable.xcstrings”.
+     */
+    public static var diffDirectory: LocalizedStringResource {
+        LocalizedStringResource("diffDirectory", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -161,6 +215,20 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “diffExecutable” in table “Localizable.xcstrings”.
+     */
+    public static var diffExecutable: LocalizedStringResource {
+        LocalizedStringResource("diffExecutable", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffExecutableRemoved” in table “Localizable.xcstrings”.
+     */
+    public static var diffExecutableRemoved: LocalizedStringResource {
+        LocalizedStringResource("diffExecutableRemoved", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Read-only diff viewer control.
      
      Localized string for key “diffExpandFolders” in table “Localizable.xcstrings”.
@@ -179,12 +247,17 @@ public nonisolated enum I18n {
     }
 
     /**
-     File tooltip: localized change status followed by the literal file path.
-     
-     Localized string for key “diffFileHelp” in table “Localizable.xcstrings”.
+     Localized string for key “diffFileInformation” in table “Localizable.xcstrings”.
      */
-    public static func diffFileHelp(_ arg1: String, _ arg2: String) -> LocalizedStringResource {
-        LocalizedStringResource("diffFileHelp", defaultValue: "\(arg1)\(arg2)", table: "Localizable", bundle: resourceBundleDescription)
+    public static var diffFileInformation: LocalizedStringResource {
+        LocalizedStringResource("diffFileInformation", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffFileList” in table “Localizable.xcstrings”.
+     */
+    public static var diffFileList: LocalizedStringResource {
+        LocalizedStringResource("diffFileList", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -224,6 +297,27 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “diffInheritedConflict” in table “Localizable.xcstrings”.
+     */
+    public static var diffInheritedConflict: LocalizedStringResource {
+        LocalizedStringResource("diffInheritedConflict", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffLinesAdded” in table “Localizable.xcstrings”.
+     */
+    public static var diffLinesAdded: LocalizedStringResource {
+        LocalizedStringResource("diffLinesAdded", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffLinesRemoved” in table “Localizable.xcstrings”.
+     */
+    public static var diffLinesRemoved: LocalizedStringResource {
+        LocalizedStringResource("diffLinesRemoved", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Changed file list error heading.
      
      Localized string for key “diffLoadFailed” in table “Localizable.xcstrings”.
@@ -260,12 +354,26 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “diffMode” in table “Localizable.xcstrings”.
+     */
+    public static var diffMode: LocalizedStringResource {
+        LocalizedStringResource("diffMode", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      File change status.
      
      Localized string for key “diffModified” in table “Localizable.xcstrings”.
      */
     public static var diffModified: LocalizedStringResource {
         LocalizedStringResource("diffModified", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffNoMatchingFiles” in table “Localizable.xcstrings”.
+     */
+    public static var diffNoMatchingFiles: LocalizedStringResource {
+        LocalizedStringResource("diffNoMatchingFiles", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -287,6 +395,13 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “diffRegularFile” in table “Localizable.xcstrings”.
+     */
+    public static var diffRegularFile: LocalizedStringResource {
+        LocalizedStringResource("diffRegularFile", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      File change status.
      
      Localized string for key “diffRemoved” in table “Localizable.xcstrings”.
@@ -305,6 +420,20 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “diffResolvedConflict” in table “Localizable.xcstrings”.
+     */
+    public static var diffResolvedConflict: LocalizedStringResource {
+        LocalizedStringResource("diffResolvedConflict", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffSearchFiles” in table “Localizable.xcstrings”.
+     */
+    public static var diffSearchFiles: LocalizedStringResource {
+        LocalizedStringResource("diffSearchFiles", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      No file selected.
      
      Localized string for key “diffSelectFile” in table “Localizable.xcstrings”.
@@ -320,6 +449,55 @@ public nonisolated enum I18n {
      */
     public static var diffShowMarkers: LocalizedStringResource {
         LocalizedStringResource("diffShowMarkers", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffSideBySide” in table “Localizable.xcstrings”.
+     */
+    public static var diffSideBySide: LocalizedStringResource {
+        LocalizedStringResource("diffSideBySide", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffStatisticsRetry” in table “Localizable.xcstrings”.
+     */
+    public static var diffStatisticsRetry: LocalizedStringResource {
+        LocalizedStringResource("diffStatisticsRetry", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffSubmodule” in table “Localizable.xcstrings”.
+     */
+    public static var diffSubmodule: LocalizedStringResource {
+        LocalizedStringResource("diffSubmodule", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffSymbolicLink” in table “Localizable.xcstrings”.
+     */
+    public static var diffSymbolicLink: LocalizedStringResource {
+        LocalizedStringResource("diffSymbolicLink", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffType” in table “Localizable.xcstrings”.
+     */
+    public static var diffType: LocalizedStringResource {
+        LocalizedStringResource("diffType", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffUnchanged” in table “Localizable.xcstrings”.
+     */
+    public static var diffUnchanged: LocalizedStringResource {
+        LocalizedStringResource("diffUnchanged", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “diffUnified” in table “Localizable.xcstrings”.
+     */
+    public static var diffUnified: LocalizedStringResource {
+        LocalizedStringResource("diffUnified", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**

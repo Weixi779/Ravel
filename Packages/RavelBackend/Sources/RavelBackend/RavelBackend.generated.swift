@@ -870,6 +870,8 @@ public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
     func diff(operationId: String, commitId: String, cancellation: BackendCancellation) async throws  -> [BackendChangedFile]
     
+    func diffStatistics(operationId: String, commitId: String, cancellation: BackendCancellation) async throws  -> BackendDiffStatistics
+    
     func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation) async throws  -> String
     
     func history(pageSize: UInt32, cancellation: BackendCancellation) async throws  -> BackendHistory
@@ -981,6 +983,22 @@ open func diff(operationId: String, commitId: String, cancellation: BackendCance
         )
 }
     
+open func diffStatistics(operationId: String, commitId: String, cancellation: BackendCancellation)async throws  -> BackendDiffStatistics  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_diff_statistics(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(operationId),FfiConverterString.lower(commitId),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendDiffStatistics_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
 open func fileDiff(operationId: String, commitId: String, filePath: String, cancellation: BackendCancellation)async throws  -> String  {
     return
         try  await uniffiRustCallAsync(
@@ -1074,13 +1092,17 @@ public struct BackendChangedFile: Equatable, Hashable {
     public var path: String
     public var sourcePath: String
     public var status: BackendFileStatus
+    public var before: BackendFileMetadata?
+    public var after: BackendFileMetadata?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(path: String, sourcePath: String, status: BackendFileStatus) {
+    public init(path: String, sourcePath: String, status: BackendFileStatus, before: BackendFileMetadata?, after: BackendFileMetadata?) {
         self.path = path
         self.sourcePath = sourcePath
         self.status = status
+        self.before = before
+        self.after = after
     }
 
     
@@ -1101,7 +1123,9 @@ public struct FfiConverterTypeBackendChangedFile: FfiConverterRustBuffer {
             try BackendChangedFile(
                 path: FfiConverterString.read(from: &buf), 
                 sourcePath: FfiConverterString.read(from: &buf), 
-                status: FfiConverterTypeBackendFileStatus.read(from: &buf)
+                status: FfiConverterTypeBackendFileStatus.read(from: &buf), 
+                before: FfiConverterOptionTypeBackendFileMetadata.read(from: &buf), 
+                after: FfiConverterOptionTypeBackendFileMetadata.read(from: &buf)
         )
     }
 
@@ -1109,6 +1133,8 @@ public struct FfiConverterTypeBackendChangedFile: FfiConverterRustBuffer {
         FfiConverterString.write(value.path, into: &buf)
         FfiConverterString.write(value.sourcePath, into: &buf)
         FfiConverterTypeBackendFileStatus.write(value.status, into: &buf)
+        FfiConverterOptionTypeBackendFileMetadata.write(value.before, into: &buf)
+        FfiConverterOptionTypeBackendFileMetadata.write(value.after, into: &buf)
     }
 }
 
@@ -1125,6 +1151,194 @@ public func FfiConverterTypeBackendChangedFile_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeBackendChangedFile_lower(_ value: BackendChangedFile) -> RustBuffer {
     return FfiConverterTypeBackendChangedFile.lower(value)
+}
+
+
+public struct BackendDiffStatistics: Equatable, Hashable {
+    public var files: [BackendFileStatistics]
+    public var linesAdded: UInt64
+    public var linesRemoved: UInt64
+    public var binaryFiles: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(files: [BackendFileStatistics], linesAdded: UInt64, linesRemoved: UInt64, binaryFiles: UInt64) {
+        self.files = files
+        self.linesAdded = linesAdded
+        self.linesRemoved = linesRemoved
+        self.binaryFiles = binaryFiles
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendDiffStatistics: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendDiffStatistics: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendDiffStatistics {
+        return
+            try BackendDiffStatistics(
+                files: FfiConverterSequenceTypeBackendFileStatistics.read(from: &buf), 
+                linesAdded: FfiConverterUInt64.read(from: &buf), 
+                linesRemoved: FfiConverterUInt64.read(from: &buf), 
+                binaryFiles: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendDiffStatistics, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeBackendFileStatistics.write(value.files, into: &buf)
+        FfiConverterUInt64.write(value.linesAdded, into: &buf)
+        FfiConverterUInt64.write(value.linesRemoved, into: &buf)
+        FfiConverterUInt64.write(value.binaryFiles, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendDiffStatistics_lift(_ buf: RustBuffer) throws -> BackendDiffStatistics {
+    return try FfiConverterTypeBackendDiffStatistics.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendDiffStatistics_lower(_ value: BackendDiffStatistics) -> RustBuffer {
+    return FfiConverterTypeBackendDiffStatistics.lower(value)
+}
+
+
+public struct BackendFileMetadata: Equatable, Hashable {
+    public var kind: BackendFileKind
+    public var executable: Bool?
+    public var conflictSides: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: BackendFileKind, executable: Bool?, conflictSides: UInt32) {
+        self.kind = kind
+        self.executable = executable
+        self.conflictSides = conflictSides
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendFileMetadata: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendFileMetadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendFileMetadata {
+        return
+            try BackendFileMetadata(
+                kind: FfiConverterTypeBackendFileKind.read(from: &buf), 
+                executable: FfiConverterOptionBool.read(from: &buf), 
+                conflictSides: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendFileMetadata, into buf: inout [UInt8]) {
+        FfiConverterTypeBackendFileKind.write(value.kind, into: &buf)
+        FfiConverterOptionBool.write(value.executable, into: &buf)
+        FfiConverterUInt32.write(value.conflictSides, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileMetadata_lift(_ buf: RustBuffer) throws -> BackendFileMetadata {
+    return try FfiConverterTypeBackendFileMetadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileMetadata_lower(_ value: BackendFileMetadata) -> RustBuffer {
+    return FfiConverterTypeBackendFileMetadata.lower(value)
+}
+
+
+public struct BackendFileStatistics: Equatable, Hashable {
+    public var path: String
+    /**
+     * None for binary changes; zero is reserved for an actual zero-line change.
+     */
+    public var linesAdded: UInt64?
+    public var linesRemoved: UInt64?
+    public var bytesDelta: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(path: String, 
+        /**
+         * None for binary changes; zero is reserved for an actual zero-line change.
+         */linesAdded: UInt64?, linesRemoved: UInt64?, bytesDelta: Int64) {
+        self.path = path
+        self.linesAdded = linesAdded
+        self.linesRemoved = linesRemoved
+        self.bytesDelta = bytesDelta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendFileStatistics: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendFileStatistics: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendFileStatistics {
+        return
+            try BackendFileStatistics(
+                path: FfiConverterString.read(from: &buf), 
+                linesAdded: FfiConverterOptionUInt64.read(from: &buf), 
+                linesRemoved: FfiConverterOptionUInt64.read(from: &buf), 
+                bytesDelta: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendFileStatistics, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterOptionUInt64.write(value.linesAdded, into: &buf)
+        FfiConverterOptionUInt64.write(value.linesRemoved, into: &buf)
+        FfiConverterInt64.write(value.bytesDelta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileStatistics_lift(_ buf: RustBuffer) throws -> BackendFileStatistics {
+    return try FfiConverterTypeBackendFileStatistics.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileStatistics_lower(_ value: BackendFileStatistics) -> RustBuffer {
+    return FfiConverterTypeBackendFileStatistics.lower(value)
 }
 
 
@@ -1496,6 +1710,93 @@ public func FfiConverterTypeBackendError_lower(_ value: BackendError) -> RustBuf
 
 
 
+public enum BackendFileKind: Equatable, Hashable {
+    
+    case file
+    case symlink
+    case directory
+    case submodule
+    case conflict
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BackendFileKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendFileKind: FfiConverterRustBuffer {
+    typealias SwiftType = BackendFileKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendFileKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .file
+        
+        case 2: return .symlink
+        
+        case 3: return .directory
+        
+        case 4: return .submodule
+        
+        case 5: return .conflict
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BackendFileKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .file:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .symlink:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .directory:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .submodule:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .conflict:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileKind_lift(_ buf: RustBuffer) throws -> BackendFileKind {
+    return try FfiConverterTypeBackendFileKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileKind_lower(_ value: BackendFileKind) -> RustBuffer {
+    return FfiConverterTypeBackendFileKind.lower(value)
+}
+
+
+
+
 public enum BackendFileStatus: Equatable, Hashable {
     
     case modified
@@ -1503,6 +1804,7 @@ public enum BackendFileStatus: Equatable, Hashable {
     case removed
     case copied
     case renamed
+    case unchanged
 
 
 
@@ -1534,6 +1836,8 @@ public struct FfiConverterTypeBackendFileStatus: FfiConverterRustBuffer {
         
         case 5: return .renamed
         
+        case 6: return .unchanged
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -1560,6 +1864,10 @@ public struct FfiConverterTypeBackendFileStatus: FfiConverterRustBuffer {
         
         case .renamed:
             writeInt(&buf, Int32(5))
+        
+        
+        case .unchanged:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -1600,6 +1908,54 @@ fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterUInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
+    typealias SwiftType = Bool?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterBool.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterBool.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeBackendFileMetadata: FfiConverterRustBuffer {
+    typealias SwiftType = BackendFileMetadata?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeBackendFileMetadata.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeBackendFileMetadata.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -1650,6 +2006,31 @@ fileprivate struct FfiConverterSequenceTypeBackendChangedFile: FfiConverterRustB
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeBackendChangedFile.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBackendFileStatistics: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendFileStatistics]
+
+    public static func write(_ value: [BackendFileStatistics], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendFileStatistics.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendFileStatistics] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendFileStatistics]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendFileStatistics.read(from: &buf))
         }
         return seq
     }
@@ -1750,6 +2131,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_diff() != 58992) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_diff_statistics() != 40542) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_file_diff() != 37310) {

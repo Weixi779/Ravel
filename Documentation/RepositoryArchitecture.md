@@ -14,13 +14,15 @@ Each domain uses the layers that have actual responsibilities:
 - `Infrastructure` holds native backend adapters and preference storage details.
 
 History and Revision keep their `View` and `ViewModel` folders inside
-`Presentation`. `LogSession` and `DiffSession` retain their current names and
+`Presentation`. `LogSession` and `RevisionChangesSession` retain their existing
 lifecycle ownership. `RepositoryLog`, `LogGraph`, diff display rows and the
 changed-file tree are derived presentation state, not domain entities. Preference
 keys belong to each domain's `Infrastructure`; observable reading options remain
 presentation state. Settings binds to the existing owners and needs only `View`.
-Localized display extensions sit directly in `Presentation`; `Component` is
-reserved for local interface components that need separate organization.
+Localized display extensions and file-status appearance mappings sit directly in
+`Presentation`. The file list lives in `View/RevisionFileListView.swift`; its row
+and status icon live in `Component/RevisionFileRow.swift` and
+`Component/RevisionFileStatusIcon.swift`.
 
 `Domains/Repository/Domain` contains shared reader values (`Revision`,
 `ChangedFile`, `RevisionDiff` and `FileDiff`). `RepositoryWorkspace` and
@@ -28,11 +30,27 @@ reserved for local interface components that need separate organization.
 lives in `Infrastructure`. `Shared/Presentation` contains the revision summary
 presentation used by History and Revision.
 
+The backend file records include before/after type, executable and conflict
+metadata. A separate cancellable statistics read returns per-file counts and
+aggregate line counts without delaying the first preview. Binary line counts
+are absent, not zero. Unchanged inherited conflicts are explicitly distinguished
+from modified files.
+
+`RevisionPatchParser` in Infrastructure translates the patch transport into
+prefix-free domain lines and structured hunk ranges. `RevisionFilePresentation`
+and `RevisionDiffPresentation` map those values into view-specific file rows,
+aligned text, ranges and decorations. Views do not interpret patch prefixes.
+`RevisionFileListViewModel` owns filtering and expansion. `RevisionChangesSession`
+separates requested selection from displayed content, owns the 250 ms progress
+policy, and retains a bounded window-scoped preview cache. The AppKit container
+owns native text selection and synchronized split scrolling. Each background
+surface follows clip-view movement even when TextKit reuses a prefetched layout.
+
 These are organizational boundaries inside one app target. This move does not
 enforce dependency inversion or split existing mixed-responsibility files:
 `RepositoryWorkspace` still constructs the concrete reader, and that adapter's
 file still declares the read/query contracts. Future package extraction needs
-explicit interfaces. No new package, state owner or placeholder layer is added.
+explicit interfaces. No placeholder layers are added for future package extraction.
 
 ## Ownership
 
@@ -40,7 +58,7 @@ explicit interfaces. No new package, state owner or placeholder layer is added.
 flowchart TD
     App[RavelApp / workspace composition] --> Workspace[RepositoryWorkspace]
     App --> Log[LogSession: selection, pages, refresh]
-    App --> Diff[DiffSession: file selection, previews]
+    App --> Diff[RevisionChangesSession: file selection, previews]
     Diff --> Workspace
     Workspace --> Repository[CodeRepository]
     Repository --> Reader[CodeRepositoryReader]
@@ -55,7 +73,7 @@ flowchart TD
 `CodeRepository` is the application access boundary for a workspace, not a feature
 session or a database repository. `RepositoryWorkspace` creates, reuses and closes
 it. `LogSession` owns presentation state and a history query; it receives an
-injected loader and does not know Rust types. `DiffSession` continues to own file
+injected loader and does not know Rust types. `RevisionChangesSession` continues to own file
 selection and preview state. Native handles and native DTOs stay inside the Swift
 adapter. `Revision` and `HistoryPage` are application values; `LogGraph` is derived
 presentation data.

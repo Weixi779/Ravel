@@ -5,18 +5,18 @@ import Foundation
 nonisolated struct ChangedFileNode: Identifiable, Sendable {
     let path: String
     let name: String
-    let file: ChangedFile?
+    let file: RevisionFilePresentation?
     let children: [ChangedFileNode]
 
     var id: String {
         "\(file == nil ? "directory" : "file"):\(path)"
     }
 
-    static func tree(_ files: [ChangedFile]) -> [Self] {
+    static func tree(_ files: [RevisionFilePresentation]) -> [Self] {
         descendants(files, parent: "")
     }
 
-    static func grouped(_ files: [ChangedFile]) -> [Self] {
+    static func grouped(_ files: [RevisionFilePresentation]) -> [Self] {
         let groups = Dictionary(grouping: files) { file in
             file.path.split(separator: "/").dropLast().joined(separator: "/")
         }
@@ -26,10 +26,10 @@ nonisolated struct ChangedFileNode: Identifiable, Sendable {
         })
     }
 
-    private static func descendants(_ files: [ChangedFile], parent: String) -> [Self] {
+    private static func descendants(_ files: [RevisionFilePresentation], parent: String) -> [Self] {
         let prefix = parent.isEmpty ? "" : parent + "/"
         var leaves: [Self] = []
-        var folders: [String: [ChangedFile]] = [:]
+        var folders: [String: [RevisionFilePresentation]] = [:]
         for file in files {
             let remainder = file.path.dropFirst(prefix.count)
             if let separator = remainder.firstIndex(of: "/") {
@@ -45,7 +45,7 @@ nonisolated struct ChangedFileNode: Identifiable, Sendable {
         return sorted(directories + leaves)
     }
 
-    private static func leaf(_ file: ChangedFile) -> Self {
+    static func leaf(_ file: RevisionFilePresentation) -> Self {
         Self(path: file.path, name: String(file.path.split(separator: "/").last ?? ""), file: file, children: [])
     }
 

@@ -1,58 +1,9 @@
-// Created by weixi on 2026/09/09.
+// Created by weixi on 2026/09/18.
 
 import AppKit
+import DesignSystem
 import Localization
 import STTextView
-import SwiftUI
-
-struct DiffTextView: NSViewRepresentable {
-    let diff: FileDiff
-    var showsChangeMarkers = false
-    var findRequest = 0
-
-    func makeNSView(context _: Context) -> NSScrollView {
-        let scroll = NSScrollView()
-        scroll.wantsLayer = true
-        scroll.clipsToBounds = true
-        scroll.hasVerticalScroller = true
-        scroll.hasHorizontalScroller = true
-        scroll.autohidesScrollers = true
-        scroll.drawsBackground = true
-        scroll.backgroundColor = .textBackgroundColor
-        let text = DiffReadOnlyTextView(frame: .zero)
-        scroll.documentView = text
-        let ruler = DiffLineRuler(scrollView: scroll, orientation: .verticalRuler)
-        ruler.clientView = text
-        scroll.verticalRulerView = ruler
-        scroll.hasVerticalRuler = true
-        scroll.rulersVisible = true
-        text.addPlugin(DiffViewportPlugin())
-        return scroll
-    }
-
-    func updateNSView(_ scroll: NSScrollView, context _: Context) {
-        guard let text = scroll.documentView as? DiffReadOnlyTextView,
-              let ruler = scroll.verticalRulerView as? DiffLineRuler else { return }
-        if text.contentID != diff.id {
-            text.setDocument(diff)
-            let largestNumber = diff.lines.reduce(1) { max($0, $1.oldNumber ?? 0, $1.newNumber ?? 0) }
-            ruler.numberWidth = max(36, CGFloat(String(largestNumber).count) * 7 + 12)
-            ruler.ruleThickness = ruler.numberWidth * 2 + 22
-            text.scrollToBeginningOfDocument(nil)
-        }
-        if ruler.showsChangeMarkers != showsChangeMarkers {
-            ruler.showsChangeMarkers = showsChangeMarkers
-            ruler.needsDisplay = true
-        }
-        if text.findRequest != findRequest {
-            text.findRequest = findRequest
-            scroll.window?.makeFirstResponder(text)
-            let item = NSMenuItem()
-            item.tag = NSTextFinder.Action.showFindInterface.rawValue
-            text.performTextFinderAction(item)
-        }
-    }
-}
 
 /// The text system owns layout, selection and scrolling. This view only paints diff decorations.
 final class DiffReadOnlyTextView: STTextView {
@@ -64,8 +15,8 @@ final class DiffReadOnlyTextView: STTextView {
     private(set) var contentID: UUID?
     private(set) var document: DiffDisplayDocument?
     private(set) var visibleRows: [VisibleRow] = []
-    var findRequest = 0
-    private let diffBackground = DiffBackgroundView()
+    let diffBackground = DiffBackgroundView()
+    private weak var observedClipView: NSClipView?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -80,7 +31,7 @@ final class DiffReadOnlyTextView: STTextView {
         highlightSelectedLine = false
         isIncrementalSearchingEnabled = true
         font = .monospacedSystemFont(ofSize: 13, weight: .regular)
-        textColor = .textColor
+        textColor = .labelColor
         backgroundColor = .textBackgroundColor
         textContainer.lineFragmentPadding = 8
         let paragraph = NSMutableParagraphStyle()
@@ -100,24 +51,54 @@ final class DiffReadOnlyTextView: STTextView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func setDocument(_ diff: FileDiff) {
-        let document = DiffDisplayDocument(diff)
+    func setDocument(_ document: DiffDisplayDocument) {
         self.document = document
-        contentID = diff.id
+        contentID = document.id
         visibleRows = []
         let string = NSMutableAttributedString(string: document.text, attributes: [
             .font: font,
-            .foregroundColor: NSColor.textColor,
+            .foregroundColor: NSColor.labelColor,
             .paragraphStyle: defaultParagraphStyle,
             .ligature: 0,
         ])
         for row in document.rows where row.line.kind == .hunk || row.line.kind == .metadata {
             string.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: row.range)
         }
+        for range in document.commentRanges {
+            string.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: range)
+        }
+        for row in document.rows {
+            guard let emphasis = row.line.emphasis else { continue }
+            let tone: ChangeTone = row.line.kind == .addition ? .addition : .deletion
+            string.addAttribute(.backgroundColor, value: tone.emphasisBackground,
+                                range: NSRange(location: row.range.location + emphasis.location, length: emphasis.length))
+        }
         attributedText = string
         textSelection = NSRange(location: 0, length: 0)
         diffBackground.needsDisplay = true
     }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let observedClipView {
+            NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: observedClipView)
+        }
+        observedClipView = enclosingScrollView?.contentView
+        if let observedClipView, window != nil {
+            observedClipView.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(self, selector: #selector(viewportDidScroll), name: NSView.boundsDidChangeNotification, object: observedClipView)
+        }
+        updateDiffDecorations()
+    }
+
+    @objc
+    private func viewportDidScroll() {
+        // STTextView reuses its prefetched layout during small scrolls. Decorations
+        // must follow the clip view even when no new viewport layout was necessary.
+        updateDiffDecorations()
+    }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
 
     func updateDiffDecorations() {
         visibleRows.removeAll(keepingCapacity: true)
@@ -156,18 +137,19 @@ final class DiffReadOnlyTextView: STTextView {
         // A read-only viewer permits changing the selection, but never replacing the selected text.
     }
 
-    static func background(for kind: FileDiff.Line.Kind) -> NSColor? {
+    static func background(for kind: DiffDisplayDocument.Line.Kind) -> NSColor? {
         switch kind {
-        case .addition: .systemGreen.withAlphaComponent(0.13)
-        case .deletion: .systemRed.withAlphaComponent(0.13)
+        case .addition: ChangeTone.addition.background
+        case .deletion: ChangeTone.deletion.background
         case .hunk: .quaternaryLabelColor.withAlphaComponent(0.08)
         case .context, .metadata: nil
+        case .spacer: .quaternaryLabelColor.withAlphaComponent(0.04)
         }
     }
 }
 
 /// Keep the custom drawing surface viewport-sized, even when the document is very tall or wide.
-private final class DiffBackgroundView: NSView {
+final class DiffBackgroundView: NSView {
     weak var textView: DiffReadOnlyTextView?
     override var isFlipped: Bool {
         true
@@ -190,7 +172,7 @@ private final class DiffBackgroundView: NSView {
     }
 }
 
-private struct DiffViewportPlugin: STPlugin {
+struct DiffViewportPlugin: STPlugin {
     func setUp(context: any Context) {
         let view = context.textView as? DiffReadOnlyTextView
         context.events.onDidLayoutViewport { [weak view] _ in
@@ -201,7 +183,7 @@ private struct DiffViewportPlugin: STPlugin {
     }
 }
 
-private final class DiffLineRuler: NSRulerView {
+final class DiffLineRuler: NSRulerView {
     var numberWidth: CGFloat = 36
     var showsChangeMarkers = false
     override var isFlipped: Bool {
@@ -240,7 +222,12 @@ private final class DiffLineRuler: NSRulerView {
                 lineRect.fill()
             }
             let line = visible.row.line
-            for (number, edge) in [(line.oldNumber, numberWidth - 6), (line.newNumber, numberWidth * 2 - 6)] {
+            let columns: [(Int?, CGFloat)] = switch text.document?.side {
+            case .before: [(line.oldNumber, numberWidth - 6)]
+            case .after: [(line.newNumber, numberWidth - 6)]
+            default: [(line.oldNumber, numberWidth - 6), (line.newNumber, numberWidth * 2 - 6)]
+            }
+            for (number, edge) in columns {
                 guard let number else { continue }
                 let label = String(number) as NSString
                 let size = label.size(withAttributes: attributes)
@@ -249,7 +236,7 @@ private final class DiffLineRuler: NSRulerView {
             if showsChangeMarkers, line.kind == .addition || line.kind == .deletion {
                 let label = (line.kind == .addition ? "+" : "−") as NSString
                 let size = label.size(withAttributes: attributes)
-                label.draw(at: NSPoint(x: numberWidth * 2 + 3, y: converted.midY - size.height / 2), withAttributes: attributes)
+                label.draw(at: NSPoint(x: ruleThickness - 17, y: converted.midY - size.height / 2), withAttributes: attributes)
             }
         }
         NSColor.separatorColor.setFill()

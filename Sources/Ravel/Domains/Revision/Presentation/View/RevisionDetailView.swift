@@ -3,7 +3,7 @@
 import Localization
 import SwiftUI
 
-struct RevisionDetail: View {
+struct RevisionDetailView: View {
     let revision: Revision?
 
     var body: some View {

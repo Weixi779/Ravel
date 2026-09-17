@@ -7,7 +7,7 @@ import Testing
 import UserDefaultsKit
 
 @MainActor
-struct ChangedFilesViewTests {
+struct RevisionFileListViewTests {
     @Test
     func repeatedGroupingChangesKeepEveryFileAndSelection() async throws {
         let suite = "RavelTests.\(UUID())"
@@ -15,22 +15,24 @@ struct ChangedFilesViewTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let options = DiffViewOptions(store: UserDefaultsStore(defaults: defaults))
         let paths = ["App/UI/Cell.swift", "App/UI/Header.swift", "App/Model.swift", "Tests/UI/CellTests.swift", "README.md"]
-        let files = paths.map { ChangedFile(path: $0, sourcePath: $0, status: .modified) }
-        let host = NSHostingView(rootView: ChangedFilesView(files: files, selection: .constant(paths[0]), options: options))
+        let files = paths.map { RevisionFilePresentation(ChangedFile(path: $0, sourcePath: $0, status: .modified)) }
+        let model = RevisionFileListViewModel()
+        model.update(files: files)
+        let host = NSHostingView(rootView: RevisionFileListView(model: model, summary: RevisionChangeSummary(files: files, statistics: nil), selection: .constant(paths[0]), options: options))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
                               styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
         defer { window.close() }
 
-        for grouped in [false, true, false, true, false] {
-            options.groupsFiles = grouped
+        for mode in [RevisionFileListMode.tree, .grouped, .list, .tree, .grouped] {
+            options.fileListMode = mode
             host.layoutSubtreeIfNeeded()
             await Task.yield()
             host.layoutSubtreeIfNeeded()
             let table = try #require(descendant(NSTableView.self, in: host))
             // Five file rows plus either four tree directories or three immediate-parent groups.
-            #expect(table.numberOfRows == (grouped ? 8 : 9))
+            #expect(table.numberOfRows == (mode == .tree ? 9 : mode == .grouped ? 8 : 5))
             #expect(table.selectedRow >= 0)
             let rects = (0 ..< table.numberOfRows).map { table.rect(ofRow: $0) }
             #expect(zip(rects, rects.dropFirst()).allSatisfy { $0.maxY <= $1.minY })

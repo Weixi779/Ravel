@@ -3,7 +3,7 @@
 import Foundation
 import Localization
 
-nonisolated extension ChangedFile.Status {
+nonisolated extension RevisionFilePresentation.Status {
     var localizedName: LocalizedStringResource {
         switch self {
         case .modified: I18n.diffModified
@@ -11,6 +11,7 @@ nonisolated extension ChangedFile.Status {
         case .removed: I18n.diffRemoved
         case .copied: I18n.diffCopied
         case .renamed: I18n.diffRenamed
+        case .unchanged: I18n.diffUnchanged
         }
     }
 }

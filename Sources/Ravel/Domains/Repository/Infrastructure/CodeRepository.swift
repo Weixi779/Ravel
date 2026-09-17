@@ -8,6 +8,7 @@ nonisolated protocol CodeRepositoryReader: Sendable {
     func history(pageSize: Int) async throws -> any HistoryQuery
     func diff(commitID: String, at operationID: String) async throws -> RevisionDiff
     func fileDiff(commitID: String, path: String, at operationID: String) async throws -> FileDiff
+    func diffStatistics(commitID: String, at operationID: String) async throws -> RevisionDiffStatistics
     func close() async
 }
 
@@ -100,7 +101,25 @@ final nonisolated class CodeRepository: CodeRepositoryReader {
                 try await backend.fileDiff(operationId: operationID, commitId: commitID, filePath: path, cancellation: cancellation)
             }
             try Task.checkCancellation()
-            return try FileDiff(patch: patch)
+            return try RevisionPatchParser.parse(patch)
+        } onCancel: { cancellation.cancel() }
+    }
+
+    @concurrent
+    func diffStatistics(commitID: String, at operationID: String) async throws -> RevisionDiffStatistics {
+        let cancellation = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            let statistics = try await backendRead {
+                try await backend.diffStatistics(operationId: operationID, commitId: commitID, cancellation: cancellation)
+            }
+            try Task.checkCancellation()
+            return RevisionDiffStatistics(
+                files: Dictionary(uniqueKeysWithValues: statistics.files.map {
+                    ($0.path, FileChangeStatistics(additions: $0.linesAdded.map(Int.init), deletions: $0.linesRemoved.map(Int.init), bytesDelta: Int($0.bytesDelta)))
+                }),
+                additions: Int(statistics.linesAdded), deletions: Int(statistics.linesRemoved), binaryFiles: Int(statistics.binaryFiles),
+            )
         } onCancel: { cancellation.cancel() }
     }
 }
@@ -155,8 +174,23 @@ private nonisolated extension ChangedFile {
         case .removed: .removed
         case .copied: .copied
         case .renamed: .renamed
+        case .unchanged: .unchanged
         }
-        self.init(path: value.path, sourcePath: value.sourcePath, status: status)
+        self.init(path: value.path, sourcePath: value.sourcePath, status: status,
+                  before: value.before.map(FileMetadata.init), after: value.after.map(FileMetadata.init))
+    }
+}
+
+private nonisolated extension FileMetadata {
+    init(_ value: BackendFileMetadata) {
+        let kind: Kind = switch value.kind {
+        case .file: .file
+        case .symlink: .symlink
+        case .directory: .directory
+        case .submodule: .submodule
+        case .conflict: .conflict
+        }
+        self.init(kind: kind, executable: value.executable, conflictSides: Int(value.conflictSides))
     }
 }
 

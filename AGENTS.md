@@ -21,7 +21,7 @@
 - View 构造与每个链式修饰符分别占一行，例如 `.font`、`.fontWeight`、`.foregroundStyle`；即使表达式很短，也不要合并到同一行。
 - 同级相邻组件之间保留一个空行。每个组件及其连续修饰符作为一个完整块，块内不插入额外空行，便于看清组件边界和修饰符归属。
 - SwiftUI 组件的 action、label 等闭包内容展开换行，不将按钮等组件的闭包压在一行。
-- 格式化后仍须保留上述排版；以 `ChangedFilesView.swift` 的现有写法作为参考。
+- 格式化后仍须保留上述排版；以 `RevisionFileListView.swift` 的现有写法作为参考。
 
 ## Swift 格式化
 

@@ -46,10 +46,17 @@ open /path/to/Ravel.app --args --repository /path/to/workspace
 
 - SwiftUI owns the window, sidebar, toolbar, and details.
 - AppKit owns the table, selection, and graph rendering.
-- The Changes inspector shows a SwiftUI folder tree or groups files by parent
-  folder, with added, modified, removed, copied, and renamed status badges.
-  File contents load into a read-only STTextView with old/new line-number gutters,
-  full-row addition/deletion colors, native selection, copying, and find.
+- The Changes inspector offers a folder tree, folder groups, and a filename-first
+  list with a secondary path, filtering, and status icon badges. Native file
+  type icons also work for historical paths. Added/deleted/modified/moved use
+  green/red/blue/purple; conflicts have an independent warning indicator.
+  Per-file and total line statistics load independently of file previews. File
+  information shows before/after types, executable modes and conflict sides.
+  Read-only STTextView readers offer unified or aligned side-by-side text,
+  synchronized vertical scrolling, line-number gutters, change backgrounds,
+  basic intraline emphasis, conservative comment coloring, and native find.
+  Header copy buttons copy the repository-relative path or filename; the context
+  menu also provides the absolute path.
   Optional +/− markers stay outside copied code and do not move the code column.
   This preference is independent of appearance and initially follows macOS
   Differentiate Without Color. Details remains available beside Changes.
@@ -95,11 +102,20 @@ states; mode-only changes remain visible. Each file preview is limited to 2 MB
 or 20,000 lines, with an error instead of a partial patch.
 
 Refreshing an unchanged commit keeps the loaded file and reading position.
+Revision and file switching retain the displayed snapshot until a replacement is
+ready, keeping its title and contents together. Progress indicators appear only
+after 250 ms. Window-scoped preview caches use immutable commit/operation/path
+identities, a 24-revision metadata limit and a 64 MiB estimated display-cost
+budget. One adjacent file may be prefetched after visible work settles; changing
+the selection cancels that work. Repository changes clear these caches.
 
-The first STTextView reader uses a unified layout with no soft wrapping.
+The text reader does not soft-wrap. Split views align replacement blocks with
+blank rows and retain native horizontal scrolling independently on each side.
 Multi-hunk selections retain visible gap headings, so copied fragments are not
-presented as a contiguous complete source file. Side-by-side alignment, intraline
-highlighting, and expanding omitted source context are not implemented yet.
+presented as a contiguous complete source file. Expanding omitted source context
+and full language-aware syntax highlighting are not implemented yet. Conflicts
+inherited unchanged from merged parents remain listed, with an explicit message
+when there is no additional text delta.
 STTextView is pinned to 2.4.1 and is available under
 [GPLv3 or a commercial license](https://github.com/krzyzanowskim/STTextView#license).
 

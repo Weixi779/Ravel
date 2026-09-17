@@ -4,15 +4,16 @@ use crate::{BackendCancellation, BackendError, load_workspace_for, read_error};
 use futures::StreamExt;
 use jj_cli::{
     diff_util::{
-        DiffEntryStatus, UnifiedDiffOptions, diff_status, get_copy_records, show_git_diff,
+        DiffEntryStatus, DiffStatOptions, DiffStats, UnifiedDiffOptions, diff_status,
+        get_copy_records, show_git_diff,
     },
     formatter::PlainTextFormatter,
 };
 use jj_lib::{
-    backend::CommitId,
+    backend::{CommitId, TreeValue},
     copies::CopyRecords,
     matchers::{EverythingMatcher, FilesMatcher, Matcher},
-    merge::Diff,
+    merge::{Diff, MergedTreeValue},
     merged_tree::MergedTree,
     op_store::OperationId,
     operation::Operation,
@@ -34,6 +35,47 @@ pub enum BackendFileStatus {
     Removed,
     Copied,
     Renamed,
+    Unchanged,
+}
+
+#[derive(Clone, Debug, PartialEq, uniffi::Enum)]
+pub enum BackendFileKind {
+    File,
+    Symlink,
+    Directory,
+    Submodule,
+    Conflict,
+}
+
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct BackendFileMetadata {
+    pub kind: BackendFileKind,
+    pub executable: Option<bool>,
+    pub conflict_sides: u32,
+}
+
+impl BackendFileMetadata {
+    fn from_value(value: &MergedTreeValue) -> Option<Self> {
+        let (kind, executable) = match value.as_resolved() {
+            Some(None) => return None,
+            Some(Some(TreeValue::File { executable, .. })) => {
+                (BackendFileKind::File, Some(*executable))
+            }
+            Some(Some(TreeValue::Symlink(_))) => (BackendFileKind::Symlink, None),
+            Some(Some(TreeValue::Tree(_))) => (BackendFileKind::Directory, None),
+            Some(Some(TreeValue::GitSubmodule(_))) => (BackendFileKind::Submodule, None),
+            None => (BackendFileKind::Conflict, None),
+        };
+        Some(Self {
+            kind,
+            executable,
+            conflict_sides: if value.is_resolved() {
+                0
+            } else {
+                value.num_sides() as u32
+            },
+        })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
@@ -41,6 +83,25 @@ pub struct BackendChangedFile {
     pub path: String,
     pub source_path: String,
     pub status: BackendFileStatus,
+    pub before: Option<BackendFileMetadata>,
+    pub after: Option<BackendFileMetadata>,
+}
+
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct BackendFileStatistics {
+    pub path: String,
+    /// None for binary changes; zero is reserved for an actual zero-line change.
+    pub lines_added: Option<u64>,
+    pub lines_removed: Option<u64>,
+    pub bytes_delta: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct BackendDiffStatistics {
+    pub files: Vec<BackendFileStatistics>,
+    pub lines_added: u64,
+    pub lines_removed: u64,
+    pub binary_files: u64,
 }
 
 struct DiffView {
@@ -130,10 +191,79 @@ pub(crate) async fn files(
             path: entry.path.target().as_internal_file_string().to_owned(),
             source_path: entry.path.source().as_internal_file_string().to_owned(),
             status,
+            before: BackendFileMetadata::from_value(&values.before),
+            after: BackendFileMetadata::from_value(&values.after),
         });
     }
+    // An unresolved merge can have an empty delta against its merged parents.
+    // Keep those conflicts discoverable without inventing a content modification.
+    for (path, value) in view.after.conflicts() {
+        cancellation.check()?;
+        let path_string = path.as_internal_file_string();
+        if files.iter().any(|file| file.path == path_string) {
+            continue;
+        }
+        let before = view.before.path_value(&path).await.map_err(read_error)?;
+        files.push(BackendChangedFile {
+            path: path_string.to_owned(),
+            source_path: path_string.to_owned(),
+            status: BackendFileStatus::Unchanged,
+            before: BackendFileMetadata::from_value(&before),
+            after: BackendFileMetadata::from_value(&value.map_err(read_error)?),
+        });
+    }
+    files.sort_by(|left, right| left.path.cmp(&right.path));
     cancellation.check()?;
     Ok(files)
+}
+
+pub(crate) async fn statistics(
+    path: &Path,
+    operation_id: &str,
+    commit_id: &str,
+    cancellation: &BackendCancellation,
+) -> Result<BackendDiffStatistics, BackendError> {
+    let matcher = EverythingMatcher;
+    let view = DiffView::open(path, operation_id, commit_id, &matcher, cancellation).await?;
+    let marker_style = view
+        .workspace
+        .settings()
+        .get("ui.conflict-marker-style")
+        .map_err(read_error)?;
+    let mut stream = view
+        .before
+        .diff_stream_with_copies(&view.after, &matcher, &view.copies);
+    let mut result = BackendDiffStatistics {
+        files: Vec::new(),
+        lines_added: 0,
+        lines_removed: 0,
+        binary_files: 0,
+    };
+    while let Some(entry) = stream.next().await {
+        cancellation.check()?;
+        // One file at a time keeps cancellation responsive between expensive file diffs.
+        let stats = DiffStats::calculate(
+            view.repo.store(),
+            futures::stream::iter([entry]).boxed(),
+            &DiffStatOptions::default(),
+            marker_style,
+        )
+        .await
+        .map_err(read_error)?;
+        cancellation.check()?;
+        for entry in stats.entries() {
+            result.lines_added += entry.added_removed.map_or(0, |(added, _)| added as u64);
+            result.lines_removed += entry.added_removed.map_or(0, |(_, removed)| removed as u64);
+            result.binary_files += u64::from(entry.added_removed.is_none());
+            result.files.push(BackendFileStatistics {
+                path: entry.path.target().as_internal_file_string().to_owned(),
+                lines_added: entry.added_removed.map(|(added, _)| added as u64),
+                lines_removed: entry.added_removed.map(|(_, removed)| removed as u64),
+                bytes_delta: entry.bytes_delta as i64,
+            });
+        }
+    }
+    Ok(result)
 }
 
 pub(crate) async fn patch(

@@ -22,48 +22,48 @@ nonisolated struct DiffTests {
         +extra
         \\ No newline at end of file
         """
-        let diff = try FileDiff(patch: patch)
+        let diff = try RevisionPatchParser.parse(patch)
         let removed = diff.lines.filter { $0.kind == .deletion }
         let added = diff.lines.filter { $0.kind == .addition }
         #expect(removed.map(\.oldNumber) == [3, 20])
         #expect(added.map(\.newNumber) == [3, 20, 21])
-        #expect(removed[0].text == "---looks like a header")
+        #expect(removed[0].text == "--looks like a header")
         #expect(added.allSatisfy { $0.oldNumber == nil })
         #expect(diff.lines.last?.kind == .metadata)
     }
 
     @Test
     func zeroLengthRangesAndCRLFRemainReadable() throws {
-        let added = try FileDiff(patch: "@@ -0,0 +1,2 @@\n+你好 🧶\r\n+second\r\n")
+        let added = try RevisionPatchParser.parse("@@ -0,0 +1,2 @@\n+你好 🧶\r\n+second\r\n")
         #expect(added.lines.map(\.newNumber) == [nil, 1, 2])
-        #expect(added.lines[1].text == "+你好 🧶\r")
-        let removed = try FileDiff(patch: "@@ -1,1 +0,0 @@\n-gone\n")
+        #expect(added.lines[1].text == "你好 🧶\r")
+        let removed = try RevisionPatchParser.parse("@@ -1,1 +0,0 @@\n-gone\n")
         #expect(removed.lines.last?.oldNumber == 1)
         #expect(removed.lines.last?.newNumber == nil)
     }
 
     @Test(arguments: ["@@ -1,2 +1,1 @@\n-old\n+new\n", "@@ -x +1 @@\n+a\n", "@@ -1 +1 @@\ninvalid\n"])
     func incompleteOrMalformedHunksAreRejected(patch: String) {
-        #expect(throws: FileDiff.Failure.self) { try FileDiff(patch: patch) }
+        #expect(throws: FileDiff.Failure.self) { try RevisionPatchParser.parse(patch) }
     }
 
     @Test
     func binaryAndMetadataOnlyChangesHaveNoInventedLineNumbers() throws {
-        let binary = try FileDiff(patch: "diff --git a/a b/a\nBinary files a/a and b/a differ\n")
+        let binary = try RevisionPatchParser.parse("diff --git a/a b/a\nBinary files a/a and b/a differ\n")
         #expect(binary.isBinary)
-        let mode = try FileDiff(patch: "diff --git a/a b/a\nold mode 100644\nnew mode 100755\n")
+        let mode = try RevisionPatchParser.parse("diff --git a/a b/a\nold mode 100644\nnew mode 100755\n")
         #expect(!mode.isBinary)
         #expect(mode.lines.allSatisfy { $0.oldNumber == nil && $0.newNumber == nil })
-        #expect(try FileDiff(patch: "").lines.isEmpty)
+        #expect(try RevisionPatchParser.parse("").lines.isEmpty)
     }
 
     @Test
     func oversizedPatchesFailExplicitly() {
         #expect(throws: FileDiff.Failure.self) {
-            try FileDiff(patch: String(repeating: "a", count: FileDiff.byteLimit))
+            try RevisionPatchParser.parse(String(repeating: "a", count: RevisionPatchParser.byteLimit))
         }
         #expect(throws: FileDiff.Failure.self) {
-            try FileDiff(patch: String(repeating: "line\n", count: FileDiff.lineLimit + 1))
+            try RevisionPatchParser.parse(String(repeating: "line\n", count: RevisionPatchParser.lineLimit + 1))
         }
     }
 
@@ -93,6 +93,14 @@ nonisolated struct DiffTests {
         let operationID = try await operation(in: repo)
         let diff = try await repository.diff(commitID: commit, at: operationID)
         #expect(diff.files.count == 7)
+        let statistics = try await repository.diffStatistics(commitID: commit, at: operationID)
+        #expect(statistics.additions == 2)
+        #expect(statistics.deletions == 2)
+        #expect(statistics.binaryFiles == 1)
+        #expect(statistics.files["binary.dat"]?.isBinary == true)
+        #expect(statistics.files["empty.txt"]?.additions == 0)
+        #expect(statistics.files["modified.txt"]?.additions == 1)
+        #expect(statistics.files["modified.txt"]?.deletions == 1)
         #expect(diff.files.first { $0.path == "modified.txt" }?.status == .modified)
         #expect(diff.files.first { $0.path == "removed.txt" }?.status == .removed)
         let rename = try #require(diff.files.first { $0.path == "renamed.txt" })
@@ -103,10 +111,13 @@ nonisolated struct DiffTests {
 
         let special = try #require(diff.files.first { $0.path == unusual })
         let specialPatch = try await repository.fileDiff(commitID: commit, path: special.path, at: operationID)
-        #expect(specialPatch.lines.filter { $0.kind == .addition }.map(\.text) == ["+only this file"])
+        #expect(specialPatch.lines.filter { $0.kind == .addition }.map(\.text) == ["only this file"])
         let binary = try #require(diff.files.first { $0.path == "binary.dat" })
         #expect(try await repository.fileDiff(commitID: commit, path: binary.path, at: operationID).isBinary)
         let executable = try #require(diff.files.first { $0.path == "executable" })
+        #expect(executable.before?.executable == false)
+        #expect(executable.after?.executable == true)
+        #expect(executable.after?.kind == .file)
         #expect(try await repository.fileDiff(commitID: commit, path: executable.path, at: operationID).lines.contains { $0.text == "new mode 100755" })
         #expect(try await operation(in: repo) == before)
         #expect(try String(contentsOf: repo.appendingPathComponent("unrecorded.txt"), encoding: .utf8) == "unrecorded")
@@ -152,7 +163,34 @@ nonisolated struct DiffTests {
         let diff = try await repository.diff(commitID: commit, at: operationID)
         #expect(diff.files.map(\.path) == ["merged.txt"])
         let file = try #require(diff.files.first)
-        #expect(try await repository.fileDiff(commitID: commit, path: file.path, at: operationID).lines.filter { $0.kind == .addition }.map(\.text) == ["+merge adjustment"])
+        #expect(try await repository.fileDiff(commitID: commit, path: file.path, at: operationID).lines.filter { $0.kind == .addition }.map(\.text) == ["merge adjustment"])
+    }
+
+    @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")))
+    func inheritedMergeConflictIsVisibleWithoutInventingAModification() async throws {
+        let repo = try temporaryRepository()
+        defer { try? FileManager.default.removeItem(at: repo) }
+        _ = try await runJJ(["git", "init", "--colocate"], at: repo)
+        try write("base\n", to: "conflict.txt", in: repo)
+        let base = try await runJJ(["log", "-r", "@", "-G", "-T", "commit_id"], at: repo)
+        _ = try await runJJ(["new", base], at: repo)
+        try write("left\n", to: "conflict.txt", in: repo)
+        let left = try await runJJ(["log", "-r", "@", "-G", "-T", "commit_id"], at: repo)
+        _ = try await runJJ(["new", base], at: repo)
+        try write("right\n", to: "conflict.txt", in: repo)
+        let right = try await runJJ(["log", "-r", "@", "-G", "-T", "commit_id"], at: repo)
+        _ = try await runJJ(["new", left, right], at: repo)
+        let commit = try await runJJ(["log", "-r", "@", "-G", "-T", "commit_id"], at: repo)
+        let repository = try await CodeRepository.open(repo)
+        let operationID = try await operation(in: repo)
+        let diff = try await repository.diff(commitID: commit, at: operationID)
+        let conflict = try #require(diff.files.first { $0.path == "conflict.txt" })
+        #expect(conflict.status == .unchanged)
+        #expect(conflict.after?.kind == .conflict)
+        #expect(conflict.after?.conflictSides == 2)
+        #expect(try await repository.diffStatistics(commitID: commit, at: operationID).additions == 0)
+        #expect(try await operation(in: repo) == operationID)
+        await repository.close()
     }
 
     private func temporaryRepository() throws -> URL {

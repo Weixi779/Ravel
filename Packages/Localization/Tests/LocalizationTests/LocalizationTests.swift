@@ -34,7 +34,7 @@ struct LocalizationTests {
     @Test
     func preservesArgumentsAsLiteralContent() {
         let path = "folder/中文 \"100%@\"\\file\n.swift"
-        #expect(resolve(I18n.diffFileHelp("已修改", path), language: "zh-Hans") == "已修改：\(path)")
+        #expect(resolve(I18n.historyRevisionIdentity(path, "commit🚀"), language: "en") == "Change \(path)\nCommit commit🚀")
         #expect(resolve(I18n.historyRevisionIdentity("change%lld", "commit🚀"), language: "en") == "Change change%lld\nCommit commit🚀")
     }
 

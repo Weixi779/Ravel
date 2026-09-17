@@ -24,7 +24,7 @@ nonisolated struct DiffPresentationTests {
 
     @Test
     func groupingKeepsRenameIdentityAndFullParentPath() throws {
-        let renamed = ChangedFile(path: "App/UI/New.swift", sourcePath: "Legacy/Old.swift", status: .renamed)
+        let renamed = RevisionFilePresentation(ChangedFile(path: "App/UI/New.swift", sourcePath: "Legacy/Old.swift", status: .renamed))
         let groups = ChangedFileNode.grouped([renamed, file("App/UI/Second.swift"), file("README.md")])
         let group = try #require(groups.first)
         #expect(group.name == "App/UI")
@@ -38,7 +38,7 @@ nonisolated struct DiffPresentationTests {
 
     @Test
     func displayStripsOnlyPatchPrefixAndMapsUTF16IncludingCRLF() throws {
-        let diff = try FileDiff(patch: "diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -8,2 +8,2 @@\n---literal\n+++字🙂\r\n keep\r\n")
+        let diff = try RevisionPatchParser.parse("diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -8,2 +8,2 @@\n---literal\n+++字🙂\r\n keep\r\n")
         let document = DiffDisplayDocument(diff)
         #expect(!document.text.contains("diff --git"))
         #expect(document.text.contains("--literal\n++字🙂\r\nkeep\r\n"))
@@ -55,17 +55,40 @@ nonisolated struct DiffPresentationTests {
 
     @Test
     func displayKeepsEmptyChangedLinesAndNonTextMetadata() throws {
-        let diff = try FileDiff(patch: "@@ -0,0 +1,2 @@\n+\n+tail\n\\ No newline at end of file\n")
+        let diff = try RevisionPatchParser.parse("@@ -0,0 +1,2 @@\n+\n+tail\n\\ No newline at end of file\n")
         let document = DiffDisplayDocument(diff)
         #expect(document.rows[1].range.length == 1)
         #expect(document.rows[1].line.newNumber == 1)
         #expect(document.text.contains("No newline at end of file"))
-        let mode = try DiffDisplayDocument(FileDiff(patch: "diff --git a/a b/a\nold mode 100644\nnew mode 100755\n"))
+        let mode = try DiffDisplayDocument(RevisionPatchParser.parse("diff --git a/a b/a\nold mode 100644\nnew mode 100755\n"))
         #expect(mode.text == "old mode 100644\nnew mode 100755\n")
         #expect(mode.rows.allSatisfy { $0.line.oldNumber == nil && $0.line.newNumber == nil })
     }
 
-    private func file(_ path: String, status: ChangedFile.Status = .modified) -> ChangedFile {
-        ChangedFile(path: path, sourcePath: path, status: status)
+    @Test
+    func splitProjectionAlignsUnequalChangesAndEmphasizesUnicodeSafely() throws {
+        let diff = try RevisionPatchParser.parse("@@ -1,3 +1,4 @@\n keep\n-let café = \"旧🙂\"\n+let café = \"新🙂\"\n+extra\n tail\n")
+        let before = DiffDisplayDocument(diff, side: .before)
+        let after = DiffDisplayDocument(diff, side: .after)
+        #expect(before.rows.count == after.rows.count)
+        #expect(before.rows[3].line.kind == .spacer)
+        #expect(after.rows[3].line.newNumber == 3)
+        #expect(before.rows.last?.line.oldNumber == 3)
+        #expect(after.rows.last?.line.newNumber == 4)
+        let changed = try #require(after.rows[2].line.emphasis)
+        #expect((after.rows[2].line.text as NSString).substring(with: changed) == "新")
+    }
+
+    @Test
+    func commentsAreColoredWithoutTreatingURLsInsideStringsAsComments() throws {
+        let diff = try RevisionPatchParser.parse("@@ -0,0 +1,4 @@\n+let url = \"https://example.com\" // note\n+/* start\n+ nested */ let value = 1\n+let text = \"/* plain */\"\n")
+        let document = DiffDisplayDocument(diff, fileName: "Sample.swift")
+        let comments = document.commentRanges.map { (document.text as NSString).substring(with: $0) }
+        #expect(comments == ["// note", "/* start", " nested */"])
+        #expect(DiffDisplayDocument(diff, fileName: "unknown.bin").commentRanges.isEmpty)
+    }
+
+    private func file(_ path: String, status: ChangedFile.Status = .modified) -> RevisionFilePresentation {
+        RevisionFilePresentation(ChangedFile(path: path, sourcePath: path, status: status))
     }
 }

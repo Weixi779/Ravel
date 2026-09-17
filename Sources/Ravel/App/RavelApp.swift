@@ -13,14 +13,18 @@ struct RavelApp: App {
     @NSApplicationDelegateAdaptor(RavelAppDelegate.self) private var appDelegate
     private let workspace: RepositoryWorkspace
     @State private var session: LogSession
-    @State private var diffSession: DiffSession
+    @State private var diffSession: RevisionChangesSession
     @State private var diffOptions = DiffViewOptions()
 
     init() {
         let workspace = RepositoryWorkspace()
         self.workspace = workspace
         _session = State(initialValue: LogSession(workspace: workspace))
-        _diffSession = State(initialValue: DiffSession(loader: workspace.diff, fileLoader: workspace.fileDiff))
+        _diffSession = State(initialValue: RevisionChangesSession(
+            loader: { try await workspace.diff($0) },
+            fileLoader: { try await workspace.fileDiff($0, file: $1) },
+            statisticsLoader: { try await workspace.diffStatistics($0) },
+        ))
     }
 
     var body: some Scene {

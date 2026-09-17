@@ -6,7 +6,7 @@ import SwiftUI
 
 struct RepositoryView: View {
     @Bindable var session: LogSession
-    let diffSession: DiffSession
+    let diffSession: RevisionChangesSession
 
     var body: some View {
         NavigationSplitView {
@@ -162,7 +162,7 @@ struct RepositoryView: View {
                         }
                     }
                     .frame(minHeight: 180, idealHeight: 350)
-                    RevisionInspector(revision: session.selectedRevision, request: session.diffRequest, diff: diffSession)
+                    RevisionInspectorView(revision: session.selectedRevision, request: session.diffRequest, diff: diffSession)
                         .frame(minHeight: 240, idealHeight: 350)
                 }
             }

@@ -4,7 +4,10 @@ mod diff;
 mod history;
 mod worker;
 
-pub use diff::{BackendChangedFile, BackendFileStatus};
+pub use diff::{
+    BackendChangedFile, BackendDiffStatistics, BackendFileKind, BackendFileMetadata,
+    BackendFileStatistics, BackendFileStatus,
+};
 use futures::FutureExt;
 pub use history::{BackendHistory, BackendPage, BackendRevision, HistoryInfo};
 use jj_cli::{
@@ -153,6 +156,19 @@ impl BackendRepository {
                 &file_path,
                 token,
             ))
+        })
+        .await
+    }
+
+    pub async fn diff_statistics(
+        &self,
+        operation_id: String,
+        commit_id: String,
+        cancellation: Arc<BackendCancellation>,
+    ) -> Result<BackendDiffStatistics, BackendError> {
+        let path = self.path.clone();
+        self.run_read(cancellation, move |token| {
+            pollster::block_on(diff::statistics(&path, &operation_id, &commit_id, token))
         })
         .await
     }
