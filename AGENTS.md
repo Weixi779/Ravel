@@ -16,6 +16,13 @@
 - 仅在 API 或数据确实要求 `String` 时使用 `String(localized:)`，例如 AppKit 文案属性、`LocalizedError`、字符串返回值、生成的插值参数及字符串断言；不要为省略必要转换而增加包装层。
 - 仓库描述、路径、标识符和原始错误等动态内容保留原文，不作为本地化 key。文案在 `Localizable.xcstrings` 维护，通过 `Tools/updateLocalization` 生成 `I18n`，不手改生成文件。
 
+## SwiftUI 排版
+
+- View 构造与每个链式修饰符分别占一行，例如 `.font`、`.fontWeight`、`.foregroundStyle`；即使表达式很短，也不要合并到同一行。
+- 同级相邻组件之间保留一个空行。每个组件及其连续修饰符作为一个完整块，块内不插入额外空行，便于看清组件边界和修饰符归属。
+- SwiftUI 组件的 action、label 等闭包内容展开换行，不将按钮等组件的闭包压在一行。
+- 格式化后仍须保留上述排版；以 `ChangedFilesView.swift` 的现有写法作为参考。
+
 ## Swift 格式化
 
 - 每轮 Swift 代码新增、修改或重构完成后，交付或提交前，必须在项目根目录运行一次 `Tools/format`。

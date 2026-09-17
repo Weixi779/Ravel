@@ -13,9 +13,14 @@ struct ChangedFilesView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(I18n.diffChangedFiles).fontWeight(.medium)
-                Text(files.count, format: .number).foregroundStyle(.secondary)
+                Text(I18n.diffChangedFiles)
+                    .fontWeight(.medium)
+
+                Text(files.count, format: .number)
+                    .foregroundStyle(.secondary)
+
                 Spacer(minLength: 0)
+
                 Toggle(isOn: $options.groupsFiles) {
                     Image(systemName: options.groupsFiles ? "folder" : "list.bullet.indent")
                 }
@@ -28,7 +33,9 @@ struct ChangedFilesView: View {
             .font(.system(size: 11))
             .padding(.horizontal, 12)
             .frame(height: 30)
+
             Divider()
+
             List(selection: $selection) {
                 ForEach(visibleNodes) { item in
                     if let file = item.node.file {
@@ -46,8 +53,14 @@ struct ChangedFilesView: View {
                                     .font(.system(size: 9, weight: .semibold))
                                     .foregroundStyle(.secondary)
                                     .frame(width: 12)
-                                Image(systemName: "folder.fill").foregroundStyle(.cyan)
-                                Text(item.node.name).lineLimit(1).truncationMode(.middle)
+
+                                Image(systemName: "folder.fill")
+                                    .foregroundStyle(.cyan)
+
+                                Text(item.node.name)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+
                                 Spacer(minLength: 0)
                             }
                             .padding(.leading, CGFloat(item.depth) * 14)
@@ -67,8 +80,13 @@ struct ChangedFilesView: View {
             // The same paths move between different parents. Recreate native outline rows when the hierarchy changes.
             .id(options.groupsFiles)
             .contextMenu {
-                Button(I18n.diffExpandFolders) { collapsed.wrappedValue.removeAll() }
-                Button(I18n.diffCollapseFolders) { collapsed.wrappedValue = directoryIDs(nodes) }
+                Button(I18n.diffExpandFolders) {
+                    collapsed.wrappedValue.removeAll()
+                }
+
+                Button(I18n.diffCollapseFolders) {
+                    collapsed.wrappedValue = directoryIDs(nodes)
+                }
             }
         }
         .onChange(of: options.groupsFiles) { _, _ in
@@ -120,9 +138,11 @@ private struct FileRow: View {
         HStack(spacing: 6) {
             ChangedFileStatusIcon(status: file.status)
                 .frame(width: 16)
+
             Image(systemName: name.hasSuffix(".swift") ? "swift" : "doc.text")
                 .foregroundStyle(.secondary)
                 .frame(width: 14)
+
             Text(name)
                 .lineLimit(1)
                 .truncationMode(.middle)
