@@ -40,11 +40,11 @@ struct RavelApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button(String(localized: I18n.repositoryOpen), systemImage: "folder.badge.plus") {
+                Button(I18n.repositoryOpen, systemImage: "folder.badge.plus") {
                     RepositoryPanel.open(using: session)
                 }
                 .keyboardShortcut("o")
-                Menu(String(localized: I18n.repositoryOpenRecent)) {
+                Menu(I18n.repositoryOpenRecent) {
                     ForEach(session.recentPaths, id: \.self) { path in
                         Button(URL(fileURLWithPath: path).lastPathComponent) {
                             session.open(URL(fileURLWithPath: path, isDirectory: true))
@@ -54,10 +54,10 @@ struct RavelApp: App {
                 .disabled(session.recentPaths.isEmpty)
             }
             CommandGroup(after: .toolbar) {
-                Button(String(localized: I18n.historyRefreshLog), systemImage: "arrow.clockwise") { session.refresh() }
+                Button(I18n.historyRefreshLog, systemImage: "arrow.clockwise") { session.refresh() }
                     .keyboardShortcut("r")
                     .disabled(session.repositoryURL == nil || session.isLoading)
-                Button(String(localized: I18n.historyGoToWorkingCopy), systemImage: "scope") { session.selectWorkingCopy() }
+                Button(I18n.historyGoToWorkingCopy, systemImage: "scope") { session.selectWorkingCopy() }
                     .keyboardShortcut("0")
                     .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
             }

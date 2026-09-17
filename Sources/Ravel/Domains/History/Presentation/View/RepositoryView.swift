@@ -21,7 +21,7 @@ struct RepositoryView: View {
                 if let log = session.log {
                     history(log)
                 } else if session.isLoading {
-                    ProgressView(String(localized: I18n.repositoryOpening))
+                    ProgressView(I18n.repositoryOpening)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     welcome
@@ -30,23 +30,23 @@ struct RepositoryView: View {
             }
             .background(Color(nsColor: .textBackgroundColor))
             .navigationTitle(session.repositoryURL?.lastPathComponent ?? "Ravel")
-            .navigationSubtitle(session.repositoryURL?.deletingLastPathComponent().path ?? String(localized: I18n.repositorySubtitle))
+            .navigationSubtitle(session.repositoryURL.map { Text(verbatim: $0.deletingLastPathComponent().path) } ?? Text(I18n.repositorySubtitle))
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button { RepositoryPanel.open(using: session) } label: {
-                        Label(String(localized: I18n.repositoryOpenTitle), systemImage: "folder.badge.plus")
+                        Label(I18n.repositoryOpenTitle, systemImage: "folder.badge.plus")
                     }
-                    .help(String(localized: I18n.repositoryOpenHelp))
+                    .help(I18n.repositoryOpenHelp)
                     Button { session.selectWorkingCopy() } label: {
-                        Label(String(localized: I18n.historyWorkingCopy), systemImage: "scope")
+                        Label(I18n.historyWorkingCopy, systemImage: "scope")
                     }
                     .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
-                    .help(String(localized: I18n.historyWorkingCopyHelp))
+                    .help(I18n.historyWorkingCopyHelp)
                     Button { session.refresh() } label: {
-                        Label(String(localized: I18n.commonRefresh), systemImage: "arrow.clockwise")
+                        Label(I18n.commonRefresh, systemImage: "arrow.clockwise")
                     }
                     .disabled(session.repositoryURL == nil || session.isLoading)
-                    .help(String(localized: I18n.historyRefreshHelp))
+                    .help(I18n.historyRefreshHelp)
                 }
             }
         }
@@ -54,15 +54,15 @@ struct RepositoryView: View {
 
     private var sidebar: some View {
         List {
-            Section(String(localized: I18n.repositoryWorkspace)) {
-                Label(String(localized: I18n.historyTitle), systemImage: "point.3.connected.trianglepath.dotted")
+            Section(I18n.repositoryWorkspace) {
+                Label(I18n.historyTitle, systemImage: "point.3.connected.trianglepath.dotted")
                     .fontWeight(.medium)
                     .foregroundStyle(Color.accentColor)
                     .padding(.vertical, 3)
                     .listRowBackground(Color.accentColor.opacity(0.12))
             }
             if !session.recentPaths.isEmpty {
-                Section(String(localized: I18n.repositoryRepositories)) {
+                Section(I18n.repositoryRepositories) {
                     ForEach(session.recentPaths, id: \.self) { path in
                         let url = URL(fileURLWithPath: path, isDirectory: true)
                         Button { session.open(url) } label: {
@@ -81,7 +81,7 @@ struct RepositoryView: View {
                         .padding(.vertical, 3)
                         .help(path)
                         .contextMenu {
-                            Button(String(localized: I18n.repositoryRemoveRecent)) { session.forget(path) }
+                            Button(I18n.repositoryRemoveRecent) { session.forget(path) }
                         }
                     }
                 }
@@ -90,7 +90,7 @@ struct RepositoryView: View {
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
             Button { RepositoryPanel.open(using: session) } label: {
-                Label(String(localized: I18n.repositoryOpen), systemImage: "plus")
+                Label(I18n.repositoryOpen, systemImage: "plus")
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
             }
@@ -104,11 +104,11 @@ struct RepositoryView: View {
             Image(nsImage: NSApplication.shared.applicationIconImage)
                 .resizable()
                 .frame(width: 100, height: 100)
-            Text(session.errorMessage == nil ? String(localized: I18n.repositoryWelcomeTitle) : String(localized: I18n.repositoryWelcomeRecovery))
+            Text(session.errorMessage == nil ? I18n.repositoryWelcomeTitle : I18n.repositoryWelcomeRecovery)
                 .font(.system(size: 24, weight: .semibold))
             Text(I18n.repositoryWelcomeDetail)
                 .foregroundStyle(.secondary)
-            Button(String(localized: I18n.repositoryOpen)) { RepositoryPanel.open(using: session) }
+            Button(I18n.repositoryOpen) { RepositoryPanel.open(using: session) }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .padding(.top, 4)
@@ -136,7 +136,7 @@ struct RepositoryView: View {
             Divider()
 
             if log.revisions.isEmpty {
-                ContentUnavailableView(String(localized: I18n.historyEmptyTitle), systemImage: "line.3.horizontal.decrease", description: Text(I18n.historyEmptyDetail))
+                ContentUnavailableView(I18n.historyEmptyTitle, systemImage: "line.3.horizontal.decrease", description: Text(I18n.historyEmptyDetail))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VSplitView {
@@ -150,9 +150,9 @@ struct RepositoryView: View {
                                     Text(I18n.historyLoadingMore)
                                 } else if let error = session.pageErrorMessage {
                                     Text(error).lineLimit(2).textSelection(.enabled)
-                                    Button(String(localized: I18n.commonRetry)) { session.loadMore(retry: true) }
+                                    Button(I18n.commonRetry) { session.loadMore(retry: true) }
                                 } else {
-                                    Button(String(localized: I18n.historyLoadMore)) { session.loadMore() }
+                                    Button(I18n.historyLoadMore) { session.loadMore() }
                                 }
                             }
                             .font(.caption)
@@ -176,7 +176,7 @@ struct RepositoryView: View {
                 .font(.callout)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Button(String(localized: I18n.commonRetry)) { session.refresh() }
+            Button(I18n.commonRetry) { session.refresh() }
                 .disabled(session.isLoading)
         }
         .padding(12)
@@ -191,13 +191,13 @@ struct RepositoryView: View {
                 Text(I18n.historyRefreshing)
             } else if session.errorMessage != nil {
                 Image(systemName: "exclamationmark.circle")
-                Text(session.log == nil ? String(localized: I18n.historyLoadFailed) : String(localized: I18n.historyRefreshFailed))
+                Text(session.log == nil ? I18n.historyLoadFailed : I18n.historyRefreshFailed)
             } else if let log = session.log {
                 Circle().fill(Color.accentColor).frame(width: 5, height: 5)
                 Text(log.backendVersion)
                 Text("·").foregroundStyle(.tertiary)
                 Text(I18n.historyRecordedState)
-                    .help(String(localized: I18n.historyRecordedStateHelp))
+                    .help(I18n.historyRecordedStateHelp)
             } else {
                 Text(I18n.historyReady)
             }

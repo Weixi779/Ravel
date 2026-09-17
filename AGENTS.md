@@ -9,6 +9,13 @@
 - 设置界面使用已有状态所有者，没有独立状态时不额外创建 ViewModel。目录分层不要求额外包装现有状态所有者或补齐空层；文件和类型命名可单独调整。
 - 测试按相同业务域及被测职责整理，跨层集成测试可放在对应业务域根目录，共用测试工具放在 `Tests/RavelTests/Support/`。
 
+## 本地化文案
+
+- `I18n` 提供 `LocalizedStringResource`。SwiftUI API 支持该类型时直接传入，例如 `Text(I18n.historyTitle)`、`Button(I18n.commonRetry) { ... }`、`.help(I18n.diffFind)`，不要先包装为 `String(localized:)`。
+- 自定义展示函数的本地化标题优先接收 `LocalizedStringResource`；需要同时接收本地化文案与动态原文的展示内容时，可接收 `Text`，在调用处明确 `Text(I18n.xxx)` 或 `Text(verbatim: value)`。
+- 仅在 API 或数据确实要求 `String` 时使用 `String(localized:)`，例如 AppKit 文案属性、`LocalizedError`、字符串返回值、生成的插值参数及字符串断言；不要为省略必要转换而增加包装层。
+- 仓库描述、路径、标识符和原始错误等动态内容保留原文，不作为本地化 key。文案在 `Localizable.xcstrings` 维护，通过 `Tools/updateLocalization` 生成 `I18n`，不手改生成文件。
+
 ## Swift 格式化
 
 - 每轮 Swift 代码新增、修改或重构完成后，交付或提交前，必须在项目根目录运行一次 `Tools/format`。

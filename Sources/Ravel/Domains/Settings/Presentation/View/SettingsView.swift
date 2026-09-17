@@ -9,7 +9,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Picker(String(localized: I18n.historyPageSize), selection: Binding(
+            Picker(I18n.historyPageSize, selection: Binding(
                 get: { session.historyPageSize },
                 set: { session.setHistoryPageSize($0) },
             )) {
@@ -35,11 +35,11 @@ private struct DiffReadingSettings: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     var body: some View {
-        Toggle(String(localized: I18n.diffShowMarkers), isOn: Binding(
+        Toggle(I18n.diffShowMarkers, isOn: Binding(
             get: { options.showsChangeMarkers ?? differentiateWithoutColor },
             set: { options.showsChangeMarkers = $0 },
         ))
-        Button(String(localized: I18n.diffMarkersFollowSystem)) { options.showsChangeMarkers = nil }
+        Button(I18n.diffMarkersFollowSystem) { options.showsChangeMarkers = nil }
             .disabled(options.showsChangeMarkers == nil)
     }
 }

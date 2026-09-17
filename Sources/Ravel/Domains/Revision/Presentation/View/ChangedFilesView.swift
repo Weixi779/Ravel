@@ -21,8 +21,8 @@ struct ChangedFilesView: View {
                 }
                 .toggleStyle(.button)
                 .buttonStyle(.borderless)
-                .help(String(localized: options.groupsFiles ? I18n.diffFileTree : I18n.diffFileGroups))
-                .accessibilityLabel(String(localized: I18n.diffFileGroups))
+                .help(options.groupsFiles ? I18n.diffFileTree : I18n.diffFileGroups)
+                .accessibilityLabel(I18n.diffFileGroups)
                 .accessibilityIdentifier("diff.fileGrouping")
             }
             .font(.system(size: 11))
@@ -56,7 +56,7 @@ struct ChangedFilesView: View {
                         .buttonStyle(.plain)
                         .help(item.node.path)
                         .accessibilityLabel(item.node.path)
-                        .accessibilityValue(String(localized: collapsed.wrappedValue.contains(item.node.id) ? I18n.diffFolderCollapsed : I18n.diffFolderExpanded))
+                        .accessibilityValue(collapsed.wrappedValue.contains(item.node.id) ? I18n.diffFolderCollapsed : I18n.diffFolderExpanded)
                         .tag(item.node.id)
                     }
                 }
@@ -67,8 +67,8 @@ struct ChangedFilesView: View {
             // The same paths move between different parents. Recreate native outline rows when the hierarchy changes.
             .id(options.groupsFiles)
             .contextMenu {
-                Button(String(localized: I18n.diffExpandFolders)) { collapsed.wrappedValue.removeAll() }
-                Button(String(localized: I18n.diffCollapseFolders)) { collapsed.wrappedValue = directoryIDs(nodes) }
+                Button(I18n.diffExpandFolders) { collapsed.wrappedValue.removeAll() }
+                Button(I18n.diffCollapseFolders) { collapsed.wrappedValue = directoryIDs(nodes) }
             }
         }
         .onChange(of: options.groupsFiles) { _, _ in
@@ -131,9 +131,9 @@ private struct FileRow: View {
         .listRowSeparator(.hidden)
         .help(file.displayPath)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: I18n.diffFileHelp(String(localized: file.status.localizedName), file.displayPath)))
+        .accessibilityLabel(I18n.diffFileHelp(String(localized: file.status.localizedName), file.displayPath))
         .contextMenu {
-            Button(String(localized: I18n.diffCopyPath)) {
+            Button(I18n.diffCopyPath) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(file.path, forType: .string)
             }
@@ -147,8 +147,8 @@ struct ChangedFileStatusIcon: View {
     var body: some View {
         Image(systemName: status.symbolName)
             .foregroundStyle(status.color)
-            .help(String(localized: status.localizedName))
-            .accessibilityLabel(String(localized: status.localizedName))
+            .help(status.localizedName)
+            .accessibilityLabel(status.localizedName)
     }
 }
 

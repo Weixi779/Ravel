@@ -12,24 +12,24 @@ struct RevisionDetail: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 8) {
                         Text(I18n.revisionDetails).font(.headline)
-                        if revision.isWorkingCopy { badge(String(localized: I18n.revisionWorkingCopy), color: .teal) }
-                        if revision.isImmutable { badge(String(localized: I18n.revisionImmutable), color: .secondary) }
-                        if revision.hasConflict { badge(String(localized: I18n.revisionConflict), color: .orange) }
-                        if revision.isDivergent { badge(String(localized: I18n.revisionDivergent), color: .purple) }
+                        if revision.isWorkingCopy { badge(I18n.revisionWorkingCopy, color: .teal) }
+                        if revision.isImmutable { badge(I18n.revisionImmutable, color: .secondary) }
+                        if revision.hasConflict { badge(I18n.revisionConflict, color: .orange) }
+                        if revision.isDivergent { badge(I18n.revisionDivergent, color: .purple) }
                         Spacer()
                     }
                     HStack(alignment: .top, spacing: 28) {
                         VStack(alignment: .leading, spacing: 8) {
-                            metadata(String(localized: I18n.revisionChange), value: revision.changeID, monospaced: true)
-                            metadata(String(localized: I18n.revisionCommit), value: revision.commitID, monospaced: true)
-                            metadata(String(localized: I18n.revisionAuthor), value: "\(revision.author) <\(revision.email)>")
-                            metadata(String(localized: I18n.revisionDate), value: revision.timestamp.formatted(date: .abbreviated, time: .standard))
+                            metadata(I18n.revisionChange, value: revision.changeID, monospaced: true)
+                            metadata(I18n.revisionCommit, value: revision.commitID, monospaced: true)
+                            metadata(I18n.revisionAuthor, value: "\(revision.author) <\(revision.email)>")
+                            metadata(I18n.revisionDate, value: revision.timestamp.formatted(date: .abbreviated, time: .standard))
                             if !revision.bookmarks.isEmpty {
-                                metadata(String(localized: I18n.revisionBookmarks), value: revision.bookmarks.joined(separator: ", "))
+                                metadata(I18n.revisionBookmarks, value: revision.bookmarks.joined(separator: ", "))
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(revision.description.isEmpty ? String(localized: I18n.commonNoDescription) : revision.description)
+                        (revision.description.isEmpty ? Text(I18n.commonNoDescription) : Text(verbatim: revision.description))
                             .font(.system(size: 13))
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
@@ -40,12 +40,12 @@ struct RevisionDetail: View {
             }
             .background(Color(nsColor: .textBackgroundColor))
         } else {
-            ContentUnavailableView(String(localized: I18n.revisionSelect), systemImage: "cursorarrow.click", description: Text(I18n.revisionSelectDetail))
+            ContentUnavailableView(I18n.revisionSelect, systemImage: "cursorarrow.click", description: Text(I18n.revisionSelectDetail))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private func metadata(_ title: String, value: String, monospaced: Bool = false) -> some View {
+    private func metadata(_ title: LocalizedStringResource, value: String, monospaced: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(title).foregroundStyle(.secondary).frame(width: 70, alignment: .leading)
             Text(value)
@@ -57,7 +57,7 @@ struct RevisionDetail: View {
         .font(.system(size: 12))
     }
 
-    private func badge(_ text: String, color: Color) -> some View {
+    private func badge(_ text: LocalizedStringResource, color: Color) -> some View {
         Text(text)
             .font(.system(size: 10, weight: .medium))
             .foregroundStyle(color)
