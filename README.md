@@ -46,10 +46,13 @@ open /path/to/Ravel.app --args --repository /path/to/workspace
 
 - SwiftUI owns the window, sidebar, toolbar, and details.
 - AppKit owns the table, selection, and graph rendering.
-- The Changes inspector lists added, modified, removed, copied, and renamed files.
-  File contents load on selection, with separate old/new line-number gutters,
-  addition/deletion colors, and native text selection and copying. Gutters are
-  excluded from copied text. Details remains available beside Changes.
+- The Changes inspector shows a SwiftUI folder tree or groups files by parent
+  folder, with added, modified, removed, copied, and renamed status badges.
+  File contents load into a read-only STTextView with old/new line-number gutters,
+  full-row addition/deletion colors, native selection, copying, and find.
+  Optional +/− markers stay outside copied code and do not move the code column.
+  This preference is independent of appearance and initially follows macOS
+  Differentiate Without Color. Details remains available beside Changes.
 - Rust owns a fixed-operation history view and demand-driven revset traversal.
   `CodeRepositoryReader` and `HistoryQuery` expose application values to Swift.
 - Pure Swift incrementally assigns graph lanes, retaining parents across pages.
@@ -92,6 +95,13 @@ states; mode-only changes remain visible. Each file preview is limited to 2 MB
 or 20,000 lines, with an error instead of a partial patch.
 
 Refreshing an unchanged commit keeps the loaded file and reading position.
+
+The first STTextView reader uses a unified layout with no soft wrapping.
+Multi-hunk selections retain visible gap headings, so copied fragments are not
+presented as a contiguous complete source file. Side-by-side alignment, intraline
+highlighting, and expanding omitted source context are not implemented yet.
+STTextView is pinned to 2.4.1 and is available under
+[GPLv3 or a commercial license](https://github.com/krzyzanowskim/STTextView#license).
 
 History and Diff use the bundled Rust backend. Diff requests carry the history
 operation ID as well as the full commit ID. The macOS target remains non-sandboxed

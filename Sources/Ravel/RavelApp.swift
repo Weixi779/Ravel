@@ -1,11 +1,11 @@
 // Created by weixi on 2026/09/09.
 
 import AppKit
-import SwiftUI
 import Localization
+import SwiftUI
 
 #if compiler(<6.2)
-#error("Ravel requires Swift 6.2 or newer.")
+    #error("Ravel requires Swift 6.2 or newer.")
 #endif
 
 @main
@@ -14,6 +14,7 @@ struct RavelApp: App {
     private let workspace: RepositoryWorkspace
     @State private var session: LogSession
     @State private var diffSession: DiffSession
+    @State private var diffOptions = DiffViewOptions()
 
     init() {
         let workspace = RepositoryWorkspace()
@@ -25,6 +26,7 @@ struct RavelApp: App {
     var body: some Scene {
         Window("Ravel", id: "repository") {
             RepositoryView(session: session, diffSession: diffSession)
+                .environment(diffOptions)
                 .frame(minWidth: 920, minHeight: 560)
                 .task {
                     guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
@@ -65,7 +67,7 @@ struct RavelApp: App {
             Form {
                 Picker(String(localized: I18n.historyPageSize), selection: Binding(
                     get: { session.historyPageSize },
-                    set: { session.setHistoryPageSize($0) }
+                    set: { session.setHistoryPageSize($0) },
                 )) {
                     ForEach(LogSession.historyPageSizes, id: \.self) { size in
                         Text(size.formatted()).tag(size)
@@ -74,6 +76,9 @@ struct RavelApp: App {
                 Text(I18n.historyPageSizeHelp)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                Section {
+                    DiffReadingSettings(options: diffOptions)
+                }
             }
             .formStyle(.grouped)
             .frame(width: 440)
@@ -82,16 +87,30 @@ struct RavelApp: App {
     }
 }
 
+private struct DiffReadingSettings: View {
+    @Bindable var options: DiffViewOptions
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
+    var body: some View {
+        Toggle(String(localized: I18n.diffShowMarkers), isOn: Binding(
+            get: { options.showsChangeMarkers ?? differentiateWithoutColor },
+            set: { options.showsChangeMarkers = $0 },
+        ))
+        Button(String(localized: I18n.diffMarkersFollowSystem)) { options.showsChangeMarkers = nil }
+            .disabled(options.showsChangeMarkers == nil)
+    }
+}
+
 @MainActor
 final class RavelAppDelegate: NSObject, NSApplicationDelegate {
     private var dockIcon: DockIconController?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         dockIcon = DockIconController(application: .shared)
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    func applicationWillTerminate(_: Notification) {
         dockIcon?.stop()
     }
 }
@@ -109,5 +128,4 @@ enum RepositoryPanel {
         panel.directoryURL = session.repositoryURL
         if panel.runModal() == .OK, let url = panel.url { session.open(url) }
     }
-
 }

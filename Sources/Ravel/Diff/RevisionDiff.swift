@@ -5,23 +5,18 @@ import Foundation
 nonisolated struct ChangedFile: Identifiable, Hashable, Sendable {
     enum Status: Sendable {
         case modified, added, removed, copied, renamed
-
-        var letter: String {
-            switch self {
-            case .modified: "M"
-            case .added: "A"
-            case .removed: "D"
-            case .copied: "C"
-            case .renamed: "R"
-            }
-        }
     }
 
     let path: String
     let sourcePath: String
     let status: Status
-    var id: String { path }
-    var displayPath: String { sourcePath == path ? path : "\(sourcePath) → \(path)" }
+    var id: String {
+        path
+    }
+
+    var displayPath: String {
+        sourcePath == path ? path : "\(sourcePath) → \(path)"
+    }
 }
 
 nonisolated struct RevisionDiff: Sendable {
@@ -43,7 +38,7 @@ nonisolated struct FileDiff: Identifiable, Sendable {
     }
 
     static let byteLimit = 2 * 1024 * 1024
-    static let lineLimit = 20_000
+    static let lineLimit = 20000
     let id = UUID()
     let lines: [Line]
     let isBinary: Bool
@@ -102,13 +97,13 @@ nonisolated struct FileDiff: Identifiable, Sendable {
         }
         guard oldRemaining == 0, newRemaining == 0 else { throw Failure.malformedPatch }
         self.lines = lines
-        self.isBinary = binary
+        isBinary = binary
     }
 
     private static func hunkRange(_ text: Substring, sign: Character) -> (Int, Int)? {
         guard text.first == sign else { return nil }
         let parts = text.dropFirst().split(separator: ",", omittingEmptySubsequences: false)
-        guard (1...2).contains(parts.count), let start = Int(parts[0]), start >= 0,
+        guard (1 ... 2).contains(parts.count), let start = Int(parts[0]), start >= 0,
               let count = parts.count == 2 ? Int(parts[1]) : 1, count >= 0,
               start < Int.max - count else { return nil }
         return (start, count)

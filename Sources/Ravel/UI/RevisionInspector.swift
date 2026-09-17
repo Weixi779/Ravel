@@ -1,13 +1,16 @@
 // Created by weixi on 2026/09/09.
 
-import SwiftUI
 import Localization
+import SwiftUI
 
 struct RevisionInspector: View {
     let revision: Revision?
     let request: RevisionDiffRequest?
     @Bindable var diff: DiffSession
     @State private var showsDetails = false
+    @Environment(DiffViewOptions.self) private var options
+    @State private var findRequest = 0
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,9 +53,15 @@ struct RevisionInspector: View {
                     } else {
                         HSplitView {
                             fileList(changes.files)
-                                .frame(minWidth: 175, idealWidth: 245, maxWidth: 320)
+                                .frame(minWidth: 190, idealWidth: 280, maxWidth: 480)
                             fileContent
                                 .frame(minWidth: 240, maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(nsColor: .textBackgroundColor))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary, lineWidth: 1)
+                                }
+                                .padding(10)
                         }
                     }
                 }
@@ -65,68 +74,49 @@ struct RevisionInspector: View {
     }
 
     private func fileList(_ files: [ChangedFile]) -> some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(I18n.diffChangedFiles).fontWeight(.medium)
-                Spacer()
-                Text(files.count, format: .number).foregroundStyle(.secondary)
-            }
-            .font(.system(size: 11))
-            .padding(.horizontal, 12)
-            .frame(height: 30)
-            Divider()
-            List(selection: Binding(get: { diff.selectedFileID }, set: { diff.selectFile($0) })) {
-                ForEach(files) { file in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text(file.status.letter)
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(statusColor(file.status))
-                            .frame(width: 14)
-                            .padding(.top, 1)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(URL(fileURLWithPath: file.path).lastPathComponent)
-                                .font(.system(size: 12))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            if file.sourcePath != file.path || file.path.contains("/") {
-                                Text(file.displayPath)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 3)
-                    .tag(file.id)
-                    .help(String(localized: I18n.diffFileHelp(String(localized: file.status.localizedName), file.displayPath)))
-                    .contextMenu {
-                        Button(String(localized: I18n.diffCopyPath)) {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(file.path, forType: .string)
-                        }
-                    }
-                }
-            }
-            .listStyle(.inset)
-        }
+        ChangedFilesView(files: files, selection: Binding(
+            get: { diff.selectedFileID },
+            set: { id in
+                guard let id, id != diff.selectedFileID, files.contains(where: { $0.id == id }) else { return }
+                diff.selectFile(id)
+            },
+        ), options: options)
     }
 
     private var fileContent: some View {
         VStack(spacing: 0) {
             if let file = diff.selectedFile {
                 HStack(spacing: 8) {
+                    ChangedFileStatusIcon(status: file.status)
                     Text(file.displayPath)
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
                         .help(file.displayPath)
                     Spacer(minLength: 0)
-                    Text(file.status.localizedName).foregroundStyle(statusColor(file.status))
+                    if diff.fileDiff?.isBinary == false {
+                        Button { findRequest += 1 } label: {
+                            Image(systemName: "magnifyingglass")
+                        }
+                        .buttonStyle(.borderless)
+                        .help(String(localized: I18n.diffFind))
+                        .accessibilityLabel(String(localized: I18n.diffFind))
+                        Button {
+                            guard let content = diff.fileDiff else { return }
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(content.lines.map(\.text).joined(separator: "\n") + "\n", forType: .string)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .buttonStyle(.borderless)
+                        .help(String(localized: I18n.diffCopy))
+                        .accessibilityLabel(String(localized: I18n.diffCopy))
+                    }
                 }
                 .font(.system(size: 11))
                 .padding(.horizontal, 12)
-                .frame(height: 30)
+                .frame(height: 34)
+                .background(file.status.color.opacity(0.06))
                 Divider()
             }
             if diff.isLoadingFile {
@@ -140,7 +130,7 @@ struct RevisionInspector: View {
                 } else if content.lines.isEmpty {
                     placeholder(String(localized: I18n.diffNoTextTitle), symbol: "doc", detail: String(localized: I18n.diffNoTextDetail))
                 } else {
-                    DiffTextView(diff: content)
+                    DiffTextView(diff: content, showsChangeMarkers: options.showsChangeMarkers ?? differentiateWithoutColor, findRequest: findRequest)
                 }
             } else {
                 placeholder(String(localized: I18n.diffSelectFile), symbol: "doc.text.magnifyingglass")
@@ -159,14 +149,5 @@ struct RevisionInspector: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func statusColor(_ status: ChangedFile.Status) -> Color {
-        switch status {
-        case .added: .green
-        case .removed: .red
-        case .modified: .orange
-        case .copied, .renamed: .teal
-        }
     }
 }
