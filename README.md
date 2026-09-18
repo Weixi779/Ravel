@@ -86,6 +86,18 @@ Loading more preserves selection and existing graph
 rows. Page failures keep the cursor for explicit Retry. Refresh replaces the view
 only after successfully reading the previously loaded depth.
 
+The history graph and description share one column. Each title follows the lanes
+occupied in its own row, so a distant fork does not indent the whole list.
+When a path ends or joins another, continuing paths close the vacant lanes below
+that row. Their relative order and colors stay intact, and loading another page
+does not redraw earlier rows.
+Selecting a revision emphasizes its visual path and the titles on that path;
+other paths retain subdued versions of their colors. Focus uses allocated path
+identities, not a full branch or ancestor traversal, and does not reorder history.
+Settings offers rounded connections (the default) and smooth curves. History
+colors have separate light, dark and increased-contrast values; a user theme
+editor is not implemented yet.
+
 Read access does not snapshot files, import Git refs, update the working copy, or
 merge concurrent operations. Editor changes appear after jj records them.
 Concurrent operation heads are reported for the user to handle in jj. Every

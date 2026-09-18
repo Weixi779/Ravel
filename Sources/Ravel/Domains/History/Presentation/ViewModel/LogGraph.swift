@@ -18,6 +18,17 @@ nonisolated struct LogGraph: Sendable {
         let nodeColumn: Int
         let color: Int
         let segments: [Segment]
+
+        /// Include passing lanes and both ends of a turn before placing the title.
+        var occupiedColumn: Int {
+            segments.reduce(nodeColumn) { max($0, $1.start.column, $1.end.column) }
+        }
+
+        /// A passing or joining edge does not change this node's path identity.
+        /// Compare allocated identities, before the renderer wraps them into a palette.
+        func isOnPath(_ path: Int) -> Bool {
+            color == path
+        }
     }
 
     private struct Lane: Sendable {
@@ -30,8 +41,8 @@ nonisolated struct LogGraph: Sendable {
     private var lanes: [Lane?] = []
     private var nextColor = 0
 
-    /// Input stays in jj's child-before-parent order. Vacant lanes are reused;
-    /// occupied lanes never shift sideways between rows.
+    /// Input stays in jj's child-before-parent order. Continuing paths close
+    /// vacant lanes below each node, keeping their relative order and colors.
     init(revisions: [Revision]) throws {
         try append(revisions)
     }
@@ -91,11 +102,37 @@ nonisolated struct LogGraph: Sendable {
                 columnCount = max(columnCount, column + 1)
             }
 
+            compactLanes(segments: &segments)
             columnCount = max(columnCount, nodeColumn + 1)
             rows.append(Row(nodeColumn: nodeColumn, color: color, segments: segments))
-            while !lanes.isEmpty, lanes[lanes.count - 1] == nil {
-                lanes.removeLast()
-            }
         }
+    }
+
+    private mutating func compactLanes(segments: inout [Segment]) {
+        var columns: [Int: Int] = [:]
+        for column in lanes.indices where lanes[column] != nil {
+            columns[column] = columns.count
+        }
+        guard columns.count < lanes.count else { return }
+
+        segments = segments.flatMap { segment -> [Segment] in
+            guard segment.end.fraction == 1,
+                  let column = columns[segment.end.column], column != segment.end.column
+            else { return [segment] }
+
+            let end = Point(column: column, fraction: 1)
+            guard segment.start.fraction == 0 else {
+                return [Segment(start: segment.start, end: end, color: segment.color)]
+            }
+
+            // Passing paths stay beside the node until its lower half. Only
+            // their outgoing ends move, so the preceding row never changes.
+            let middle = Point(column: segment.start.column, fraction: 0.5)
+            return [
+                Segment(start: segment.start, end: middle, color: segment.color),
+                Segment(start: middle, end: end, color: segment.color),
+            ]
+        }
+        lanes.removeAll { $0 == nil }
     }
 }

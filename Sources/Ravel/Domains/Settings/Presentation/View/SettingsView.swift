@@ -20,6 +20,17 @@ struct SettingsView: View {
             Text(I18n.historyPageSizeHelp)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            Section(I18n.historyTitle) {
+                Picker(I18n.historyGraphStyle, selection: $session.graphStyle) {
+                    Text(I18n.historyGraphStyleRounded)
+                        .tag(HistoryGraphStyle.rounded)
+
+                    Text(I18n.historyGraphStyleCurved)
+                        .tag(HistoryGraphStyle.curved)
+                }
+            }
+
             Section {
                 DiffReadingSettings(options: diffOptions)
             }

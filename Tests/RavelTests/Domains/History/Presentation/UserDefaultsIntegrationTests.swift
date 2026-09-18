@@ -10,6 +10,19 @@ import UserDefaultsKit
 @MainActor
 struct UserDefaultsIntegrationTests {
     @Test
+    func graphStylePersistsAndUnknownStylesFallBackToRounded() throws {
+        let suite = "RavelTests.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let first = LogSession(defaults: defaults)
+        #expect(first.graphStyle == .rounded)
+        first.graphStyle = .curved
+        #expect(LogSession(defaults: defaults).graphStyle == .curved)
+        defaults.set("future-style", forKey: "historyGraphStyle")
+        #expect(first.graphStyle == .rounded)
+    }
+
+    @Test
     func externalStorageChangesUpdateBothSessionsRecentWorkspaces() throws {
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))

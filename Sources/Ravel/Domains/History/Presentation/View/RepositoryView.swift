@@ -141,7 +141,7 @@ struct RepositoryView: View {
             } else {
                 VSplitView {
                     VStack(spacing: 0) {
-                        RevisionTable(log: log, selection: $session.selectedRevisionID) { session.loadMore() }
+                        RevisionTable(log: log, selection: $session.selectedRevisionID, graphStyle: session.graphStyle) { session.loadMore() }
                         if session.isLoadingMore || session.pageErrorMessage != nil || log.hasMore {
                             Divider()
                             HStack {

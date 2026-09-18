@@ -627,6 +627,33 @@ public nonisolated enum I18n {
     }
 
     /**
+     History graph connection style preference.
+     
+     Localized string for key “historyGraphStyle” in table “Localizable.xcstrings”.
+     */
+    public static var historyGraphStyle: LocalizedStringResource {
+        LocalizedStringResource("historyGraphStyle", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     History graph connection style preference.
+     
+     Localized string for key “historyGraphStyleCurved” in table “Localizable.xcstrings”.
+     */
+    public static var historyGraphStyleCurved: LocalizedStringResource {
+        LocalizedStringResource("historyGraphStyleCurved", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     History graph connection style preference.
+     
+     Localized string for key “historyGraphStyleRounded” in table “Localizable.xcstrings”.
+     */
+    public static var historyGraphStyleRounded: LocalizedStringResource {
+        LocalizedStringResource("historyGraphStyleRounded", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Graph cell accessibility label.
      
      Localized string for key “historyImmutableCommit” in table “Localizable.xcstrings”.

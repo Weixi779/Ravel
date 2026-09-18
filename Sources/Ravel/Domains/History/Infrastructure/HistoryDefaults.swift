@@ -14,4 +14,8 @@ extension UserDefaultsKey {
     static var historyPageSize: UserDefaultsKey<Int> {
         .init("historyPageSize", default: 1000)
     }
+
+    static var historyGraphStyle: UserDefaultsKey<String> {
+        .init("historyGraphStyle", default: HistoryGraphStyle.rounded.rawValue)
+    }
 }

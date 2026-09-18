@@ -30,6 +30,14 @@ final class LogSession {
     @ObservedDefault(.historyPageSize, store: \Self.store)
     @ObservationIgnored private var storedHistoryPageSize: Int
 
+    @ObservedDefault(.historyGraphStyle, store: \Self.store)
+    @ObservationIgnored private var storedGraphStyle: String
+
+    var graphStyle: HistoryGraphStyle {
+        get { HistoryGraphStyle(rawValue: storedGraphStyle) ?? .rounded }
+        set { storedGraphStyle = newValue.rawValue }
+    }
+
     var historyPageSize: Int {
         Self.historyPageSizes.contains(storedHistoryPageSize) ? storedHistoryPageSize : UserDefaultsKey<Int>.historyPageSize.defaultValue
     }
