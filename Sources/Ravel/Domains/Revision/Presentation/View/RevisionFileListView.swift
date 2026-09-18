@@ -11,6 +11,7 @@ struct RevisionFileListView: View {
     @Bindable var options: DiffViewOptions
     var statisticsError: String?
     var retryStatistics: () -> Void = {}
+    @FocusState private var isFileListFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -86,40 +87,70 @@ struct RevisionFileListView: View {
 
             Divider()
 
-            List(selection: $selection) {
-                ForEach(model.visibleNodes(mode: options.fileListMode)) { item in
-                    if let file = item.node.file {
-                        RevisionFileRow(file: file, showsDirectory: options.fileListMode == .list)
-                            .padding(.leading, options.fileListMode == .list ? 0 : CGFloat(item.depth) * 14 + 18)
-                            .tag(file.id)
-                    } else {
-                        directoryRow(item)
+            ScrollViewReader { proxy in
+                List(selection: $model.navigationSelection) {
+                    ForEach(model.visibleNodes(mode: options.fileListMode)) { item in
+                        if let file = item.node.file {
+                            RevisionFileRow(file: file, showsDirectory: options.fileListMode == .list)
+                                .padding(.leading, options.fileListMode == .list ? 0 : CGFloat(item.depth) * 14 + 18)
+                                .tag(RevisionFileListViewModel.Selection.file(file.id))
+                        } else {
+                            directoryRow(item)
+                        }
+                    }
+                    .font(.system(size: 12))
+                    .listRowSeparator(.hidden)
+                }
+                .listStyle(.inset)
+                .id(options.fileListMode)
+                .focused($isFileListFocused)
+                .simultaneousGesture(TapGesture().onEnded {
+                    isFileListFocused = true
+                })
+                .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow]) { press in
+                    guard press.modifiers.intersection([.command, .control, .option, .shift]).isEmpty else { return .ignored }
+                    let mode = options.fileListMode
+                    let current = model.navigationSelection
+                    switch press.key {
+                    case .upArrow: model.navigationSelection = model.adjacent(to: current, forward: false, mode: mode)
+                    case .downArrow: model.navigationSelection = model.adjacent(to: current, forward: true, mode: mode)
+                    case .leftArrow where mode != .list: model.navigationSelection = model.collapse(current, mode: mode)
+                    case .rightArrow where mode != .list: model.navigationSelection = model.expand(current, mode: mode)
+                    default: return .ignored
+                    }
+                    if let target = model.navigationSelection { proxy.scrollTo(target.nodeID) }
+                    return .handled
+                }
+                .overlay {
+                    if model.visibleNodes(mode: options.fileListMode).isEmpty, !model.searchText.isEmpty {
+                        Text(I18n.diffNoMatchingFiles)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .font(.system(size: 12))
-                .listRowSeparator(.hidden)
-            }
-            .listStyle(.inset)
-            .id(options.fileListMode)
-            .overlay {
-                if model.visibleNodes(mode: options.fileListMode).isEmpty, !model.searchText.isEmpty {
-                    Text(I18n.diffNoMatchingFiles)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .contextMenu {
-                Button(I18n.diffExpandFolders) {
-                    model.expandAll()
-                }
+                .contextMenu {
+                    Button(I18n.diffExpandFolders) {
+                        model.expandAll()
+                    }
 
-                Button(I18n.diffCollapseFolders) {
-                    model.collapseAll(mode: options.fileListMode)
+                    Button(I18n.diffCollapseFolders) {
+                        model.collapseAll(mode: options.fileListMode)
+                    }
                 }
             }
         }
         .onChange(of: options.fileListMode) { _, _ in
+            model.navigationSelection = selection.map { .file($0) }
             model.reveal(selection)
+        }
+        .onChange(of: selection, initial: true) { _, path in
+            model.navigationSelection = path.map { .file($0) }
+        }
+        .onChange(of: model.navigationSelection) { _, value in
+            if case let .file(path) = value { selection = path }
+        }
+        .onChange(of: model.searchText) { _, _ in
+            model.navigationSelection = selection.map { .file($0) }
         }
     }
 
@@ -172,6 +203,8 @@ struct RevisionFileListView: View {
     private func directoryRow(_ item: RevisionFileListViewModel.VisibleNode) -> some View {
         Button {
             model.toggle(item.node.id, mode: options.fileListMode)
+            model.navigationSelection = .directory(item.id)
+            isFileListFocused = true
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: model.isCollapsed(item.node.id, mode: options.fileListMode) ? "chevron.right" : "chevron.down")
@@ -195,6 +228,6 @@ struct RevisionFileListView: View {
         .help(item.node.path)
         .accessibilityLabel(item.node.path)
         .accessibilityValue(model.isCollapsed(item.node.id, mode: options.fileListMode) ? I18n.diffFolderCollapsed : I18n.diffFolderExpanded)
-        .tag(item.node.id)
+        .tag(RevisionFileListViewModel.Selection.directory(item.node.id))
     }
 }
