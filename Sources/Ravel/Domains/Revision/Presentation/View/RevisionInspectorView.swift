@@ -12,7 +12,7 @@ struct RevisionInspectorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(spacing: 0) {
                 Picker(I18n.revisionInformation, selection: $diff.showsDetails) {
                     Text(I18n.revisionChangesTab)
                         .tag(false)
@@ -22,27 +22,40 @@ struct RevisionInspectorView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 180)
+                .fixedSize()
 
-                if revision != nil {
-                    Text(verbatim: diff.showsDetails ? revision?.shortChangeID ?? "" : diff.displayedChangeID)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    if revision != nil {
+                        Text(verbatim: diff.showsDetails ? revision?.shortChangeID ?? "" : diff.displayedChangeID)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.secondary)
 
-                    Text(verbatim: diff.showsDetails ? revision?.displaySummary ?? "" : diff.displayedTitle)
-                        .font(.system(size: 12, weight: .medium))
-                        .lineLimit(1)
+                        Text(verbatim: diff.showsDetails ? revision?.displaySummary ?? "" : diff.displayedTitle)
+                            .font(.system(size: 12, weight: .medium))
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if diff.showsRevisionProgress {
+                        ProgressView()
+                            .controlSize(.small)
+                            .help(I18n.diffLoadingChanges)
+                    }
+
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 28, height: 28)
+                        .overlay {
+                            RevisionInspectorResizeHandle()
+                        }
+                        .accessibilityHidden(true)
                 }
-
-                Spacer(minLength: 0)
-
-                if diff.showsRevisionProgress {
-                    ProgressView()
-                        .controlSize(.small)
-                        .help(I18n.diffLoadingChanges)
-                }
+                .padding(.leading, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .frame(height: 38)
             .background(.bar)
 
