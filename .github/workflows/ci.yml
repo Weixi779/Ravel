@@ -1,0 +1,92 @@
+#
+#  ci.yml
+#  Ravel
+#
+#  Created by weixi on 2026/11/27.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  style:
+    name: SwiftFormat and SwiftLint
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned style tools
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir style
+          cd style
+          curl -fsSL --retry 3 -o swiftformat.zip https://github.com/nicklockwood/SwiftFormat/releases/download/0.61.0/swiftformat.zip
+          curl -fsSL --retry 3 -o swiftlint.zip https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip
+          shasum -a 256 -c <<'CHECKSUMS'
+          0356130b976e0cc1022dd6712da7a23319203125ba208fad9f37b06e9feca994  swiftformat.zip
+          c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0  swiftlint.zip
+          CHECKSUMS
+          unzip -q swiftformat.zip swiftformat
+          unzip -q swiftlint.zip swiftlint
+          echo "$PWD" >> "$GITHUB_PATH"
+
+      - run: Tools/format --lint
+      - run: Tools/lint
+
+  packages:
+    name: Swift package tests
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - run: swift test --package-path Packages/DesignSystem
+      - run: swift test --package-path Packages/UserDefaultsKit --force-resolved-versions
+      - run: swift test --package-path Tools/LocalizationGenerator
+
+  app:
+    name: Rust backend and macOS app tests
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Prepare Rust toolchain
+        working-directory: Backend
+        run: rustup toolchain install
+
+      - name: Install jj for integration fixtures
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL --retry 3 -o jj.tar.gz https://github.com/jj-vcs/jj/releases/download/v0.41.0/jj-v0.41.0-aarch64-apple-darwin.tar.gz
+          echo 'e84883b4fb42d1e0cb665efae95b44f387603c1280c893f8cbc7bbac7149ea30  jj.tar.gz' | shasum -a 256 -c -
+          tar -xzf jj.tar.gz ./jj
+          install -m 755 jj /opt/homebrew/bin/jj
+          /opt/homebrew/bin/jj --version
+
+      - run: Tools/testBackend --target aarch64-apple-darwin
+      - name: Test Ravel and Localization
+        run: |
+          xcodebuild test -project Ravel.xcodeproj -scheme Ravel \
+            -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/DerivedData \
+            -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation

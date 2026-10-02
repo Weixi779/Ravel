@@ -253,7 +253,15 @@ generation and integration details are recorded in [Artwork/README.md](Artwork/R
 
 ## Verify
 
+[GitHub Actions](.github/workflows/ci.yml) runs the style checks, package tests,
+Rust backend tests and the Ravel macOS test plan for pull requests and pushes to
+`main`. The plan includes Localization. The generator tests also check translation
+coverage and compare the generated Swift accessors with the checked-in file.
+
 ```sh
+swift test --package-path Packages/DesignSystem
+swift test --package-path Packages/UserDefaultsKit --force-resolved-versions
+swift test --package-path Tools/LocalizationGenerator
 Tools/testBackend
 xcodebuild -project Ravel.xcodeproj -scheme Ravel \
   -destination 'platform=macOS' -derivedDataPath .build/DerivedData test
