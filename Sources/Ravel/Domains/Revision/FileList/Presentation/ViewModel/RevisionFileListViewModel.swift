@@ -22,11 +22,12 @@ final class RevisionFileListViewModel {
 
     var searchText = "" {
         didSet {
-            expansion.resetSearch()
-            navigationSelection = nil
+            guard searchText != oldValue else { return }
+            scheduleSearch()
         }
     }
 
+    private(set) var appliedSearchText = ""
     var navigationSelection: Selection?
     var selectedDirectoryID: String? {
         guard case let .directory(id) = navigationSelection else { return nil }
@@ -35,6 +36,16 @@ final class RevisionFileListViewModel {
 
     private(set) var files: [RevisionFilePresentation] = []
     private var expansion = RevisionFileListExpansion()
+    @ObservationIgnored private let waitForSearch: @MainActor () async throws -> Void
+    @ObservationIgnored private var searchTask: Task<Void, Never>?
+
+    init(waitForSearch: @escaping @MainActor () async throws -> Void = {
+        try await Task.sleep(for: .milliseconds(50))
+    }) {
+        self.waitForSearch = waitForSearch
+    }
+
+    isolated deinit { searchTask?.cancel() }
 
     func update(files: [RevisionFilePresentation]) {
         self.files = files
@@ -51,7 +62,7 @@ final class RevisionFileListViewModel {
             return filtered.map { VisibleNode(node: ChangedFileNode.leaf($0), depth: 0) }
         }
         let nodes = mode == .tree ? ChangedFileNode.tree(filtered) : ChangedFileNode.grouped(filtered)
-        let collapsed = expansion.collapsedDirectories(mode: mode, searching: !searchText.isEmpty)
+        let collapsed = expansion.collapsedDirectories(mode: mode, searching: !appliedSearchText.isEmpty)
         func flatten(_ nodes: [ChangedFileNode], depth: Int) -> [VisibleNode] {
             nodes.flatMap { node in
                 [VisibleNode(node: node, depth: depth)] + (collapsed.contains(node.id) ? [] : flatten(node.children, depth: depth + 1))
@@ -61,7 +72,7 @@ final class RevisionFileListViewModel {
     }
 
     func isCollapsed(_ id: String, mode: RevisionFileListMode) -> Bool {
-        expansion.collapsedDirectories(mode: mode, searching: !searchText.isEmpty).contains(id)
+        expansion.collapsedDirectories(mode: mode, searching: !appliedSearchText.isEmpty).contains(id)
     }
 
     func toggle(_ id: String, mode: RevisionFileListMode) {
@@ -69,7 +80,7 @@ final class RevisionFileListViewModel {
     }
 
     func setCollapsed(_ collapsed: Bool, id: String, mode: RevisionFileListMode) {
-        expansion.setCollapsed(collapsed, id: id, mode: mode, searching: !searchText.isEmpty)
+        expansion.setCollapsed(collapsed, id: id, mode: mode, searching: !appliedSearchText.isEmpty)
     }
 
     func expandAll() {
@@ -77,9 +88,9 @@ final class RevisionFileListViewModel {
     }
 
     func collapseAll(mode: RevisionFileListMode) {
-        let files = searchText.isEmpty ? files : filteredFiles
+        let files = appliedSearchText.isEmpty ? files : filteredFiles
         let nodes = mode == .tree ? ChangedFileNode.tree(files) : ChangedFileNode.grouped(files)
-        expansion.collapse(directoryIDs(nodes), mode: mode, searching: !searchText.isEmpty)
+        expansion.collapse(directoryIDs(nodes), mode: mode, searching: !appliedSearchText.isEmpty)
     }
 
     func reveal(_ path: String?) {
@@ -87,8 +98,37 @@ final class RevisionFileListViewModel {
         expansion.reveal(path)
     }
 
+    private func scheduleSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        let text = searchText
+        guard !text.isEmpty else {
+            applySearch(text)
+            return
+        }
+        guard text != appliedSearchText else { return }
+        let waitForSearch = waitForSearch
+        searchTask = Task { [weak self] in
+            do {
+                try await waitForSearch()
+                try Task.checkCancellation()
+            } catch {
+                return
+            }
+            self?.applySearch(text)
+        }
+    }
+
+    private func applySearch(_ text: String) {
+        searchTask = nil
+        guard appliedSearchText != text else { return }
+        appliedSearchText = text
+        expansion.resetSearch()
+        navigationSelection = nil
+    }
+
     private var filteredFiles: [RevisionFilePresentation] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = appliedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let matches = query.isEmpty ? files : files.filter {
             $0.path.localizedStandardContains(query) || $0.sourcePath.localizedStandardContains(query)
         }

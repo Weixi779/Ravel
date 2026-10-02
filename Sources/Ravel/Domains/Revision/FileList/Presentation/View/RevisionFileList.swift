@@ -80,7 +80,7 @@ struct RevisionFileList: View {
         .onChange(of: model.navigationSelection) { _, value in
             if case let .file(path) = value { selection = path }
         }
-        .onChange(of: model.searchText) { _, _ in
+        .onChange(of: model.appliedSearchText) { _, _ in
             model.navigationSelection = selection.map { .file($0) }
         }
     }

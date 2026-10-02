@@ -107,6 +107,7 @@ struct RevisionFileListPanelTests {
         try await waitUntil { session.displayedFile?.path == paths[22] }
 
         session.fileList.searchText = "File2"
+        try await waitUntil { session.fileList.appliedSearchText == "File2" }
         host.layoutSubtreeIfNeeded()
         await Task.yield()
         host.layoutSubtreeIfNeeded()
