@@ -20,9 +20,24 @@ changed-file tree are derived presentation state, not domain entities. Preferenc
 keys belong to each domain's `Infrastructure`; observable reading options remain
 presentation state. Settings binds to the existing owners and needs only `View`.
 Localized display extensions and file-status appearance mappings sit directly in
-`Presentation`. The file list lives in `View/RevisionFileListView.swift`; its row
-and status icon live in `Component/RevisionFileRow.swift` and
-`Component/RevisionFileStatusIcon.swift`.
+`Presentation`. Revision's file-list feature lives in `Revision/FileList` with
+its own `Presentation/View`, `Presentation/ViewModel` and `Presentation/Component`
+folders. `RevisionFileListPanel` composes `RevisionFileListHeader` and
+`RevisionFileList`. The list displays `RevisionDirectoryRow` and `RevisionFileRow`.
+These names identify each component's role. The repository window's root view
+keeps the name `RepositoryView` to distinguish the interface from the repository
+it displays. `RevisionFileListViewModel` owns filtering and navigation, with
+navigation operations in a dedicated extension, expansion state in
+`RevisionFileListExpansion`, and tree construction in `ChangedFileTree`.
+Tests mirror this feature boundary. File metadata, statistics, status icons and
+path-copy support remain in Revision's presentation layer because the preview
+also uses them. `RevisionChangesSession` continues to own preview loading and
+file selection; navigating to a directory does not replace the previewed file.
+
+The file-list view receives a binding to its display mode; preference storage
+remains with the parent inspector. Each FileList view and component has an
+interactive `#Preview`, with shared fixtures under `FileList/Preview`. Preview
+code is Debug-only and does not open repositories or access user preferences.
 
 `Domains/Repository/Domain` contains shared reader values (`Revision`,
 `ChangedFile`, `RevisionDiff` and `FileDiff`). `RepositoryWorkspace` and

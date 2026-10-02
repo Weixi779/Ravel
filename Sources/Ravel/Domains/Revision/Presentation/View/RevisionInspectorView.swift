@@ -17,6 +17,8 @@ struct RevisionInspectorView: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     var body: some View {
+        @Bindable var options = options
+
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 Picker(I18n.revisionInformation, selection: $diff.showsDetails) {
@@ -75,13 +77,13 @@ struct RevisionInspectorView: View {
                 placeholder(I18n.diffLoadFailed, symbol: "exclamationmark.triangle", detail: Text(verbatim: error))
             } else if !diff.files.isEmpty {
                 HSplitView {
-                    RevisionFileListView(model: diff.fileList, summary: diff.summary, selection: Binding(
+                    RevisionFileListPanel(model: diff.fileList, summary: diff.summary, selection: Binding(
                         get: { diff.selectedFileID },
                         set: { id in
                             guard let id else { return }
                             diff.selectFile(id)
                         },
-                    ), options: options, statisticsError: diff.statisticsErrorMessage, retryStatistics: diff.retryStatistics)
+                    ), mode: $options.fileListMode, statisticsError: diff.statisticsErrorMessage, retryStatistics: diff.retryStatistics)
                         .frame(minWidth: 290, idealWidth: 340, maxWidth: 520)
                         .allowsHitTesting(!diff.isLoading)
 

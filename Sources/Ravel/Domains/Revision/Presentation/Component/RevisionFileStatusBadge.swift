@@ -1,5 +1,5 @@
 //
-//  RevisionFileStatusIcon.swift
+//  RevisionFileStatusBadge.swift
 //  Ravel
 //
 //  Created by weixi on 2026/09/17.
@@ -9,7 +9,7 @@
 import Localization
 import SwiftUI
 
-struct RevisionFileStatusIcon: View {
+struct RevisionFileStatusBadge: View {
     let status: RevisionFilePresentation.Status
 
     var body: some View {
@@ -22,3 +22,14 @@ struct RevisionFileStatusIcon: View {
             .accessibilityLabel(status.localizedName)
     }
 }
+
+#if DEBUG
+    #Preview("File status badges") {
+        HStack(spacing: 10) {
+            ForEach(RevisionFilePresentation.Status.allCases, id: \.self) { status in
+                RevisionFileStatusBadge(status: status)
+            }
+        }
+        .padding(16)
+    }
+#endif

@@ -16,7 +16,7 @@ struct RevisionFileRow: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            RevisionFileStatusIcon(status: file.status)
+            RevisionFileStatusBadge(status: file.status)
 
             FileTypeIcon(fileName: file.name)
 
@@ -59,10 +59,14 @@ struct RevisionFileRow: View {
     }
 }
 
-@MainActor
-enum RevisionPathCopy {
-    static func copy(_ value: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
+#if DEBUG
+    #Preview("File statuses") {
+        VStack(spacing: 12) {
+            ForEach(RevisionFileListPreviewData.files) { file in
+                RevisionFileRow(file: file, showsDirectory: true)
+            }
+        }
+        .padding()
+        .frame(width: 420)
     }
-}
+#endif
