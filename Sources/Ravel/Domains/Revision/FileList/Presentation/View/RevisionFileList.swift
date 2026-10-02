@@ -61,12 +61,14 @@ struct RevisionFileList: View {
                 }
             }
             .contextMenu {
-                Button(I18n.diffExpandFolders) {
-                    model.expandAll()
-                }
+                if mode != .list {
+                    Button(I18n.diffExpandFolders) {
+                        model.expandAll()
+                    }
 
-                Button(I18n.diffCollapseFolders) {
-                    model.collapseAll(mode: mode)
+                    Button(I18n.diffCollapseFolders) {
+                        model.collapseAll(mode: mode)
+                    }
                 }
             }
         }
