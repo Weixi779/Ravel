@@ -1,5 +1,12 @@
 // swift-tools-version: 6.2
-// Created by weixi on 2026/09/12.
+//
+//  Package.swift
+//  Ravel
+//
+//  Created by weixi on 2026/09/12.
+//  Copyright © 2026 Ravel contributors. All rights reserved.
+//  SPDX-License-Identifier: Apache-2.0
+//
 
 import PackageDescription
 

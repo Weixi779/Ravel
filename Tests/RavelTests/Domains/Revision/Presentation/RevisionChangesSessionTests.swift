@@ -1,4 +1,11 @@
-// Created by weixi on 2026/09/09.
+//
+//  RevisionChangesSessionTests.swift
+//  Ravel
+//
+//  Created by weixi on 2026/09/09.
+//  Copyright © 2026 Ravel contributors. All rights reserved.
+//  SPDX-License-Identifier: Apache-2.0
+//
 
 import Foundation
 @testable import Ravel

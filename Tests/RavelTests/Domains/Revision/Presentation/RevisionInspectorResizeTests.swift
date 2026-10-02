@@ -1,4 +1,11 @@
-// Created by weixi on 2026/09/18.
+//
+//  RevisionInspectorResizeTests.swift
+//  Ravel
+//
+//  Created by weixi on 2026/09/18.
+//  Copyright © 2026 Ravel contributors. All rights reserved.
+//  SPDX-License-Identifier: Apache-2.0
+//
 
 import AppKit
 @testable import Ravel

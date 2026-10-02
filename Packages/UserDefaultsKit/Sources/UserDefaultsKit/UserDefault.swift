@@ -1,4 +1,11 @@
-// Created by weixi on 2026/09/16.
+//
+//  UserDefault.swift
+//  Ravel
+//
+//  Created by weixi on 2026/09/16.
+//  Copyright © 2026 Ravel contributors. All rights reserved.
+//  SPDX-License-Identifier: Apache-2.0
+//
 
 /// A synchronous, non-caching accessor. Reads do not register Observation dependencies.
 /// Writes can invalidate observed readers of the same storage. It does not provide a Binding.

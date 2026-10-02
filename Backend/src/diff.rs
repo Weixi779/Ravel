@@ -1,4 +1,11 @@
-// Created by weixi on 2026/09/17.
+//
+//  diff.rs
+//  Ravel
+//
+//  Created by weixi on 2026/09/17.
+//  Copyright © 2026 Ravel contributors. All rights reserved.
+//  SPDX-License-Identifier: Apache-2.0
+//
 
 use crate::{BackendCancellation, BackendError, load_workspace_for, read_error};
 use futures::StreamExt;

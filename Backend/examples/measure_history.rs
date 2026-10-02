@@ -1,4 +1,12 @@
-// Created by weixi on 2026/09/17.
+//
+//  measure_history.rs
+//  Ravel
+//
+//  Created by weixi on 2026/09/17.
+//  Copyright © 2026 Ravel contributors. All rights reserved.
+//  SPDX-License-Identifier: Apache-2.0
+//
+
 // Read-only diagnostic: cargo run --release --example measure_history -- <workspace> [page-size]
 use ravel_backend::{BackendCancellation, BackendRepository};
 use std::{sync::Arc, time::Instant};

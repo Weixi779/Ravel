@@ -1,4 +1,11 @@
-// Created by weixi on 2026/09/09.
+//
+//  Concurrency.xcconfig
+//  Ravel
+//
+//  Created by weixi on 2026/09/09.
+//  Copyright © 2026 Ravel contributors. All rights reserved.
+//  SPDX-License-Identifier: Apache-2.0
+//
 
 // Xcode names the Swift 6 language mode "6.0". Ravel additionally enforces
 // compiler >= 6.2 in RavelApp.swift and uses Swift 6.2 isolation semantics.

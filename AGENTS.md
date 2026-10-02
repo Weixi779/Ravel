@@ -1,5 +1,11 @@
 # 开发约定
 
+## 文件头
+
+- 手写源码、测试、脚本与构建配置使用包含文件名、项目名 `Ravel`、创建信息和版权声明的文件头。作者使用 `weixi`；移动或修改已有文件时保留原创建日期。
+- 版权行统一为 `Copyright © 2026 Ravel contributors. All rights reserved.`，并附 `SPDX-License-Identifier: Apache-2.0`，沿用仓库现有许可证。新增年份或跨年维护时按实际情况更新年份。
+- 保留 Swift Package 的 `swift-tools-version` 和脚本 shebang 在第一行，文件头置于其后。生成代码及第三方代码保留原有头信息，不手工覆盖。
+
 ## 目录组织
 
 - 应用代码按业务域放在 `Sources/Ravel/Domains/<Domain>/`，域内按职责使用 `Domain/`、`Application/`、`Presentation/`、`Infrastructure/`；只建立实际需要的层。

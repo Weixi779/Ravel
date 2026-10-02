@@ -1,5 +1,13 @@
 #!/bin/sh
-# Created by weixi on 2026/09/17.
+#
+#  buildBackend
+#  Ravel
+#
+#  Created by weixi on 2026/09/17.
+#  Copyright © 2026 Ravel contributors. All rights reserved.
+#  SPDX-License-Identifier: Apache-2.0
+#
+
 set -eu
 ravel_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$ravel_root/Tools/rustEnvironment"
