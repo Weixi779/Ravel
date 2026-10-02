@@ -29,8 +29,9 @@
 - SwiftUI 组件的 action、label 等闭包内容展开换行，不将按钮等组件的闭包压在一行。
 - 格式化后仍须保留上述排版；以 `RevisionFileListView.swift` 的现有写法作为参考。
 
-## Swift 格式化
+## Swift 格式化与静态检查
 
 - 每轮 Swift 代码新增、修改或重构完成后，交付或提交前，必须在项目根目录运行一次 `Tools/format`。
-- 使用项目现有的 `.swiftformat` 配置和脚本覆盖范围；生成代码、依赖、构建产物及 `research` 按配置排除。
+- 短参数列表可写在一行；多行声明或调用从第一个参数起每行一个，保留尾逗号，右括号独占一行。集合可按内容分组。
+- 运行 `Tools/lint` 检查 `.swiftlint.yml` 中启用的规则。CI 使用 `Tools/format --lint` 和 `Tools/lint` 检查手写 Swift 代码。
 - 检查格式化产生的差异，确认没有混入与当前任务无关的手动改动。

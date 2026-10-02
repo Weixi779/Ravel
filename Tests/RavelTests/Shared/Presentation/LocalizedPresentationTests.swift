@@ -15,9 +15,19 @@ nonisolated struct LocalizedPresentationTests {
     @Test(arguments: ["", "No description", "中文 %@ 🚀\nsecond line"])
     func revisionCopyDoesNotTranslateRepositoryContent(description: String) {
         let row = Revision(
-            commitID: "commit", changeID: "change", parentIDs: [], description: description,
-            author: "author", email: "email", timestamp: .distantPast, bookmarks: [],
-            isWorkingCopy: false, isImmutable: false, hasConflict: false, isDivergent: false, isEmpty: false,
+            commitID: "commit",
+            changeID: "change",
+            parentIDs: [],
+            description: description,
+            author: "author",
+            email: "email",
+            timestamp: .distantPast,
+            bookmarks: [],
+            isWorkingCopy: false,
+            isImmutable: false,
+            hasConflict: false,
+            isDivergent: false,
+            isEmpty: false,
         )
         if description.isEmpty {
             #expect(row.summary.isEmpty)

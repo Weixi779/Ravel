@@ -16,7 +16,8 @@ import UserDefaultsKit
 struct UserDefaultsReentrancyTests {
     @Test(arguments: [true, false], [ReentrantWriter.store, .foundation])
     func returningToTheOriginalValueInvalidatesAnIntermediateReader(
-        existingObservationEntry: Bool, writer: ReentrantWriter,
+        existingObservationEntry: Bool,
+        writer: ReentrantWriter,
     ) throws {
         try withDefaults { defaults in
             let store = UserDefaultsStore(defaults: defaults)
@@ -27,7 +28,9 @@ struct UserDefaultsReentrancyTests {
             let observedValue = Mutex<Int?>(nil)
             let invalidations = Mutex(0)
             let token = NotificationCenter.default.addObserver(
-                forName: UserDefaults.didChangeNotification, object: defaults, queue: nil,
+                forName: UserDefaults.didChangeNotification,
+                object: defaults,
+                queue: nil,
             ) { notification in
                 guard (try? store.read(key)) == 1,
                       entered.withLock({ value in
@@ -92,7 +95,9 @@ struct UserDefaultsReentrancyTests {
             try store.set(1, for: invalidWrite)
             let entered = Mutex(false)
             let token = NotificationCenter.default.addObserver(
-                forName: UserDefaults.didChangeNotification, object: defaults, queue: nil,
+                forName: UserDefaults.didChangeNotification,
+                object: defaults,
+                queue: nil,
             ) { _ in
                 guard (try? store.read(trigger)) == 1,
                       entered.withLock({ value in

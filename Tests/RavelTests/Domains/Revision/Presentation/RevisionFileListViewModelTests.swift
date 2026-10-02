@@ -68,8 +68,12 @@ struct RevisionFileListViewModelTests {
     @Test
     func summaryKeepsConflictSeparateFromChangeKindAndBinaryCountsUnknown() {
         let files = [
-            RevisionFilePresentation(ChangedFile(path: "a", sourcePath: "a", status: .modified,
-                                                 after: FileMetadata(kind: .conflict, executable: nil, conflictSides: 2))),
+            RevisionFilePresentation(ChangedFile(
+                path: "a",
+                sourcePath: "a",
+                status: .modified,
+                after: FileMetadata(kind: .conflict, executable: nil, conflictSides: 2),
+            )),
             RevisionFilePresentation(ChangedFile(path: "new", sourcePath: "old", status: .renamed)),
         ]
         let summary = RevisionChangeSummary(files: files, statistics: nil)

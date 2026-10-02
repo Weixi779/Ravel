@@ -61,8 +61,10 @@ struct DockIconTests {
     private func expectVisibleIcon(in tile: NSDockTile) throws {
         let content = try #require(tile.contentView)
         let imageView = try #require(content as? NSImageView)
-        #expect(imageView.frame.width > 0 && imageView.frame.height > 0,
-                "Dock image frame is empty: \(imageView.frame); tile bounds: \(content.bounds)")
+        #expect(
+            imageView.frame.width > 0 && imageView.frame.height > 0,
+            "Dock image frame is empty: \(imageView.frame); tile bounds: \(content.bounds)",
+        )
         let bitmap = try #require(content.bitmapImageRepForCachingDisplay(in: content.bounds))
         content.cacheDisplay(in: content.bounds, to: bitmap)
         let center = try #require(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2))

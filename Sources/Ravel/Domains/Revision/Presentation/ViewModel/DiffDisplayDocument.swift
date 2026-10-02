@@ -142,8 +142,10 @@ nonisolated struct DiffDisplayDocument: Sendable {
         func range(_ characters: [Character]) -> NSRange? {
             let length = characters.count - prefix - suffix
             guard length > 0, prefix > 0 || suffix > 0 else { return nil }
-            return NSRange(location: String(characters.prefix(prefix)).utf16.count,
-                           length: String(characters[prefix ..< prefix + length]).utf16.count)
+            return NSRange(
+                location: String(characters.prefix(prefix)).utf16.count,
+                length: String(characters[prefix ..< prefix + length]).utf16.count,
+            )
         }
         return (range(old), range(new))
     }

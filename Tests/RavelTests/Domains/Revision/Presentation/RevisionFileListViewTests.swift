@@ -126,8 +126,12 @@ struct RevisionFileListViewTests {
         let model = RevisionFileListViewModel()
         model.update(files: files)
         let host = NSHostingView(rootView: RevisionFileListView(model: model, summary: RevisionChangeSummary(files: files, statistics: nil), selection: .constant(paths[0]), options: options))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
-                              styleMask: [.titled], backing: .buffered, defer: false)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false,
+        )
         window.isReleasedWhenClosed = false
         window.contentView = host
         defer { window.close() }
@@ -163,9 +167,18 @@ struct RevisionFileListViewTests {
         case .left: ("\u{F702}", 123)
         case .right: ("\u{F703}", 124)
         }
-        let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.numericPad, .function], timestamp: 0,
-                                                  windowNumber: window.windowNumber, context: nil, characters: key,
-                                                  charactersIgnoringModifiers: key, isARepeat: false, keyCode: code))
+        let event = try #require(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.numericPad, .function],
+            timestamp: 0,
+            windowNumber: window.windowNumber,
+            context: nil,
+            characters: key,
+            charactersIgnoringModifiers: key,
+            isARepeat: false,
+            keyCode: code,
+        ))
         #expect(window.firstResponder === table)
         // SwiftUI routes key-press handlers before NSTableView.keyDown(with:).
         window.sendEvent(event)

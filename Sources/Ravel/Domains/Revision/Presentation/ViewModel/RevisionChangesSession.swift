@@ -52,8 +52,12 @@ final class RevisionChangesSession {
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var fileGeneration = 0
 
-    init(loader: @escaping Loader, fileLoader: @escaping FileLoader,
-         statisticsLoader: @escaping StatisticsLoader = { _ in nil }, loadingDelay: Duration = .milliseconds(250))
+    init(
+        loader: @escaping Loader,
+        fileLoader: @escaping FileLoader,
+        statisticsLoader: @escaping StatisticsLoader = { _ in nil },
+        loadingDelay: Duration = .milliseconds(250),
+    )
     {
         self.loader = loader
         self.fileLoader = fileLoader

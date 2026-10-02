@@ -59,7 +59,8 @@ final class UserDefaultsObservations: Sendable {
             }
             let field = Field()
             state.entries[name] = Entry(
-                field: field, snapshot: reference.defaults.object(forKey: name),
+                field: field,
+                snapshot: reference.defaults.object(forKey: name),
             )
             return field
         }

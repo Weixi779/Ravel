@@ -33,11 +33,13 @@ struct RevisionChangesSessionTests {
     func obsoleteFileCannotReplaceNewFileAndRepositorySwitchClearsContent() async throws {
         let gate = DiffGate<FileDiff>()
         let files = [file("initial"), file("one"), file("two")]
-        let session = RevisionChangesSession(loader: { _ in RevisionDiff(files: files) },
-                                             fileLoader: { _, file in
-                                                 if file.id == "initial" { return try RevisionPatchParser.parse("initial\n") }
-                                                 return try await gate.load(file.id)
-                                             })
+        let session = RevisionChangesSession(
+            loader: { _ in RevisionDiff(files: files) },
+            fileLoader: { _, file in
+                if file.id == "initial" { return try RevisionPatchParser.parse("initial\n") }
+                return try await gate.load(file.id)
+            },
+        )
         session.selectRevision(request("commit"))
         try await waitUntil { session.fileDiff != nil }
         session.selectFile("one")
@@ -74,8 +76,10 @@ struct RevisionChangesSessionTests {
     @Test
     func refreshingTheSameCommitKeepsTheLoadedFile() async throws {
         let files = [file("one"), file("two")]
-        let session = RevisionChangesSession(loader: { _ in RevisionDiff(files: files) },
-                                             fileLoader: { _, _ in try RevisionPatchParser.parse("content\n") })
+        let session = RevisionChangesSession(
+            loader: { _ in RevisionDiff(files: files) },
+            fileLoader: { _, _ in try RevisionPatchParser.parse("content\n") },
+        )
         var selection = request("commit")
         session.selectRevision(selection)
         try await waitUntil { session.fileDiff != nil }

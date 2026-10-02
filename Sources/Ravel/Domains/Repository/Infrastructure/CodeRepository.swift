@@ -124,7 +124,9 @@ final nonisolated class CodeRepository: CodeRepositoryReader {
                 files: Dictionary(uniqueKeysWithValues: statistics.files.map {
                     ($0.path, FileChangeStatistics(additions: $0.linesAdded.map(Int.init), deletions: $0.linesRemoved.map(Int.init), bytesDelta: Int($0.bytesDelta)))
                 }),
-                additions: Int(statistics.linesAdded), deletions: Int(statistics.linesRemoved), binaryFiles: Int(statistics.binaryFiles),
+                additions: Int(statistics.linesAdded),
+                deletions: Int(statistics.linesRemoved),
+                binaryFiles: Int(statistics.binaryFiles),
             )
         } onCancel: { cancellation.cancel() }
     }
@@ -137,9 +139,12 @@ private final nonisolated class RustHistoryQuery: HistoryQuery {
     init(backend: BackendHistory) {
         self.backend = backend
         let info = backend.info()
-        identity = HistoryIdentity(queryID: UUID(), operationID: info.operationId,
-                                   repositoryURL: URL(fileURLWithPath: info.workspacePath, isDirectory: true),
-                                   backendVersion: info.backendVersion)
+        identity = HistoryIdentity(
+            queryID: UUID(),
+            operationID: info.operationId,
+            repositoryURL: URL(fileURLWithPath: info.workspacePath, isDirectory: true),
+            backendVersion: info.backendVersion,
+        )
     }
 
     @concurrent
@@ -164,11 +169,21 @@ private final nonisolated class RustHistoryQuery: HistoryQuery {
 
 private nonisolated extension Revision {
     init(_ value: BackendRevision) {
-        self.init(commitID: value.commitId, changeID: value.changeId, parentIDs: value.parentIds,
-                  description: value.description, author: value.author, email: value.email,
-                  timestamp: Date(timeIntervalSince1970: Double(value.timestampMillis) / 1000),
-                  bookmarks: value.bookmarks, isWorkingCopy: value.isWorkingCopy, isImmutable: value.isImmutable,
-                  hasConflict: value.hasConflict, isDivergent: value.isDivergent, isEmpty: value.isEmpty)
+        self.init(
+            commitID: value.commitId,
+            changeID: value.changeId,
+            parentIDs: value.parentIds,
+            description: value.description,
+            author: value.author,
+            email: value.email,
+            timestamp: Date(timeIntervalSince1970: Double(value.timestampMillis) / 1000),
+            bookmarks: value.bookmarks,
+            isWorkingCopy: value.isWorkingCopy,
+            isImmutable: value.isImmutable,
+            hasConflict: value.hasConflict,
+            isDivergent: value.isDivergent,
+            isEmpty: value.isEmpty,
+        )
     }
 }
 
@@ -182,8 +197,13 @@ private nonisolated extension ChangedFile {
         case .renamed: .renamed
         case .unchanged: .unchanged
         }
-        self.init(path: value.path, sourcePath: value.sourcePath, status: status,
-                  before: value.before.map(FileMetadata.init), after: value.after.map(FileMetadata.init))
+        self.init(
+            path: value.path,
+            sourcePath: value.sourcePath,
+            status: status,
+            before: value.before.map(FileMetadata.init),
+            after: value.after.map(FileMetadata.init),
+        )
     }
 }
 

@@ -42,8 +42,12 @@ struct RevisionDiffViewTests {
         let long = try RevisionPatchParser.parse("@@ -0,0 +1,1000 @@\n" + (1 ... 1000).map { "+line \($0)\n" }.joined())
         let short = try RevisionPatchParser.parse("@@ -1,2 +1,2 @@\n-old\n+new\n context\n")
         let host = NSHostingView(rootView: RevisionDiffView(diff: RevisionDiffPresentation(long, fileName: "Sample.swift")))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 280),
-                              styleMask: [.titled], backing: .buffered, defer: false)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 280),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false,
+        )
         window.isReleasedWhenClosed = false
         window.contentView = host
         defer { window.close() }
@@ -71,8 +75,12 @@ struct RevisionDiffViewTests {
         let patch = "@@ -0,0 +1,1000 @@\n" + (1 ... 1000).map { "+let value\($0) = \($0)\n" }.joined()
         let diff = try RevisionPatchParser.parse(patch)
         let host = NSHostingView(rootView: RevisionDiffView(diff: RevisionDiffPresentation(diff, fileName: "Sample.swift")))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 320),
-                              styleMask: [.titled], backing: .buffered, defer: false)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 320),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false,
+        )
         window.isReleasedWhenClosed = false
         window.contentView = host
         defer { window.close() }

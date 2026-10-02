@@ -216,9 +216,13 @@ final class LogSession {
 
     @concurrent
     private static func makeLog(identity: HistoryIdentity, revisions: [Revision], hasMore: Bool) async throws -> RepositoryLog {
-        try RepositoryLog(repositoryURL: identity.repositoryURL, revisions: revisions,
-                          graph: LogGraph(revisions: revisions),
-                          hasMore: hasMore, backendVersion: identity.backendVersion)
+        try RepositoryLog(
+            repositoryURL: identity.repositoryURL,
+            revisions: revisions,
+            graph: LogGraph(revisions: revisions),
+            hasMore: hasMore,
+            backendVersion: identity.backendVersion,
+        )
     }
 
     func setHistoryPageSize(_ size: Int) {

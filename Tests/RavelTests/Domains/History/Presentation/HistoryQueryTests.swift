@@ -44,8 +44,10 @@ actor StubHistory: HistoryQuery {
 
     private func result(at offset: UInt64) -> HistoryPage {
         let end = min(Int(offset) + pageSize, revisions.count)
-        return HistoryPage(revisions: Array(revisions[Int(offset) ..< end]),
-                           nextCursor: end < revisions.count ? HistoryCursor(queryID: identity.queryID, offset: UInt64(end)) : nil)
+        return HistoryPage(
+            revisions: Array(revisions[Int(offset) ..< end]),
+            nextCursor: end < revisions.count ? HistoryCursor(queryID: identity.queryID, offset: UInt64(end)) : nil,
+        )
     }
 
     func waitForPage(_ offset: UInt64) async {

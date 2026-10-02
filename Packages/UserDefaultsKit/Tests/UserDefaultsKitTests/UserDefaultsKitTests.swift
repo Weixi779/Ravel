@@ -334,7 +334,9 @@ private func withDefaults(_ body: (UserDefaults) throws -> Void) throws {
 }
 
 private func roundTrip<Value: UserDefaultsValue & Equatable>(
-    _ value: Value, fallback: Value, store: UserDefaultsStore,
+    _ value: Value,
+    fallback: Value,
+    store: UserDefaultsStore,
 ) throws {
     let key = UserDefaultsKey(UUID().uuidString, default: fallback)
     try store.set(value, for: key)

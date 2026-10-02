@@ -114,7 +114,9 @@ nonisolated struct LogGraphTests {
         #expect(graph.rows.map(\.occupiedColumn) == [0, 1, 1, 0, 0])
         let path = graph.rows[1].color
         #expect(graph.rows[2].segments.contains(LogGraph.Segment(
-            start: .init(column: 1, fraction: 0.5), end: .init(column: 0, fraction: 1), color: path,
+            start: .init(column: 1, fraction: 0.5),
+            end: .init(column: 0, fraction: 1),
+            color: path,
         )))
         #expect(graph.rows[3].color == path)
         #expect(graph.rows[4].isOnPath(path))
@@ -138,7 +140,9 @@ nonisolated struct LogGraphTests {
         for column in 1 ... 2 {
             let path = graph.rows[column].color
             #expect(ending.segments.contains(LogGraph.Segment(
-                start: .init(column: column, fraction: 0.5), end: .init(column: column - 1, fraction: 1), color: path,
+                start: .init(column: column, fraction: 0.5),
+                end: .init(column: column - 1, fraction: 1),
+                color: path,
             )))
             #expect(graph.rows[column + 3].isOnPath(path))
         }
@@ -165,8 +169,10 @@ nonisolated struct LogGraphTests {
         for index in 0 ..< graph.rows.count - 1 {
             let outgoing = graph.rows[index].segments.filter { $0.end.fraction == 1 }
             let incoming = graph.rows[index + 1].segments.filter { $0.start.fraction == 0 }
-            #expect(Set(outgoing.map { "\($0.end.column):\($0.color)" })
-                == Set(incoming.map { "\($0.start.column):\($0.color)" }))
+            #expect(
+                Set(outgoing.map { "\($0.end.column):\($0.color)" })
+                    == Set(incoming.map { "\($0.start.column):\($0.color)" }),
+            )
             let columns = Set(outgoing.map(\.end.column))
             #expect(columns == Set(0 ..< columns.count))
         }

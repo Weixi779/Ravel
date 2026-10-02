@@ -92,8 +92,11 @@ struct UserDefaultsValueTypeTests {
                 try checkTypeChange(valid: [true], invalid: [1], fallback: [], defaults: defaults, store: store)
             case .dictionary:
                 try checkTypeChange(
-                    valid: ["nested": [true]], invalid: ["nested": [1]], fallback: [:],
-                    defaults: defaults, store: store,
+                    valid: ["nested": [true]],
+                    invalid: ["nested": [1]],
+                    fallback: [:],
+                    defaults: defaults,
+                    store: store,
                 )
             }
         }
@@ -104,7 +107,11 @@ struct UserDefaultsValueTypeTests {
 }
 
 private func checkTypeChange<Value: UserDefaultsValue & Equatable>(
-    valid: Value, invalid: Any, fallback: Value, defaults: UserDefaults, store: UserDefaultsStore,
+    valid: Value,
+    invalid: Any,
+    fallback: Value,
+    defaults: UserDefaults,
+    store: UserDefaultsStore,
 ) throws {
     let key = UserDefaultsKey(UUID().uuidString, default: fallback)
     // Exercise an actual representation change between search domains. UserDefaults

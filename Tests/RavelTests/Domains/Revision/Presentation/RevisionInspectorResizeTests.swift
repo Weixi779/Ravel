@@ -51,8 +51,17 @@ struct RevisionInspectorResizeTests {
             let origin = handle.convert(NSPoint(x: handle.bounds.midX, y: handle.bounds.midY), to: nil)
             let destination = NSPoint(x: origin.x, y: origin.y + distance)
             for (type, location) in [(NSEvent.EventType.leftMouseDown, origin), (.leftMouseDragged, destination), (.leftMouseUp, destination)] {
-                let event = try #require(NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+                let event = try #require(NSEvent.mouseEvent(
+                    with: type,
+                    location: location,
+                    modifierFlags: [],
+                    timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: window.windowNumber,
+                    context: nil,
+                    eventNumber: 0,
+                    clickCount: 1,
+                    pressure: 1,
+                ))
                 window.sendEvent(event)
             }
         }

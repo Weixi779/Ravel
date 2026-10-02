@@ -43,9 +43,18 @@ struct RevisionTableTests {
         #expect(try titleX(row: 0, in: table) == initialTextX)
 
         #expect(window.makeFirstResponder(table))
-        let down = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
-                                                 windowNumber: window.windowNumber, context: nil, characters: "\u{F701}",
-                                                 charactersIgnoringModifiers: "\u{F701}", isARepeat: false, keyCode: 125))
+        let down = try #require(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: window.windowNumber,
+            context: nil,
+            characters: "\u{F701}",
+            charactersIgnoringModifiers: "\u{F701}",
+            isARepeat: false,
+            keyCode: 125,
+        ))
         table.keyDown(with: down)
         await settle(host)
         #expect(fixture.selection == revisions[3].id)
@@ -91,8 +100,10 @@ struct RevisionTableTests {
            let image = host.bitmapImageRepForCachingDisplay(in: host.bounds)
         {
             host.cacheDisplay(in: host.bounds, to: image)
-            try image.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: directory)
-                .appendingPathComponent("history-\(style.rawValue)-\(dark ? "dark" : "light").png"))
+            try image.representation(using: .png, properties: [:])?.write(
+                to: URL(fileURLWithPath: directory)
+                    .appendingPathComponent("history-\(style.rawValue)-\(dark ? "dark" : "light").png"),
+            )
         }
         fixture.selection = nil
         await settle(host)
@@ -159,10 +170,21 @@ struct RevisionTableTests {
             ("root", [], "Create the repository", []),
         ]
         return data.enumerated().map { index, item in
-            Revision(commitID: item.0, changeID: "change-\(index)", parentIDs: item.1, description: item.2,
-                     author: "weixi", email: "weixi@example.com", timestamp: Date(timeIntervalSince1970: 1_789_000_000 - Double(index * 900)),
-                     bookmarks: item.3, isWorkingCopy: index == 0, isImmutable: index >= 11,
-                     hasConflict: index == 4, isDivergent: false, isEmpty: false)
+            Revision(
+                commitID: item.0,
+                changeID: "change-\(index)",
+                parentIDs: item.1,
+                description: item.2,
+                author: "weixi",
+                email: "weixi@example.com",
+                timestamp: Date(timeIntervalSince1970: 1_789_000_000 - Double(index * 900)),
+                bookmarks: item.3,
+                isWorkingCopy: index == 0,
+                isImmutable: index >= 11,
+                hasConflict: index == 4,
+                isDivergent: false,
+                isEmpty: false,
+            )
         }
     }
 

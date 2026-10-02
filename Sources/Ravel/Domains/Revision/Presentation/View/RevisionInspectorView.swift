@@ -112,10 +112,16 @@ struct RevisionInspectorView: View {
     private var fileContent: some View {
         VStack(spacing: 0) {
             if let file = diff.displayedFile {
-                RevisionFileHeader(file: file, repositoryURL: request?.repositoryURL, isLoading: diff.showsFileProgress,
-                                   canSearch: diff.fileDiff?.isBinary == false, options: options, showsInformation: $diff.showsFileInformation)
-                {
-                    diff.findRequest += 1
+                RevisionFileHeader(
+                    file: file,
+                    repositoryURL: request?.repositoryURL,
+                    isLoading: diff.showsFileProgress,
+                    canSearch: diff.fileDiff?.isBinary == false,
+                    options: options,
+                    showsInformation: $diff.showsFileInformation,
+                )
+                    {
+                        diff.findRequest += 1
                 }
 
                 Divider()
@@ -133,8 +139,12 @@ struct RevisionInspectorView: View {
                         placeholder(I18n.diffNoTextTitle, symbol: "doc", detail: Text(I18n.diffNoTextDetail))
                     }
                 } else {
-                    RevisionDiffView(diff: content, sideBySide: options.sideBySide,
-                                     showsChangeMarkers: options.showsChangeMarkers ?? differentiateWithoutColor, findRequest: diff.findRequest)
+                    RevisionDiffView(
+                        diff: content,
+                        sideBySide: options.sideBySide,
+                        showsChangeMarkers: options.showsChangeMarkers ?? differentiateWithoutColor,
+                        findRequest: diff.findRequest,
+                    )
                 }
             } else {
                 placeholder(I18n.diffSelectFile, symbol: "doc.text.magnifyingglass")

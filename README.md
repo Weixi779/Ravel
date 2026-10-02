@@ -200,18 +200,19 @@ Configure your own jj author identity if needed. For a small, coherent change, u
 start the next change. Use `jj split` to separate mixed work before publishing.
 Fetch and inspect the graph before moving or pushing the intended bookmark.
 
-Swift code uses [Nick Lockwood's SwiftFormat](https://github.com/nicklockwood/SwiftFormat)
-0.61.0 or later, with shared settings in `.swiftformat`:
+CI uses SwiftFormat 0.61.0 and SwiftLint 0.65.1. Use the repository scripts to
+apply the same rules locally.
 
 ```sh
-brew install swiftformat
+brew install swiftformat swiftlint
 Tools/format --lint # Check formatting without changing files
 Tools/format        # Apply formatting
+Tools/lint          # Run the configured SwiftLint rules in strict mode
 ```
 
-The entry point covers `Sources`, `Tests`, local `Packages`, and `Tools`. Generated
-Swift files and build outputs are excluded. Formatting runs explicitly; it is not
-part of the app build.
+Both scripts cover the handwritten Swift files in `Sources`, `Tests`, `Packages`,
+and `Tools`. Multiline parameter and argument lists put one parameter or argument
+on each line, with a trailing comma and the closing parenthesis on its own line.
 
 CodeGraph is optional development tooling, not an app dependency. With its CLI
 installed, create a local index from the repository root:

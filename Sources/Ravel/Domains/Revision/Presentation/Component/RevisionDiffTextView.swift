@@ -76,8 +76,11 @@ final class DiffReadOnlyTextView: STTextView {
         for row in document.rows {
             guard let emphasis = row.line.emphasis else { continue }
             let tone: ChangeTone = row.line.kind == .addition ? .addition : .deletion
-            string.addAttribute(.backgroundColor, value: tone.emphasisBackground,
-                                range: NSRange(location: row.range.location + emphasis.location, length: emphasis.length))
+            string.addAttribute(
+                .backgroundColor,
+                value: tone.emphasisBackground,
+                range: NSRange(location: row.range.location + emphasis.location, length: emphasis.length),
+            )
         }
         attributedText = string
         textSelection = NSRange(location: 0, length: 0)
