@@ -1,3 +1,11 @@
+#
+#  rust-toolchain.toml
+#  Ravel
+#
+#  Created by weixi on 2026/09/17.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+
 [toolchain]
 channel = "1.96.0"
 profile = "minimal"

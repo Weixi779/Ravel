@@ -1,4 +1,11 @@
-# Created by weixi on 2026/09/17.
+#
+#  Cargo.toml
+#  Ravel
+#
+#  Created by weixi on 2026/09/17.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+
 [package]
 name = "ravel-backend"
 version = "0.1.0"

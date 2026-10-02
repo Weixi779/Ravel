@@ -3,8 +3,7 @@
 //  Ravel
 //
 //  Created by weixi on 2026/09/17.
-//  Copyright © 2026 Ravel contributors. All rights reserved.
-//  SPDX-License-Identifier: Apache-2.0
+//  Copyright © 2026 Ravel. All rights reserved.
 //
 
 use crate::{BackendCancellation, BackendError, load_workspace, read_error, worker};
