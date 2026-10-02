@@ -13,13 +13,30 @@ struct RevisionFileStatusBadge: View {
     let status: RevisionFilePresentation.Status
 
     var body: some View {
-        Image(systemName: status.symbolName)
+        symbol
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(status.color)
             .frame(width: 16, height: 16)
             .background(status.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
             .help(status.localizedName)
             .accessibilityLabel(status.localizedName)
+    }
+
+    @ViewBuilder private var symbol: some View {
+        switch status {
+        case .added:
+            Image(systemName: "plus")
+        case .removed:
+            Image(systemName: "minus")
+        case .modified:
+            Text(verbatim: "M")
+        case .renamed:
+            Image(systemName: "arrow.right")
+        case .copied:
+            Image(systemName: "doc.on.doc")
+        case .unchanged:
+            Image(systemName: "circle")
+        }
     }
 }
 
