@@ -93,10 +93,6 @@ final class DiffReadOnlyTextView: NSTextView {
             )
         }
         textStorage?.setAttributedString(string)
-        if document.side != .unified, let textContainer {
-            // Both scroll views need their final line positions before either can drive the other.
-            layoutManager?.ensureLayout(for: textContainer)
-        }
         setSelectedRange(NSRange(location: 0, length: 0))
         enclosingScrollView?.verticalRulerView?.needsDisplay = true
     }

@@ -150,9 +150,16 @@ final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
         guard !isSynchronizing, scrolls.count == 2, let source = notification.object as? NSClipView else { return }
         isSynchronizing = true
         defer { isSynchronizing = false }
-        for scroll in scrolls where scroll.contentView !== source {
+        let y = source.bounds.minY
+        for scroll in scrolls {
+            // A partner can be scrolled past the portion AppKit has sized so far.
+            if y > 0, let text = scroll.documentView as? NSTextView,
+               y + scroll.contentView.bounds.height > text.bounds.maxY, let container = text.textContainer {
+                text.layoutManager?.ensureLayout(for: container)
+            }
+            guard scroll.contentView !== source else { continue }
             var origin = scroll.contentView.bounds.origin
-            origin.y = source.bounds.minY
+            origin.y = y
             scroll.contentView.scroll(to: origin)
             scroll.reflectScrolledClipView(scroll.contentView)
         }
