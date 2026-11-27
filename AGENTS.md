@@ -9,11 +9,21 @@
 ## 目录组织
 
 - 应用代码按业务域放在 `Sources/Ravel/Domains/<Domain>/`，域内按职责使用 `Domain/`、`Application/`、`Presentation/`、`Infrastructure/`；只建立实际需要的层。
+- 业务域内的独立子功能先按 feature 建目录，再在内部按实际职责分层，例如 `Domains/Revision/FileList/Presentation/`。子功能的视图、模型和局部组件放在一起，对应测试采用相同的 feature 路径；跨子功能共享的能力保留在所属业务域。
 - `Domain/` 放领域值和规则；`Application/` 放应用工作流和请求；`Presentation/View/` 放界面，`Presentation/ViewModel/` 放界面状态、会话和派生展示模型；`Infrastructure/` 放后端适配与偏好存储。不使用泛化的 `UI/` 目录集中收纳界面。
 - 本地化等展示扩展直接放在对应的 `Presentation/`；有需要独立组织的局部组件时才建立 `Presentation/Component/`，不预先补齐空目录。
 - `App/` 负责应用生命周期与功能组装；`Domains/Repository/` 负责共享仓库模型与访问；`Shared/` 只放确有多个业务域使用的代码，并按相同职责分层。
 - 设置界面使用已有状态所有者，没有独立状态时不额外创建 ViewModel。目录分层不要求额外包装现有状态所有者或补齐空层；文件和类型命名可单独调整。
 - 测试按相同业务域及被测职责整理，跨层集成测试可放在对应业务域根目录，共用测试工具放在 `Tests/RavelTests/Support/`。
+
+## 类型与文件命名
+
+- 模型按实际业务含义命名，例如 `Revision`、`ChangedFile`；界面状态及交互逻辑的所有者使用 `<Feature>ViewModel`。不因拆出一个子视图就配套创建 ViewModel。
+- UI 类型按业务和界面角色命名。`RevisionFileListPanel` 表示包含表头和列表的面板，`RevisionFileList` 表示列表本身。`Row`、`Header`、`Badge` 等角色已经明确时，可直接作为名称结尾。
+- 当业务名本身容易被理解为数据或领域对象时，保留 `View` 后缀，例如仓库主界面 `RepositoryView`。文件名与主要类型名一致，测试沿用被测类型名加 `Tests`。
+- 集合中的展示单元优先使用 `Row`、`Card`、`Tile` 等具体角色，形态确实通用时可用 `Item`。
+- 不使用 `Content`、`Container`、`Wrapper` 等笼统名称代替业务 UI 组件的实际职责。SwiftUI 的 `body`、`content` 参数及泛型等既有 API 命名不受此约束。
+- 从 FileList 开始，新增或重命名的 UI 类型采用本规范；存量组件在实际整理时逐步统一。
 
 ## 本地化文案
 
@@ -27,7 +37,13 @@
 - View 构造与每个链式修饰符分别占一行，例如 `.font`、`.fontWeight`、`.foregroundStyle`；即使表达式很短，也不要合并到同一行。
 - 同级相邻组件之间保留一个空行。每个组件及其连续修饰符作为一个完整块，块内不插入额外空行，便于看清组件边界和修饰符归属。
 - SwiftUI 组件的 action、label 等闭包内容展开换行，不将按钮等组件的闭包压在一行。
-- 格式化后仍须保留上述排版；以 `RevisionFileListView.swift` 的现有写法作为参考。
+- 格式化后仍须保留上述排版；以 `RevisionFileList.swift` 的现有写法作为参考。
+
+## UI Preview
+
+- 从 FileList feature 开始，新增或重构的 UI 组件必须提供可独立运行的 Preview；存量 UI 按 feature 逐步补齐。SwiftUI 使用同文件的 `#Preview`，AppKit 组件通过适当的 SwiftUI 桥接提供预览。
+- Preview 支持搜索、选择等有意义的交互，按组件职责覆盖常见状态和必要的空态、失败态。视图只接收实际需要的数据、Binding 或回调，不为预览启动真实仓库访问或读写用户偏好。
+- feature 共用的样例数据放在其 `Preview/` 目录，预览声明和样例代码都用 `#if DEBUG` 包裹。不要把样例数据混入生产模型或在视图中添加专供 Preview 的运行分支。
 
 ## Swift 格式化与静态检查
 

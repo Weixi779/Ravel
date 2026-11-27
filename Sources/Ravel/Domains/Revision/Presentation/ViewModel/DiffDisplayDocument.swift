@@ -159,6 +159,12 @@ nonisolated struct DiffDisplayDocument: Sendable {
 nonisolated struct RevisionDiffPresentation: Sendable {
     let id: UUID
     let isBinary: Bool
+    struct HunkPreview: Sendable {
+        let range: FileDiff.Hunk
+        let label: String
+    }
+
+    let hunks: [HunkPreview]
     let unified: DiffDisplayDocument
     let before: DiffDisplayDocument
     let after: DiffDisplayDocument
@@ -167,6 +173,25 @@ nonisolated struct RevisionDiffPresentation: Sendable {
     init(_ diff: FileDiff, fileName: String) {
         id = diff.id
         isBinary = diff.isBinary
+        var previews: [HunkPreview] = []
+        var header: FileDiff.Hunk?
+        var sample: String?
+        func finishHunk() {
+            guard let header else { return }
+            let coordinates = "@@ -\(header.oldStart),\(header.oldCount) +\(header.newStart),\(header.newCount) @@"
+            previews.append(.init(range: header, label: coordinates + (sample.map { "  " + $0 } ?? "")))
+        }
+        for line in diff.lines {
+            if let next = line.hunk {
+                finishHunk()
+                header = next
+                sample = nil
+            } else if sample == nil, line.kind == .addition || line.kind == .deletion {
+                sample = (line.kind == .addition ? "+" : "−") + String(line.text.prefix(80))
+            }
+        }
+        finishHunk()
+        hunks = previews
         unified = DiffDisplayDocument(diff, fileName: fileName)
         before = DiffDisplayDocument(diff, side: .before, fileName: fileName)
         after = DiffDisplayDocument(diff, side: .after, fileName: fileName)

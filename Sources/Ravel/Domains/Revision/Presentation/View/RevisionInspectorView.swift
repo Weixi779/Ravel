@@ -13,10 +13,13 @@ struct RevisionInspectorView: View {
     let revision: Revision?
     let request: RevisionDiffRequest?
     @Bindable var diff: RevisionChangesSession
+    var logSession: LogSession?
     @Environment(DiffViewOptions.self) private var options
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     var body: some View {
+        @Bindable var options = options
+
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 Picker(I18n.revisionInformation, selection: $diff.showsDetails) {
@@ -42,6 +45,22 @@ struct RevisionInspectorView: View {
                     }
 
                     Spacer(minLength: 0)
+
+                    if let split = diff.splitSelection {
+                        Button(I18n.organizeSplit) {
+                            diff.requestOrganization(.confirmSplit, source: split.source, request: split.request)
+                        }
+                        .disabled(!split.canSplit || diff.isOrganizing)
+
+                        Button(I18n.splitCancel) {
+                            diff.endSplit()
+                        }
+                    } else if let revision, let request {
+                        Button(I18n.splitReview) {
+                            diff.requestOrganization(.split, source: revision, request: request)
+                        }
+                        .disabled(revision.isImmutable || diff.isLoading || (!revision.isWorkingCopy && diff.files.isEmpty))
+                    }
 
                     if diff.showsRevisionProgress {
                         ProgressView()
@@ -75,13 +94,15 @@ struct RevisionInspectorView: View {
                 placeholder(I18n.diffLoadFailed, symbol: "exclamationmark.triangle", detail: Text(verbatim: error))
             } else if !diff.files.isEmpty {
                 HSplitView {
-                    RevisionFileListView(model: diff.fileList, summary: diff.summary, selection: Binding(
+                    RevisionFileListPanel(model: diff.fileList, summary: diff.summary, selection: Binding(
                         get: { diff.selectedFileID },
                         set: { id in
                             guard let id else { return }
                             diff.selectFile(id)
                         },
-                    ), options: options, statisticsError: diff.statisticsErrorMessage, retryStatistics: diff.retryStatistics)
+                    ), mode: $options.fileListMode, splitSelection: diff.splitSelection, moveFile: { file in
+                        requestAction(.moveFile(file.path))
+                    }, statisticsError: diff.statisticsErrorMessage, retryStatistics: diff.retryStatistics)
                         .frame(minWidth: 290, idealWidth: 340, maxWidth: 520)
                         .allowsHitTesting(!diff.isLoading)
 
@@ -104,13 +125,66 @@ struct RevisionInspectorView: View {
         .onChange(of: request, initial: true) { _, request in
             diff.selectRevision(request, revision: revision)
         }
+        .sheet(item: $diff.organization) { input in
+            if let logSession {
+                let log = logSession.log
+                RevisionOrganizationSheet(
+                    input: input,
+                    files: diff.files(for: input.request),
+                    selection: diff.splitSelection,
+                    revisions: log?.revisions ?? [],
+                    hasMatchingSnapshot: log?.operationID == input.request.operationID,
+                    busy: diff.isOrganizing,
+                    loading: logSession.isLoadingMore,
+                    loadRemaining: {
+                        guard let log, log.operationID == input.request.operationID else { return }
+                        await logSession.loadRemainingPages(in: log.snapshotID)
+                    },
+                    cancel: { diff.organization = nil },
+                    confirm: { destination, paths in
+                        Task { await diff.performOrganization(input, destination: destination, paths: paths, log: logSession) }
+                    },
+                )
+            }
+        }
         .onDisappear {
+            diff.organization = nil
             diff.selectRevision(nil)
         }
     }
 
     private var fileContent: some View {
         VStack(spacing: 0) {
+            if let conflict = diff.files.first(where: \.hasConflict) {
+                HStack {
+                    Menu {
+                        ForEach(diff.files.filter(\.hasConflict)) { file in
+                            Button {
+                                diff.selectFile(file.path)
+                            } label: {
+                                Text(verbatim: file.path)
+                            }
+                        }
+                    } label: {
+                        Label(I18n.organizeUnresolvedFiles, systemImage: "exclamationmark.triangle")
+                    }
+
+                    let file = diff.displayedFile.flatMap { $0.hasConflict ? $0 : nil } ?? conflict
+                    Text(verbatim: file.path)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Button(I18n.organizeResolve) {
+                        requestAction(.resolveFile(file.path))
+                    }
+                    .disabled(revision?.isImmutable != false || diff.isOrganizing || diff.isLoading)
+                }
+                .padding(8)
+
+                Divider()
+            }
+
             if let file = diff.displayedFile {
                 RevisionFileHeader(
                     file: file,
@@ -123,6 +197,12 @@ struct RevisionInspectorView: View {
                     {
                         diff.findRequest += 1
                 }
+
+                Divider()
+            }
+
+            if let selection = diff.splitSelection, let file = diff.displayedFile, diff.selectedFileID == file.id {
+                RevisionSplitReview(selection: selection, file: file, content: diff.fileDiff)
 
                 Divider()
             }
@@ -150,6 +230,16 @@ struct RevisionInspectorView: View {
                 placeholder(I18n.diffSelectFile, symbol: "doc.text.magnifyingglass")
             }
         }
+    }
+
+    private func requestAction(_ action: RevisionOrganizationAction) {
+        guard let revision, let request, !diff.isLoading else { return }
+        switch action {
+        case let .moveFile(path), let .resolveFile(path):
+            guard diff.files(for: request).contains(where: { $0.path == path }) else { return }
+        default: break
+        }
+        diff.requestOrganization(action, source: revision, request: request)
     }
 
     private func placeholder(_ title: LocalizedStringResource, symbol: String, detail: Text? = nil) -> some View {

@@ -1,6 +1,6 @@
 # Repository access and history pagination
 
-Status: history and Diff readers implemented; writer contract accepted in design, not yet implemented.
+History and Diff use pinned read views. Describe, explicit snapshot and local Undo use the repository writer.
 
 ## Source organization
 
@@ -20,9 +20,24 @@ changed-file tree are derived presentation state, not domain entities. Preferenc
 keys belong to each domain's `Infrastructure`; observable reading options remain
 presentation state. Settings binds to the existing owners and needs only `View`.
 Localized display extensions and file-status appearance mappings sit directly in
-`Presentation`. The file list lives in `View/RevisionFileListView.swift`; its row
-and status icon live in `Component/RevisionFileRow.swift` and
-`Component/RevisionFileStatusIcon.swift`.
+`Presentation`. Revision's file-list feature lives in `Revision/FileList` with
+its own `Presentation/View`, `Presentation/ViewModel` and `Presentation/Component`
+folders. `RevisionFileListPanel` composes `RevisionFileListHeader` and
+`RevisionFileList`. The list displays `RevisionDirectoryRow` and `RevisionFileRow`.
+These names identify each component's role. The repository window's root view
+keeps the name `RepositoryView` to distinguish the interface from the repository
+it displays. `RevisionFileListViewModel` owns filtering and navigation, with
+navigation operations in a dedicated extension, expansion state in
+`RevisionFileListExpansion`, and tree construction in `ChangedFileTree`.
+Tests mirror this feature boundary. File metadata, statistics, status icons and
+path-copy support remain in Revision's presentation layer because the preview
+also uses them. `RevisionChangesSession` continues to own preview loading and
+file selection; navigating to a directory does not replace the previewed file.
+
+The file-list view receives a binding to its display mode; preference storage
+remains with the parent inspector. Each FileList view and component has an
+interactive `#Preview`, with shared fixtures under `FileList/Preview`. Preview
+code is Debug-only and does not open repositories or access user preferences.
 
 `Domains/Repository/Domain` contains shared reader values (`Revision`,
 `ChangedFile`, `RevisionDiff` and `FileDiff`). `RepositoryWorkspace` and
@@ -62,7 +77,8 @@ flowchart TD
     Diff --> Workspace
     Workspace --> Repository[CodeRepository]
     Repository --> Reader[CodeRepositoryReader]
-    Repository -. future capability .-> Writer[CodeRepositoryWriter]
+    Repository --> Writer[CodeRepositoryWriter]
+    Writer --> Lane[Rust write lane per backing repository]
     Log --> Query[HistoryQuery: one fixed operation]
     Reader --> Query
     Repository --> Native[UniFFI / Rust BackendRepository]
@@ -80,8 +96,8 @@ presentation data.
 
 Identity has two parts: the canonical workspace root and the canonical backing
 repository path. Different jj workspaces can have the same backing repository.
-Future writes must share serialization by the latter, not by the window, feature
-session, or workspace root. No write queue is added until there is a writer.
+The native writer keys its queue by the canonical backing repository path.
+Each workspace handle owns its admitted requests and completed receipts.
 
 ## Implemented reader
 
@@ -163,15 +179,11 @@ there is no reader-wide global queue.
   anchor on refresh when that commit is still present. A changed selection may
   intentionally scroll into view.
 
-## Writer contract for the next slice
+## Writer contract
 
-Reader and writer are capabilities of the same `CodeRepository`. The intended
-`CodeRepositoryWriter` is a separate protocol, so read-only consumers cannot
-accidentally request mutations. It is not an empty protocol or an implementation
-that throws “unsupported” in this slice. Add the executable protocol together with
-the first concrete command and its consumers.
-
-The contract of each future command is:
+`CodeRepositoryWriter` adds Describe, snapshot and local Undo to the same
+`CodeRepository` that supplies the readers. Feature sessions route requests
+through `RepositoryWorkspace`.
 
 1. Enqueue on the backing repository's write lane. A request cancelled while
    queued has no effect. Keep the lane until the entire operation, required
@@ -213,12 +225,37 @@ feature task that initiated it; closing a view cannot discard an in-flight write
 receipt. On repository close, reject queued/new work, request safe cancellation of
 active work, wait for cleanup and preserve its outcome for the composition owner.
 
-The first writer implementation should add tests for preprocessing-only effects,
-target changes during preparation, external concurrent operations, cancellation at
-each effect boundary, working-copy/export failure after commit, and opening the
-same backing repository through multiple workspaces. It should also introduce the
-shared backing-repository runtime/queue at that point. This slice adds no write UI,
-commands, generic transaction API, remote transport or database layer.
+### Calling the local writer
+
+Capture `RevisionWriteTarget(workspaceURL:operationID:commitID:changeID:)` from
+the clicked row and its displayed history query. Pass it to
+`RepositoryWorkspace.describe(_:title:body:)`. The adapter joins the title and
+multiline body with a blank line. A successful receipt identifies the selected
+change and its resulting commit. An unrelated operation can advance the head
+while keeping that target valid. A changed target, including a working copy
+rewritten during preparation, returns `.staleTarget` with the current operation
+for review. A committed mutation with failed checkout or Git export returns
+`.committedWithSyncFailure`. Its mutation ID remains available.
+
+`snapshot(at:operationID:)` performs preparation on the same queue. A clean
+working copy produces no new operation. For focus handling,
+`snapshotIfIdle(at:operationID:)` atomically skips a busy backing repository
+and returns nil. The presentation owner controls window visibility and Split
+selection. `isWriting(at:)` reports activity shared by sibling workspaces.
+
+`operationHistory(at:limit:)` reads the local operation DAG and returns its
+head and the actual next Undo target. Pass that exact history value to
+`undo(_:)` after confirmation. Undo rechecks the displayed head after
+preparation and accounts for earlier Undo and Git synchronization operations.
+The repository toolbar offers explicit snapshot and local operation history.
+
+The writer uses jj's colocated Git import/export lock, the workspace lock and
+the operation-head lock. It reads the current head under the locks, imports
+external Git state, snapshots with configured ignores and auto-tracking,
+and publishes each completed phase. Concurrent heads and stale working copies
+return separate recovery reasons. A completed request stays available through
+`takeWriteReceipts()`, including after the workspace switches or closes.
+Quitting the app waits for repository cleanup.
 
 ## Integration and remaining transition
 

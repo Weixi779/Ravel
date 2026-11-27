@@ -42,6 +42,11 @@ nonisolated struct RevisionFilePresentation: Identifiable, Hashable, Sendable {
         path
     }
 
+    var allowsHunkSelection: Bool {
+        (status == .modified || status == .renamed) && kind == .file && !hasConflict && !resolvesConflict
+            && (before == nil || before?.kind == .file)
+    }
+
     var hasConflict: Bool {
         after?.kind == .conflict
     }
@@ -63,7 +68,8 @@ nonisolated struct RevisionFilePresentation: Identifiable, Hashable, Sendable {
     }
 
     var modeChanged: Bool {
-        before?.executable != after?.executable && before != nil && after != nil
+        guard let previous = before?.executable, let current = after?.executable else { return false }
+        return previous != current
     }
 
     init(_ file: ChangedFile, statistics: FileChangeStatistics? = nil) {

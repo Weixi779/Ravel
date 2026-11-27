@@ -26,12 +26,13 @@ bindgen = ["uniffi/cli"]
 
 [dependencies]
 jj-lib = { version = "=0.41.0", default-features = false, features = ["git"] }
-jj-cli = { version = "=0.41.0", default-features = false }
+jj-cli = { version = "=0.41.0", default-features = false, features = ["git"] }
 uniffi = "=0.32.0"
 thiserror = "2"
 futures = "0.3"
 pollster = "0.4"
 chrono = "0.4"
+tokio = { version = "1", features = ["io-util"] }
 
 [dev-dependencies]
 tempfile = "3"

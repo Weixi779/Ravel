@@ -22,7 +22,7 @@ struct RevisionFileHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
-                RevisionFileStatusIcon(status: file.status)
+                RevisionFileStatusBadge(status: file.status)
 
                 FileTypeIcon(fileName: file.name)
 

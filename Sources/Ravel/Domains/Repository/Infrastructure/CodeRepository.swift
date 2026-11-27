@@ -19,6 +19,8 @@ nonisolated protocol CodeRepositoryReader: Sendable {
 }
 
 nonisolated struct HistoryIdentity: Sendable {
+    var backingRepositoryURL: URL?
+    var localBookmarks: [LocalBookmark] = []
     let queryID: UUID
     let operationID: String
     let repositoryURL: URL
@@ -41,7 +43,15 @@ nonisolated protocol HistoryQuery: Sendable {
     func close() async
 }
 
-final nonisolated class CodeRepository: CodeRepositoryReader {
+nonisolated protocol CodeRepositoryWriter: Sendable {
+    func describe(_ target: RevisionWriteTarget, title: String, body: String) async throws -> RepositoryWriteReceipt
+    func apply(_ command: RevisionGraphCommand, to source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt
+    func snapshot(operationID: String) async throws -> RepositoryWriteReceipt
+    func organize(_ operation: RevisionChangeOperation, source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt
+    func undo(_ history: RepositoryOperationHistory) async throws -> RepositoryWriteReceipt
+}
+
+final nonisolated class CodeRepository: CodeRepositoryReader, CodeRepositoryWriter {
     let workspaceURL: URL
     let repositoryURL: URL
     private let backend: BackendRepository
@@ -76,8 +86,136 @@ final nonisolated class CodeRepository: CodeRepositoryReader {
                 await query.close()
                 throw CancellationError()
             }
-            return RustHistoryQuery(backend: query)
+            return RustHistoryQuery(backend: query, backingRepositoryURL: repositoryURL)
         } onCancel: { cancellation.cancel() }
+    }
+
+    @concurrent
+    func describe(_ target: RevisionWriteTarget, title: String, body: String) async throws -> RepositoryWriteReceipt {
+        let target = try nativeWriteTarget(target)
+        var description = title
+        if !body.isEmpty { description += "\n\n" + body }
+        if !description.isEmpty, !description.hasSuffix("\n") { description += "\n" }
+        let message = description
+        return try await write { id, token in
+            try await self.backend.describe(requestId: id, target: target, description: message, cancellation: token)
+        }
+    }
+
+    @concurrent
+    func apply(_ command: RevisionGraphCommand, to source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt {
+        guard source.workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path == workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path else { throw BackendError.Closed }
+        func target(_ value: RevisionWriteTarget) throws -> BackendWriteTarget {
+            guard value.workspaceURL == source.workspaceURL else { throw BackendError.Closed }
+            return BackendWriteTarget(operationId: value.operationID, commitId: value.commitID, changeId: value.changeID)
+        }
+        let native: BackendGraphCommand = switch command {
+        case .newChild: .newChild
+        case .edit: .edit
+        case let .rebase(destination, descendants): try .rebase(destination: target(destination), descendants: descendants)
+        case let .createBookmark(name): .createBookmark(name: name)
+        case let .moveBookmark(name, destination): try .moveBookmark(name: name, destination: target(destination))
+        case let .deleteBookmark(name): .deleteBookmark(name: name)
+        }
+        let origin = try target(source)
+        return try await write { id, token in
+            try await self.backend.graphCommand(requestId: id, source: origin, command: native, cancellation: token)
+        }
+    }
+
+    @concurrent
+    func snapshot(operationID: String) async throws -> RepositoryWriteReceipt {
+        try await write { id, token in
+            try await self.backend.snapshot(requestId: id, operationId: operationID, onlyIfIdle: false, cancellation: token)
+        }
+    }
+
+    var isWriting: Bool { backend.isWriting() }
+
+    @concurrent
+    func operationHeads() async throws -> [String] {
+        let token = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try await backendRead { try await backend.operationHeads(cancellation: token) }
+        } onCancel: { token.cancel() }
+    }
+
+    @concurrent
+    func hasDiskChanges(paths: [String]) async throws -> Bool {
+        let token = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try await backendRead { try await backend.hasDiskChanges(changedPaths: paths, cancellation: token) }
+        } onCancel: { token.cancel() }
+    }
+
+    @concurrent
+    func snapshotIfIdle(operationID: String) async throws -> RepositoryWriteReceipt? {
+        do {
+            return try await write { id, token in
+                try await self.backend.snapshot(requestId: id, operationId: operationID, onlyIfIdle: true, cancellation: token)
+            }
+        } catch BackendError.WriterBusy { return nil }
+    }
+
+    @concurrent
+    func operationHistory(limit: UInt32) async throws -> RepositoryOperationHistory {
+        let token = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            let result = try await backendRead { try await backend.operationHistory(limit: limit, cancellation: token) }
+            return RepositoryOperationHistory(workspaceURL: workspaceURL, headID: result.headId, entries: result.entries.map(RepositoryOperation.init), undoTarget: result.undoTarget.map(RepositoryOperation.init))
+        } onCancel: { token.cancel() }
+    }
+
+    @concurrent
+    func undo(_ history: RepositoryOperationHistory) async throws -> RepositoryWriteReceipt {
+        guard history.workspaceURL == workspaceURL, let target = history.undoTarget else { throw BackendError.Closed }
+        return try await write { id, token in
+            try await self.backend.undo(requestId: id, headId: history.headID, operationId: target.id, cancellation: token)
+        }
+    }
+
+    @concurrent
+    func organize(_ operation: RevisionChangeOperation, source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt {
+        let target = try nativeWriteTarget(source)
+        switch operation {
+        case let .split(first):
+            let selection: [BackendFileSelection] = first.map { path, portion in
+                switch portion {
+                case .file: .whole(path: path)
+                case let .hunks(ranges): .hunks(path: path, hunks: ranges.map {
+                        BackendHunk(oldStart: UInt64($0.oldStart), oldCount: UInt64($0.oldCount), newStart: UInt64($0.newStart), newCount: UInt64($0.newCount))
+                    })
+                }
+            }
+            return try await write { id, token in
+                try await self.backend.split(requestId: id, source: target, selection: selection, cancellation: token)
+            }
+        case let .squash(into, paths):
+            let destination = try nativeWriteTarget(into)
+            return try await write { id, token in
+                try await self.backend.squash(requestId: id, source: target, destination: destination, paths: paths, cancellation: token)
+            }
+        case let .resolve(path):
+            return try await write { id, token in
+                try await self.backend.resolveFile(requestId: id, source: target, path: path, cancellation: token)
+            }
+        }
+    }
+
+    private func nativeWriteTarget(_ value: RevisionWriteTarget) throws -> BackendWriteTarget {
+        guard value.workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path == workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path else { throw BackendError.Closed }
+        return BackendWriteTarget(operationId: value.operationID, commitId: value.commitID, changeId: value.changeID)
+    }
+
+    private func write(_ perform: @Sendable (String, BackendCancellation) async throws -> BackendWriteReceipt) async throws -> RepositoryWriteReceipt {
+        let token = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try await RepositoryWriteReceipt(perform(UUID().uuidString, token))
+        } onCancel: { token.cancel() }
+    }
+
+    func takeWriteReceipts() -> [RepositoryWriteReceipt] {
+        backend.takeWriteReceipts().map(RepositoryWriteReceipt.init)
     }
 
     @concurrent
@@ -136,10 +274,12 @@ private final nonisolated class RustHistoryQuery: HistoryQuery {
     let identity: HistoryIdentity
     private let backend: BackendHistory
 
-    init(backend: BackendHistory) {
+    init(backend: BackendHistory, backingRepositoryURL: URL) {
         self.backend = backend
         let info = backend.info()
         identity = HistoryIdentity(
+            backingRepositoryURL: backingRepositoryURL,
+            localBookmarks: info.localBookmarks.map { LocalBookmark(name: $0.name, commitIDs: $0.commitIds) },
             queryID: UUID(),
             operationID: info.operationId,
             repositoryURL: URL(fileURLWithPath: info.workspacePath, isDirectory: true),
@@ -172,6 +312,8 @@ private nonisolated extension Revision {
         self.init(
             commitID: value.commitId,
             changeID: value.changeId,
+            uniqueChangePrefixLength: Int(value.uniqueChangePrefixLength),
+            localBookmarkNames: value.localBookmarks,
             parentIDs: value.parentIds,
             description: value.description,
             author: value.author,

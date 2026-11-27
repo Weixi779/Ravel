@@ -13,10 +13,11 @@ import SwiftUI
 struct RevisionFileRow: View {
     let file: RevisionFilePresentation
     var showsDirectory = false
+    var moveFile: ((RevisionFilePresentation) -> Void)?
 
     var body: some View {
         HStack(spacing: 7) {
-            RevisionFileStatusIcon(status: file.status)
+            RevisionFileStatusBadge(status: file.status)
 
             FileTypeIcon(fileName: file.name)
 
@@ -48,6 +49,14 @@ struct RevisionFileRow: View {
         .help(file.displayPath)
         .accessibilityElement(children: .combine)
         .contextMenu {
+            if let moveFile, file.status != .unchanged {
+                Button(I18n.organizeMove) {
+                    moveFile(file)
+                }
+
+                Divider()
+            }
+
             Button(I18n.diffCopyPath) {
                 RevisionPathCopy.copy(file.path)
             }
@@ -59,10 +68,14 @@ struct RevisionFileRow: View {
     }
 }
 
-@MainActor
-enum RevisionPathCopy {
-    static func copy(_ value: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
+#if DEBUG
+    #Preview("File statuses") {
+        VStack(spacing: 12) {
+            ForEach(RevisionFileListPreviewData.files) { file in
+                RevisionFileRow(file: file, showsDirectory: true)
+            }
+        }
+        .padding()
+        .frame(width: 420)
     }
-}
+#endif

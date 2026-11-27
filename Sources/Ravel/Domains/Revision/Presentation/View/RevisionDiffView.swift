@@ -8,7 +8,6 @@
 
 import AppKit
 import Localization
-import STTextView
 import SwiftUI
 
 struct RevisionDiffView: NSViewRepresentable {
@@ -29,7 +28,8 @@ struct RevisionDiffView: NSViewRepresentable {
 /// Keeps text systems and synchronized scrolling inside AppKit.
 final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
     private let split = NSSplitView()
-    private var scrolls: [NSScrollView] = []
+    private var columns: [RevisionDiffColumnView] = []
+    private var scrolls: [NSScrollView] { columns.map(\.scroll) }
     private var sideBySide: Bool?
     private var isSynchronizing = false
     private var findRequest = 0
@@ -71,11 +71,13 @@ final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
             for column in split.arrangedSubviews {
                 column.removeFromSuperview()
             }
-            scrolls = (0 ..< (sideBySide ? 2 : 1)).map { _ in makeScrollView() }
-            for (index, scroll) in scrolls.enumerated() {
+            columns = (0 ..< (sideBySide ? 2 : 1)).map { index in
+                let scroll = makeScrollView()
                 let title = sideBySide ? String(localized: index == 0 ? I18n.diffBefore : I18n.diffAfter) : nil
-                split.addArrangedSubview(RevisionDiffColumnView(scroll: scroll, title: title))
+                let column = RevisionDiffColumnView(scroll: scroll, title: title)
+                split.addArrangedSubview(column)
                 NotificationCenter.default.addObserver(self, selector: #selector(scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+                return column
             }
             self.sideBySide = sideBySide
             needsInitialDivider = sideBySide
@@ -83,7 +85,8 @@ final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
             split.adjustSubviews()
         }
         let documents = sideBySide ? [content.before, content.after] : [content.unified]
-        for (scroll, document) in zip(scrolls, documents) {
+        for (column, document) in zip(columns, documents) {
+            let scroll = column.scroll
             guard let text = scroll.documentView as? DiffReadOnlyTextView,
                   let ruler = scroll.verticalRulerView as? DiffLineRuler else { continue }
             if text.contentID != document.id || text.document?.side != document.side {
@@ -91,7 +94,7 @@ final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
                 let largest = document.rows.reduce(1) { max($0, $1.line.oldNumber ?? 0, $1.line.newNumber ?? 0) }
                 ruler.numberWidth = max(36, CGFloat(String(largest).count) * 7 + 12)
                 ruler.ruleThickness = ruler.numberWidth * (sideBySide ? 1 : 2) + 22
-                text.scrollToBeginningOfDocument(nil)
+                column.scrollToStartAfterLayout()
             }
             if ruler.showsChangeMarkers != showsChangeMarkers {
                 ruler.showsChangeMarkers = showsChangeMarkers
@@ -132,14 +135,13 @@ final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
         scroll.drawsBackground = true
         scroll.backgroundColor = .textBackgroundColor
         scroll.contentView.postsBoundsChangedNotifications = true
-        let text = DiffReadOnlyTextView(frame: .zero)
+        let text = DiffReadOnlyTextView()
         scroll.documentView = text
         let ruler = DiffLineRuler(scrollView: scroll, orientation: .verticalRuler)
         ruler.clientView = text
         scroll.verticalRulerView = ruler
         scroll.hasVerticalRuler = true
         scroll.rulersVisible = true
-        text.addPlugin(DiffViewportPlugin())
         return scroll
     }
 
@@ -148,9 +150,16 @@ final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
         guard !isSynchronizing, scrolls.count == 2, let source = notification.object as? NSClipView else { return }
         isSynchronizing = true
         defer { isSynchronizing = false }
-        for scroll in scrolls where scroll.contentView !== source {
+        let y = source.bounds.minY
+        for scroll in scrolls {
+            // A partner can be scrolled past the portion AppKit has sized so far.
+            if y > 0, let text = scroll.documentView as? NSTextView,
+               y + scroll.contentView.bounds.height > text.bounds.maxY, let container = text.textContainer {
+                text.layoutManager?.ensureLayout(for: container)
+            }
+            guard scroll.contentView !== source else { continue }
             var origin = scroll.contentView.bounds.origin
-            origin.y = source.bounds.minY
+            origin.y = y
             scroll.contentView.scroll(to: origin)
             scroll.reflectScrolledClipView(scroll.contentView)
         }
@@ -159,8 +168,9 @@ final class RevisionDiffContainerView: NSView, NSSplitViewDelegate {
 
 /// Column labels share their reader's width when the divider moves.
 private final class RevisionDiffColumnView: NSView {
-    private let scroll: NSScrollView
+    let scroll: NSScrollView
     private let title: NSTextField?
+    private var needsScrollToStart = false
 
     init(scroll: NSScrollView, title: String?) {
         self.scroll = scroll
@@ -180,10 +190,35 @@ private final class RevisionDiffColumnView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    func scrollToStartAfterLayout() {
+        needsScrollToStart = true
+        needsLayout = true
+    }
+
     override func layout() {
         super.layout()
         let headerHeight: CGFloat = title == nil ? 0 : 22
         scroll.frame = NSRect(x: 0, y: 0, width: bounds.width, height: max(0, bounds.height - headerHeight))
         title?.frame = NSRect(x: 0, y: bounds.height - 18, width: bounds.width, height: 14)
+        if needsScrollToStart, !scroll.bounds.isEmpty {
+            scroll.layoutSubtreeIfNeeded()
+            let clip = scroll.contentView
+            // Overlay rulers reserve space through the clip view's left content inset.
+            clip.scroll(to: NSPoint(x: -clip.contentInsets.left, y: 0))
+            scroll.reflectScrolledClipView(clip)
+            needsScrollToStart = false
+        }
     }
 }
+
+#if DEBUG
+    #Preview("Unified") {
+        RevisionDiffView(diff: RevisionSplitPreviewData.presentation, showsChangeMarkers: true)
+            .frame(width: 640, height: 280)
+    }
+
+    #Preview("Side by side") {
+        RevisionDiffView(diff: RevisionSplitPreviewData.presentation, sideBySide: true)
+            .frame(width: 800, height: 280)
+    }
+#endif

@@ -30,6 +30,7 @@ nonisolated func revision(_ id: String, change: String? = nil, parents: [String]
 nonisolated func repositoryLog(_ path: String, revisions: [Revision]) throws -> RepositoryLog {
     try RepositoryLog(
         repositoryURL: URL(fileURLWithPath: path, isDirectory: true),
+        operationID: "fixture-operation",
         revisions: revisions,
         graph: LogGraph(revisions: revisions),
         hasMore: false,

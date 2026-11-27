@@ -46,7 +46,7 @@ struct RepositoryView: View {
                     Button { session.selectWorkingCopy() } label: {
                         Label(I18n.historyWorkingCopy, systemImage: "scope")
                     }
-                    .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
+                    .disabled(session.log == nil)
                     .help(I18n.historyWorkingCopyHelp)
                     Button { session.refresh() } label: {
                         Label(I18n.commonRefresh, systemImage: "arrow.clockwise")
@@ -55,6 +55,43 @@ struct RepositoryView: View {
                     .help(I18n.historyRefreshHelp)
                 }
             }
+        }
+        .background {
+            RepositoryWindowObserver(session: session, isSelectingSplit: { diffSession.isSelectingSplit || diffSession.isOrganizing })
+        }
+        .sheet(item: $session.describeTarget) { target in
+            RevisionDescriptionEditor(revision: target.revision) {
+                session.describeTarget = nil
+            } save: { draft in
+                Task { await session.saveDescription(draft, for: target) }
+            }
+        }
+        .sheet(item: $session.commandRequest) { request in
+            if let log = session.log {
+                HistoryCommandSheet(
+                    request: request,
+                    log: log,
+                    isLoading: session.isLoadingMore,
+                    loadRemaining: { await session.loadRemainingPages(in: log.snapshotID) },
+                    cancel: { session.commandRequest = nil },
+                    locate: { id in
+                        session.commandRequest = nil
+                        session.selectCommit(id)
+                    },
+                    submit: { row, command in
+                        Task { await session.run(command, on: row) }
+                    },
+                    pageError: session.pageErrorMessage,
+                    retry: { Task { await session.loadRemainingPages(in: log.snapshotID, retry: true) } },
+                )
+                .id(log.snapshotID)
+            }
+        }
+        .alert(I18n.historyCommandResult, isPresented: Binding(
+            get: { session.commandNotice != nil },
+            set: { if !$0 { session.commandNotice = nil } },
+        )) {} message: {
+            Text(verbatim: session.commandNotice ?? "")
         }
     }
 
@@ -67,6 +104,49 @@ struct RepositoryView: View {
                     .padding(.vertical, 3)
                     .listRowBackground(Color.accentColor.opacity(0.12))
             }
+            if let log = session.log {
+                Button(I18n.historyWorkingCopy, systemImage: "scope") {
+                    session.selectWorkingCopy()
+                }
+
+                Button(I18n.historyFind, systemImage: "magnifyingglass") {
+                    session.commandRequest = .find
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+
+                if !log.localBookmarks.isEmpty {
+                    Section(I18n.historyBookmarks) {
+                        ForEach(log.localBookmarks) { bookmark in
+                            ForEach(bookmark.commitIDs, id: \.self) { id in
+                                Button {
+                                    session.selectCommit(id)
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "bookmark")
+
+                                        Text(verbatim: bookmark.name)
+
+                                        if bookmark.commitIDs.count > 1 {
+                                            Text(verbatim: String(id.prefix(8)))
+                                                .font(.caption.monospaced())
+                                        }
+                                    }
+                                }
+                                .contextMenu {
+                                    Button(I18n.historyMoveBookmark) {
+                                        session.openBookmark(bookmark.name, commitID: id, move: true)
+                                    }
+
+                                    Button(I18n.historyDeleteBookmark) {
+                                        session.openBookmark(bookmark.name, commitID: id, move: false)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if !session.recentPaths.isEmpty {
                 Section(I18n.repositoryRepositories) {
                     ForEach(session.recentPaths, id: \.self) { path in
@@ -147,7 +227,27 @@ struct RepositoryView: View {
             } else {
                 VSplitView {
                     VStack(spacing: 0) {
-                        RevisionTable(log: log, selection: $session.selectedRevisionID, graphStyle: session.graphStyle) { session.loadMore() }
+                        RevisionTable(
+                            log: log,
+                            selection: $session.selectedRevisionID,
+                            graphStyle: session.graphStyle,
+                            revealRequest: session.revealRequest,
+                            menuForRevision: { revision in
+                                RevisionActionMenu.menu(for: log.target(for: revision), session: session) { action in
+                                    guard session.log?.snapshotID == log.snapshotID else {
+                                        session.commandNotice = String(localized: I18n.organizeStale)
+                                        return
+                                    }
+                                    session.selectedRevisionID = revision.id
+                                    diffSession.requestOrganization(action, source: revision, request: .init(
+                                        repositoryURL: log.repositoryURL,
+                                        commitID: revision.id,
+                                        operationID: log.operationID,
+                                    ))
+                                }
+                            },
+                            loadMore: { session.loadMore() },
+                        )
                         if session.isLoadingMore || session.pageErrorMessage != nil || log.hasMore {
                             Divider()
                             HStack {
@@ -168,7 +268,7 @@ struct RepositoryView: View {
                         }
                     }
                     .frame(minHeight: 180, idealHeight: 350)
-                    RevisionInspectorView(revision: session.selectedRevision, request: session.diffRequest, diff: diffSession)
+                    RevisionInspectorView(revision: session.selectedRevision, request: session.diffRequest, diff: diffSession, logSession: session)
                         .frame(minHeight: 240, idealHeight: 350)
                 }
             }
@@ -198,6 +298,13 @@ struct RepositoryView: View {
             } else if session.errorMessage != nil {
                 Image(systemName: "exclamationmark.circle")
                 Text(session.log == nil ? I18n.historyLoadFailed : I18n.historyRefreshFailed)
+            } else if session.hasDiskChanges {
+                Text(I18n.historyDiskChanged)
+
+                Button(I18n.repositorySnapshot) {
+                    Task { await session.snapshotDiskChanges() }
+                }
+                .disabled(session.isSnapshotting)
             } else if let log = session.log {
                 Circle().fill(Color.accentColor).frame(width: 5, height: 5)
                 Text(log.backendVersion)

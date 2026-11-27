@@ -105,6 +105,9 @@ final class RevisionHistoryCell: NSTableCellView {
         if revision.bookmarks.count > 2 {
             stack.addArrangedSubview(HistoryBadgeView("+\(revision.bookmarks.count - 2)", color: HistoryColors.metadata))
         }
+        if revision.isEmpty {
+            stack.addArrangedSubview(HistoryBadgeView(String(localized: I18n.historyEmptyBadge), color: HistoryColors.metadata))
+        }
         if revision.hasConflict {
             stack.addArrangedSubview(HistoryBadgeView(String(localized: I18n.historyConflictBadge), color: HistoryColors.conflict))
         }

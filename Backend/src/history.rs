@@ -36,12 +36,14 @@ use std::{
 pub struct BackendRevision {
     pub commit_id: String,
     pub change_id: String,
+    pub unique_change_prefix_length: u32,
     pub parent_ids: Vec<String>,
     pub description: String,
     pub author: String,
     pub email: String,
     pub timestamp_millis: i64,
     pub bookmarks: Vec<String>,
+    pub local_bookmarks: Vec<String>,
     pub is_working_copy: bool,
     pub is_immutable: bool,
     pub has_conflict: bool,
@@ -57,9 +59,16 @@ pub struct BackendPage {
 
 #[derive(Clone, uniffi::Record)]
 pub struct HistoryInfo {
+    pub local_bookmarks: Vec<BackendBookmarkLocation>,
     pub operation_id: String,
     pub workspace_path: String,
     pub backend_version: String,
+}
+
+#[derive(Clone, uniffi::Record)]
+pub struct BackendBookmarkLocation {
+    pub name: String,
+    pub commit_ids: Vec<String>,
 }
 
 enum Request {
@@ -203,6 +212,51 @@ impl BackendHistory {
     }
 }
 
+pub(crate) fn immutable_revisions_at<'a>(
+    path: &std::path::Path,
+    name: &jj_lib::ref_name::WorkspaceName,
+    settings: &jj_lib::settings::UserSettings,
+    repo: &'a jj_lib::repo::ReadonlyRepo,
+) -> Result<Box<dyn jj_lib::revset::Revset + 'a>, BackendError> {
+    let ui = Ui::null();
+    let aliases: RevsetAliasesMap =
+        load_aliases_map(&ui, settings.config(), &"revset-aliases".parse().unwrap())
+            .map_err(|error| read_error(error.error))?;
+    let filesets: FilesetAliasesMap =
+        load_aliases_map(&ui, settings.config(), &"fileset-aliases".parse().unwrap())
+            .map_err(|error| read_error(error.error))?;
+    let extensions = RevsetExtensions::default();
+    let path_converter = RepoPathUiConverter::Fs {
+        cwd: path.to_owned(),
+        base: path.to_owned(),
+    };
+    let context = RevsetParseContext {
+        aliases_map: &aliases,
+        local_variables: HashMap::new(),
+        user_email: settings.user_email(),
+        date_pattern_context: chrono::Local::now().into(),
+        default_ignored_remote: Some(REMOTE_NAME_FOR_LOCAL_GIT_REPO),
+        fileset_aliases_map: &filesets,
+        use_glob_by_default: settings
+            .config()
+            .get("ui.revsets-use-glob-by-default")
+            .map_err(read_error)?,
+        extensions: &extensions,
+        workspace: Some(RevsetWorkspaceContext {
+            path_converter: &path_converter,
+            workspace_name: name,
+        }),
+    };
+    let immutable_expression =
+        revset::parse(&mut RevsetDiagnostics::new(), "immutable()", &context)
+            .map_err(read_error)?;
+    let resolver = SymbolResolver::new(repo, extensions.symbol_resolvers());
+    let immutable_expression = immutable_expression
+        .resolve_user_expression(repo, &resolver)
+        .map_err(read_error)?;
+    immutable_expression.evaluate(repo).map_err(read_error)
+}
+
 async fn run(
     path: PathBuf,
     page_size: usize,
@@ -233,46 +287,12 @@ async fn run(
         .map_err(read_error)?;
     let operation = Operation::new(loader.op_store().clone(), head.clone(), data);
     let repo = loader.load_at(&operation).await.map_err(read_error)?;
-    let settings = workspace.settings();
-    let ui = Ui::null();
-    let aliases: RevsetAliasesMap =
-        load_aliases_map(&ui, settings.config(), &"revset-aliases".parse().unwrap())
-            .map_err(|error| read_error(error.error))?;
-    let filesets: FilesetAliasesMap =
-        load_aliases_map(&ui, settings.config(), &"fileset-aliases".parse().unwrap())
-            .map_err(|error| read_error(error.error))?;
-    let extensions = RevsetExtensions::default();
-    let path_converter = RepoPathUiConverter::Fs {
-        cwd: path.clone(),
-        base: workspace.workspace_root().to_path_buf(),
-    };
-    let context = RevsetParseContext {
-        aliases_map: &aliases,
-        local_variables: HashMap::new(),
-        user_email: settings.user_email(),
-        date_pattern_context: chrono::Local::now().into(),
-        default_ignored_remote: Some(REMOTE_NAME_FOR_LOCAL_GIT_REPO),
-        fileset_aliases_map: &filesets,
-        use_glob_by_default: settings
-            .config()
-            .get("ui.revsets-use-glob-by-default")
-            .map_err(read_error)?,
-        extensions: &extensions,
-        workspace: Some(RevsetWorkspaceContext {
-            path_converter: &path_converter,
-            workspace_name: workspace.workspace_name(),
-        }),
-    };
-    let immutable_expression =
-        revset::parse(&mut RevsetDiagnostics::new(), "immutable()", &context)
-            .map_err(read_error)?;
-    let resolver = SymbolResolver::new(repo.as_ref(), extensions.symbol_resolvers());
-    let immutable_expression = immutable_expression
-        .resolve_user_expression(repo.as_ref(), &resolver)
-        .map_err(read_error)?;
-    let immutable = immutable_expression
-        .evaluate(repo.as_ref())
-        .map_err(read_error)?;
+    let immutable = immutable_revisions_at(
+        &path,
+        workspace.workspace_name(),
+        workspace.settings(),
+        repo.as_ref(),
+    )?;
     let is_immutable = immutable.containing_fn();
     let all = ResolvedRevsetExpression::all()
         .evaluate(repo.as_ref())
@@ -280,6 +300,8 @@ async fn run(
     let mut stream = all.stream();
     let working_copy = repo.view().get_wc_commit_id(workspace.workspace_name());
     let mut bookmarks: HashMap<CommitId, Vec<String>> = HashMap::new();
+    let mut local_names: HashMap<CommitId, Vec<String>> = HashMap::new();
+    let mut local_bookmarks = Vec::new();
     for (name, targets) in repo.view().bookmarks() {
         let local = targets.local_target;
         let unsynced = targets
@@ -297,7 +319,17 @@ async fn run(
                 ""
             }
         );
+        if local.is_present() {
+            local_bookmarks.push(BackendBookmarkLocation {
+                name: name.as_str().into(),
+                commit_ids: local.added_ids().map(ObjectId::hex).collect(),
+            });
+        }
         for id in local.added_ids() {
+            local_names
+                .entry(id.clone())
+                .or_default()
+                .push(name.as_str().into());
             bookmarks.entry(id.clone()).or_default().push(label.clone());
         }
         for (remote_name, remote) in targets.remote_refs {
@@ -326,6 +358,7 @@ async fn run(
         .take()
         .unwrap()
         .send(Ok(HistoryInfo {
+            local_bookmarks,
             operation_id: head.hex(),
             workspace_path: workspace.workspace_root().to_string_lossy().into_owned(),
             backend_version: "jj-lib 0.41.0".into(),
@@ -387,6 +420,11 @@ async fn run(
                 let record = BackendRevision {
                     commit_id: id.hex(),
                     change_id: commit.change_id().reverse_hex(),
+                    unique_change_prefix_length: repo
+                        .shortest_unique_change_id_prefix_len(commit.change_id())
+                        .map_err(read_error)?
+                        as u32,
+                    local_bookmarks: local_names.get(id).cloned().unwrap_or_default(),
                     parent_ids: commit.parent_ids().iter().map(ObjectId::hex).collect(),
                     description: commit.description().to_owned(),
                     author: commit.author().name.clone(),
@@ -394,7 +432,8 @@ async fn run(
                     timestamp_millis: commit.committer().timestamp.timestamp.0,
                     bookmarks: bookmarks.get(id).cloned().unwrap_or_default(),
                     is_working_copy: working_copy == Some(id),
-                    is_immutable: is_immutable(id).map_err(read_error)?,
+                    is_immutable: id == repo.store().root_commit_id()
+                        || is_immutable(id).map_err(read_error)?,
                     has_conflict: commit.has_conflict(),
                     is_divergent: repo
                         .resolve_change_id(commit.change_id())
@@ -448,6 +487,7 @@ mod tests {
         (
             BackendHistory {
                 info: HistoryInfo {
+                    local_bookmarks: vec![],
                     operation_id: String::new(),
                     workspace_path: String::new(),
                     backend_version: String::new(),

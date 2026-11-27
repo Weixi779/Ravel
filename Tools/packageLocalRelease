@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+#
+#  packageLocalRelease
+#  Ravel
+#
+#  Created by weixi on 2026/11/27.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+"""Build and inspect an ordinary ad-hoc arm64 app from one committed jj revision."""
+import argparse
+import fcntl
+import gzip
+import hashlib
+from pathlib import Path
+import plistlib
+import re
+import shutil
+import subprocess
+import tempfile
+
+
+def output(*args):
+    return subprocess.check_output(args, text=True).strip()
+
+
+def assessment(args):
+    result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    return f"Exit {result.returncode}\n{result.stdout.strip()}"
+
+
+def write_linked_crates(link_map, dependencies, tree, run):
+    # An archive member can appear in the map even when all its symbols were stripped.
+    objects, symbols = link_map.read_bytes().split(b"# Symbols:", 1)
+    live = {int(index) for size, index in re.findall(rb"^0x\w+\s+0x(\w+)\s+\[ *(\d+)\]", symbols.split(b"# Dead Stripped Symbols:")[0], re.M)
+            if int(size, 16)}
+    registry = {}
+    for line in tree.splitlines():
+        lib, package, license_id = line.split("|", 2)
+        name, version = package.split()[:2]
+        registry[(lib, name + "-" + version[1:])] = (name, version[1:], license_id.removesuffix(" (*)"))
+    records = set()
+    for idx, lib, fingerprint in re.findall(rb"^\[ *(\d+)\].*?libravel_backend\.a\(([^-(]+)-([0-9a-f]{16})\.", objects, re.M):
+        if int(idx) not in live:
+            continue
+        lib = lib.decode()
+        member = lib + "-" + fingerprint.decode()
+        depfile = dependencies / (member + ".d")
+        match = re.search(rb"/registry/src/[^/]+/([^/]+)/", depfile.read_bytes()) if depfile.is_file() else None
+        package = registry.get((lib, match[1].decode())) if match else None
+        records.add((*package, member) if package else (lib, "", "see toolchain or archive member", member))
+    (run / "linked-rust.tsv").write_text("package\tversion\tlicense\tmember\n" +
+                                        "".join("\t".join(row) + "\n" for row in sorted(records)))
+
+
+def package(root, commit, run):
+    cache = root / ".build"
+    derived = cache / "ReleaseDerived"
+    with tempfile.TemporaryDirectory(dir=run, prefix="source-") as tmp:
+        source = Path(tmp)
+        archive = source / "snapshot.tar"
+        git_dir = output("jj", "git", "root", "--ignore-working-copy")
+        subprocess.run(["git", "--git-dir", git_dir, "archive", "-o", archive, commit], check=True)
+        # Git archives use the commit timestamp. Cargo checks local source mtimes
+        # against the shared target cache, including when packaging an older commit.
+        subprocess.run(["tar", "-xmf", archive, "-C", source], check=True)
+        archive.unlink()
+        (source / ".build").mkdir()
+        (cache / "rust-target").mkdir(exist_ok=True)
+        (source / ".build/rust-target").symlink_to(cache / "rust-target", target_is_directory=True)
+        with (run / "build.log").open("w") as log:
+            subprocess.run([
+                "xcodebuild", "build", "-project", "Ravel.xcodeproj", "-scheme", "Ravel",
+                "-configuration", "Release", "-destination", "platform=macOS,arch=arm64",
+                "-derivedDataPath", derived, "-clonedSourcePackagesDirPath", cache / "SourcePackages",
+                "-onlyUsePackageVersionsFromResolvedFile", "-jobs", "3",
+                "ARCHS=arm64", "ONLY_ACTIVE_ARCH=YES", "ENABLE_CODE_COVERAGE=NO",
+                "CLANG_COVERAGE_MAPPING=NO", "CLANG_ENABLE_CODE_COVERAGE=NO", "CARGO_BUILD_JOBS=3",
+                "LD_GENERATE_MAP_FILE=YES", "CODE_SIGN_STYLE=Manual", "CODE_SIGN_IDENTITY=-",
+            ], cwd=source, check=True, stdout=log, stderr=subprocess.STDOUT)
+
+        tree = output("cargo", "+1.96.0", "tree", "--locked", "--offline", "--manifest-path", source / "Backend/Cargo.toml",
+                      "--target", "aarch64-apple-darwin", "-e", "normal", "--prefix", "none", "-f", "{lib}|{p}|{l}")
+        (run / "cargo-dependencies.txt").write_text(tree + "\n")
+
+    products = derived / "Build/Products/Release"
+    app = products / "Ravel.app"
+    info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+    version = info["CFBundleShortVersionString"]
+    binary = app / "Contents/MacOS" / info["CFBundleExecutable"]
+    arch = output("lipo", "-archs", binary)
+    if arch != "arm64" or info["CFBundleIdentifier"] != "com.weixi.Ravel":
+        raise RuntimeError(f"Unexpected product: {arch}, {info['CFBundleIdentifier']}")
+    signature = assessment(["codesign", "-dvvv", app])
+    if "Signature=adhoc" not in signature or "runtime)" not in signature:
+        raise RuntimeError(f"Unexpected local signature:\n{signature}")
+    subprocess.run(["codesign", "--verify", "--strict", "--deep", app], check=True)
+    zip_path = run / f"Ravel-{version}-{arch}-local.zip"
+    subprocess.run(["ditto", "-c", "-k", "--keepParent", "--sequesterRsrc", app, zip_path], check=True)
+    unpacked = run / "unpacked"
+    subprocess.run(["ditto", "-x", "-k", zip_path, unpacked], check=True)
+    restored = unpacked / app.name
+    subprocess.run(["diff", "-qr", app, restored], check=True)
+    subprocess.run(["codesign", "--verify", "--strict", "--deep", restored], check=True)
+    files = sorted(str(p.relative_to(restored)) for p in restored.rglob("*") if p.is_file())
+    if any(Path(p).name in {"client.py", "probe_remote", "serve.py"} for p in files):
+        raise RuntimeError("The unpacked product contains an R0 fixture")
+    (run / "bundle-files.txt").write_text("\n".join(files) + "\n")
+    link_map = derived / "Build/Intermediates.noindex/Ravel.build/Release/Ravel.build/Ravel-LinkMap-normal-arm64.txt"
+    with link_map.open("rb") as src, gzip.open(run / "link-map.txt.gz", "wb") as dst:
+        shutil.copyfileobj(src, dst)
+    write_linked_crates(link_map, cache / "rust-target/aarch64-apple-darwin/release/deps", tree, run)
+    libraries = output("otool", "-L", restored / "Contents/MacOS" / info["CFBundleExecutable"])
+    (run / "dynamic-libraries.txt").write_text(libraries + "\n")
+    digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+    gate = assessment(["/usr/sbin/spctl", "--assess", "--type", "execute", "-vv", restored])
+    ticket = assessment(["xcrun", "stapler", "validate", restored])
+    report = run / "report.md"
+    report.write_text(f"""# Ravel 本地普通 Release
+
+| 项目 | 实际结果 |
+| --- | --- |
+| 源码 commit | `{commit}` |
+| 应用 | `{info['CFBundleIdentifier']}` {version} ({info['CFBundleVersion']}) |
+| 架构 / 最低 macOS | {arch} / {info['LSMinimumSystemVersion']} |
+| 构建环境 | macOS {output('sw_vers', '-productVersion')}，{output('xcodebuild', '-version').replace(chr(10), ' / ')} |
+| ZIP | [{zip_path.name}]({zip_path.name})，{zip_path.stat().st_size:,} 字节 |
+| SHA-256 | `{digest}` |
+| 解包 | `diff -qr` 文件内容一致，原包和解包均通过严格签名校验 |
+| R0 诊断资源 | 解包清单中无 probe_remote、client.py 或 serve.py |
+
+## 签名、Gatekeeper 和票据实测
+
+```text
+{signature}
+
+spctl
+{gate}
+
+stapler validate
+{ticket}
+```
+
+构建日志、解包文件清单、link map、动态库、Rust 直接归属清单与 Cargo 依赖树均在本目录。干净 Mac 下载启动与正式公证仍待验证。
+""")
+    print(report, flush=True)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("revision", help="one local jj revision or bookmark")
+    args = parser.parse_args()
+    root = Path(output("jj", "workspace", "root", "--ignore-working-copy")).resolve()
+    rows = output("jj", "log", "--ignore-working-copy", "--no-graph", "-r", args.revision, "-T",
+                  'commit_id ++ " " ++ if(conflict, "conflict", "ok") ++ "\\n"').splitlines()
+    if len(rows) != 1 or not rows[0].endswith(" ok"):
+        parser.error("Choose one existing, conflict-free revision.")
+    commit = rows[0].split()[0]
+    destination = root / ".build/Distribution"
+    destination.mkdir(parents=True, exist_ok=True)
+    with (destination / ".package.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        run = Path(tempfile.mkdtemp(prefix=commit[:12] + "-", dir=destination))
+        print(run, flush=True)
+        package(root, commit, run)

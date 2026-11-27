@@ -1,5 +1,5 @@
 //
-//  RevisionFileListViewTests.swift
+//  RevisionFileListPanelTests.swift
 //  Ravel
 //
 //  Created by weixi on 2026/09/17.
@@ -13,13 +13,13 @@ import Testing
 import UserDefaultsKit
 
 @MainActor
-struct RevisionFileListViewTests {
+struct RevisionFileListPanelTests {
     @Test(arguments: [RevisionFileListMode.tree, .grouped])
     func horizontalArrowsCollapseAndReopenTheFolderWithoutReplacingThePreview(mode: RevisionFileListMode) async throws {
         let suite = "RavelFolderKeyboardTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let options = DiffViewOptions(store: UserDefaultsStore(defaults: defaults))
+        @Bindable var options = DiffViewOptions(store: UserDefaultsStore(defaults: defaults))
         options.fileListMode = mode
         let paths = ["App/UI/Cell.swift", "App/UI/Header.swift", "Other/Other.swift"]
         let files = paths.map { ChangedFile(path: $0, sourcePath: $0, status: .modified) }
@@ -30,10 +30,10 @@ struct RevisionFileListViewTests {
         session.selectRevision(.init(repositoryURL: URL(fileURLWithPath: "/repo"), commitID: "revision", operationID: "operation"))
         try await waitUntil { session.fileDiff != nil }
         let contentID = session.fileDiff?.id
-        let host = NSHostingView(rootView: RevisionFileListView(model: session.fileList, summary: session.summary, selection: Binding(
+        let host = NSHostingView(rootView: RevisionFileListPanel(model: session.fileList, summary: session.summary, selection: Binding(
             get: { session.selectedFileID },
             set: { session.selectFile($0) },
-        ), options: options))
+        ), mode: $options.fileListMode))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 320), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
@@ -71,7 +71,7 @@ struct RevisionFileListViewTests {
         let suite = "RavelKeyboardTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let options = DiffViewOptions(store: UserDefaultsStore(defaults: defaults))
+        @Bindable var options = DiffViewOptions(store: UserDefaultsStore(defaults: defaults))
         options.fileListMode = mode
         let paths = (0 ..< 24).map { String(format: "Folder%02d/File%02d.swift", $0, $0) }
         let files = paths.map { ChangedFile(path: $0, sourcePath: $0, status: .modified) }
@@ -81,10 +81,10 @@ struct RevisionFileListViewTests {
         defer { session.selectRevision(nil) }
         session.selectRevision(.init(repositoryURL: URL(fileURLWithPath: "/repo"), commitID: "revision", operationID: "operation"))
         try await waitUntil { session.fileDiff != nil }
-        let host = NSHostingView(rootView: RevisionFileListView(model: session.fileList, summary: session.summary, selection: Binding(
+        let host = NSHostingView(rootView: RevisionFileListPanel(model: session.fileList, summary: session.summary, selection: Binding(
             get: { session.selectedFileID },
             set: { session.selectFile($0) },
-        ), options: options))
+        ), mode: $options.fileListMode))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 320), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
@@ -107,6 +107,7 @@ struct RevisionFileListViewTests {
         try await waitUntil { session.displayedFile?.path == paths[22] }
 
         session.fileList.searchText = "File2"
+        try await waitUntil { session.fileList.appliedSearchText == "File2" }
         host.layoutSubtreeIfNeeded()
         await Task.yield()
         host.layoutSubtreeIfNeeded()
@@ -120,12 +121,12 @@ struct RevisionFileListViewTests {
         let suite = "RavelTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let options = DiffViewOptions(store: UserDefaultsStore(defaults: defaults))
+        @Bindable var options = DiffViewOptions(store: UserDefaultsStore(defaults: defaults))
         let paths = ["App/UI/Cell.swift", "App/UI/Header.swift", "App/Model.swift", "Tests/UI/CellTests.swift", "README.md"]
         let files = paths.map { RevisionFilePresentation(ChangedFile(path: $0, sourcePath: $0, status: .modified)) }
         let model = RevisionFileListViewModel()
         model.update(files: files)
-        let host = NSHostingView(rootView: RevisionFileListView(model: model, summary: RevisionChangeSummary(files: files, statistics: nil), selection: .constant(paths[0]), options: options))
+        let host = NSHostingView(rootView: RevisionFileListPanel(model: model, summary: RevisionChangeSummary(files: files, statistics: nil), selection: .constant(paths[0]), mode: $options.fileListMode))
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
             styleMask: [.titled],
