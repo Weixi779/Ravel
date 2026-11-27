@@ -14,14 +14,9 @@ import Observation
 @MainActor
 @Observable
 final class RevisionSplitSelection {
-    enum Portion: Equatable {
-        case file
-        case hunks(Set<FileDiff.Hunk>)
-    }
-
     let source: Revision
     let request: RevisionDiffRequest
-    private(set) var first: [String: Portion] = [:]
+    private(set) var first: [String: RevisionFilePortion] = [:]
     private let changedPaths: Set<String>
 
     init(source: Revision, request: RevisionDiffRequest, files: [ChangedFile]) {
@@ -31,7 +26,11 @@ final class RevisionSplitSelection {
     }
 
     var canSplit: Bool {
-        !first.isEmpty && (first.count < changedPaths.count || first.values.contains { $0 != .file })
+        !first.isEmpty
+    }
+
+    var leavesSecondEmpty: Bool {
+        first.count == changedPaths.count && first.values.allSatisfy { $0 == .file }
     }
 
     func setFile(_ path: String, included: Bool) {

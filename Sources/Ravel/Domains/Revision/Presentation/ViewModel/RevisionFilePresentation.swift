@@ -43,7 +43,7 @@ nonisolated struct RevisionFilePresentation: Identifiable, Hashable, Sendable {
     }
 
     var allowsHunkSelection: Bool {
-        status == .modified && kind == .file && !hasConflict && !resolvesConflict
+        (status == .modified || status == .renamed) && kind == .file && !hasConflict && !resolvesConflict
             && (before == nil || before?.kind == .file)
     }
 

@@ -878,6 +878,26 @@ public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
     func identity()  -> RepositoryIdentity
     
+    func describe(requestId: String, target: BackendWriteTarget, description: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func graphCommand(requestId: String, source: BackendWriteTarget, command: BackendGraphCommand, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func isWriting()  -> Bool
+    
+    func operationHistory(limit: UInt32, cancellation: BackendCancellation) async throws  -> BackendOperationHistory
+    
+    func snapshot(requestId: String, operationId: String, onlyIfIdle: Bool, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func takeWriteReceipts()  -> [BackendWriteReceipt]
+    
+    func undo(requestId: String, headId: String, operationId: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func resolveFile(requestId: String, source: BackendWriteTarget, path: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func split(requestId: String, source: BackendWriteTarget, selection: [BackendFileSelection], cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func squash(requestId: String, source: BackendWriteTarget, destination: BackendWriteTarget, paths: [String]?, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
 }
 open class BackendRepository: BackendRepositoryProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -1040,6 +1060,152 @@ open func identity() -> RepositoryIdentity  {
 })
 }
     
+open func describe(requestId: String, target: BackendWriteTarget, description: String, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_describe(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(target),FfiConverterString.lower(description),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func graphCommand(requestId: String, source: BackendWriteTarget, command: BackendGraphCommand, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_graph_command(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterTypeBackendGraphCommand_lower(command),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func isWriting() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_ravel_backend_fn_method_backendrepository_is_writing(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func operationHistory(limit: UInt32, cancellation: BackendCancellation)async throws  -> BackendOperationHistory  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_operation_history(
+                        self.uniffiCloneHandle(),FfiConverterUInt32.lower(limit),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendOperationHistory_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func snapshot(requestId: String, operationId: String, onlyIfIdle: Bool, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_snapshot(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterString.lower(operationId),FfiConverterBool.lower(onlyIfIdle),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func takeWriteReceipts() -> [BackendWriteReceipt]  {
+    return try!  FfiConverterSequenceTypeBackendWriteReceipt.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_ravel_backend_fn_method_backendrepository_take_write_receipts(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func undo(requestId: String, headId: String, operationId: String, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_undo(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterString.lower(headId),FfiConverterString.lower(operationId),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func resolveFile(requestId: String, source: BackendWriteTarget, path: String, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_resolve_file(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterString.lower(path),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func split(requestId: String, source: BackendWriteTarget, selection: [BackendFileSelection], cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_split(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterSequenceTypeBackendFileSelection.lower(selection),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func squash(requestId: String, source: BackendWriteTarget, destination: BackendWriteTarget, paths: [String]?, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_squash(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterTypeBackendWriteTarget_lower(destination),FfiConverterOptionSequenceString.lower(paths),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
 
     
 }
@@ -1086,6 +1252,60 @@ public func FfiConverterTypeBackendRepository_lower(_ value: BackendRepository) 
 }
 
 
+
+
+public struct BackendBookmarkLocation: Equatable, Hashable {
+    public var name: String
+    public var commitIds: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, commitIds: [String]) {
+        self.name = name
+        self.commitIds = commitIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendBookmarkLocation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendBookmarkLocation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendBookmarkLocation {
+        return
+            try BackendBookmarkLocation(
+                name: FfiConverterString.read(from: &buf), 
+                commitIds: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendBookmarkLocation, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterSequenceString.write(value.commitIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendBookmarkLocation_lift(_ buf: RustBuffer) throws -> BackendBookmarkLocation {
+    return try FfiConverterTypeBackendBookmarkLocation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendBookmarkLocation_lower(_ value: BackendBookmarkLocation) -> RustBuffer {
+    return FfiConverterTypeBackendBookmarkLocation.lower(value)
+}
 
 
 public struct BackendChangedFile: Equatable, Hashable {
@@ -1342,6 +1562,188 @@ public func FfiConverterTypeBackendFileStatistics_lower(_ value: BackendFileStat
 }
 
 
+public struct BackendHunk: Equatable, Hashable {
+    public var oldStart: UInt64
+    public var oldCount: UInt64
+    public var newStart: UInt64
+    public var newCount: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(oldStart: UInt64, oldCount: UInt64, newStart: UInt64, newCount: UInt64) {
+        self.oldStart = oldStart
+        self.oldCount = oldCount
+        self.newStart = newStart
+        self.newCount = newCount
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendHunk: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendHunk: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendHunk {
+        return
+            try BackendHunk(
+                oldStart: FfiConverterUInt64.read(from: &buf), 
+                oldCount: FfiConverterUInt64.read(from: &buf), 
+                newStart: FfiConverterUInt64.read(from: &buf), 
+                newCount: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendHunk, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.oldStart, into: &buf)
+        FfiConverterUInt64.write(value.oldCount, into: &buf)
+        FfiConverterUInt64.write(value.newStart, into: &buf)
+        FfiConverterUInt64.write(value.newCount, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendHunk_lift(_ buf: RustBuffer) throws -> BackendHunk {
+    return try FfiConverterTypeBackendHunk.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendHunk_lower(_ value: BackendHunk) -> RustBuffer {
+    return FfiConverterTypeBackendHunk.lower(value)
+}
+
+
+public struct BackendOperation: Equatable, Hashable {
+    public var id: String
+    public var description: String
+    public var timestampMillis: Int64
+    public var workspaceName: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, description: String, timestampMillis: Int64, workspaceName: String?) {
+        self.id = id
+        self.description = description
+        self.timestampMillis = timestampMillis
+        self.workspaceName = workspaceName
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendOperation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendOperation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendOperation {
+        return
+            try BackendOperation(
+                id: FfiConverterString.read(from: &buf), 
+                description: FfiConverterString.read(from: &buf), 
+                timestampMillis: FfiConverterInt64.read(from: &buf), 
+                workspaceName: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendOperation, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.description, into: &buf)
+        FfiConverterInt64.write(value.timestampMillis, into: &buf)
+        FfiConverterOptionString.write(value.workspaceName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendOperation_lift(_ buf: RustBuffer) throws -> BackendOperation {
+    return try FfiConverterTypeBackendOperation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendOperation_lower(_ value: BackendOperation) -> RustBuffer {
+    return FfiConverterTypeBackendOperation.lower(value)
+}
+
+
+public struct BackendOperationHistory: Equatable, Hashable {
+    public var headId: String
+    public var entries: [BackendOperation]
+    public var undoTarget: BackendOperation?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(headId: String, entries: [BackendOperation], undoTarget: BackendOperation?) {
+        self.headId = headId
+        self.entries = entries
+        self.undoTarget = undoTarget
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendOperationHistory: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendOperationHistory: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendOperationHistory {
+        return
+            try BackendOperationHistory(
+                headId: FfiConverterString.read(from: &buf), 
+                entries: FfiConverterSequenceTypeBackendOperation.read(from: &buf), 
+                undoTarget: FfiConverterOptionTypeBackendOperation.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendOperationHistory, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.headId, into: &buf)
+        FfiConverterSequenceTypeBackendOperation.write(value.entries, into: &buf)
+        FfiConverterOptionTypeBackendOperation.write(value.undoTarget, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendOperationHistory_lift(_ buf: RustBuffer) throws -> BackendOperationHistory {
+    return try FfiConverterTypeBackendOperationHistory.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendOperationHistory_lower(_ value: BackendOperationHistory) -> RustBuffer {
+    return FfiConverterTypeBackendOperationHistory.lower(value)
+}
+
+
 public struct BackendPage: Equatable, Hashable {
     public var revisions: [BackendRevision]
     public var nextCursor: UInt64?
@@ -1399,12 +1801,14 @@ public func FfiConverterTypeBackendPage_lower(_ value: BackendPage) -> RustBuffe
 public struct BackendRevision: Equatable, Hashable {
     public var commitId: String
     public var changeId: String
+    public var uniqueChangePrefixLength: UInt32
     public var parentIds: [String]
     public var description: String
     public var author: String
     public var email: String
     public var timestampMillis: Int64
     public var bookmarks: [String]
+    public var localBookmarks: [String]
     public var isWorkingCopy: Bool
     public var isImmutable: Bool
     public var hasConflict: Bool
@@ -1413,15 +1817,17 @@ public struct BackendRevision: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(commitId: String, changeId: String, parentIds: [String], description: String, author: String, email: String, timestampMillis: Int64, bookmarks: [String], isWorkingCopy: Bool, isImmutable: Bool, hasConflict: Bool, isDivergent: Bool, isEmpty: Bool) {
+    public init(commitId: String, changeId: String, uniqueChangePrefixLength: UInt32, parentIds: [String], description: String, author: String, email: String, timestampMillis: Int64, bookmarks: [String], localBookmarks: [String], isWorkingCopy: Bool, isImmutable: Bool, hasConflict: Bool, isDivergent: Bool, isEmpty: Bool) {
         self.commitId = commitId
         self.changeId = changeId
+        self.uniqueChangePrefixLength = uniqueChangePrefixLength
         self.parentIds = parentIds
         self.description = description
         self.author = author
         self.email = email
         self.timestampMillis = timestampMillis
         self.bookmarks = bookmarks
+        self.localBookmarks = localBookmarks
         self.isWorkingCopy = isWorkingCopy
         self.isImmutable = isImmutable
         self.hasConflict = hasConflict
@@ -1447,12 +1853,14 @@ public struct FfiConverterTypeBackendRevision: FfiConverterRustBuffer {
             try BackendRevision(
                 commitId: FfiConverterString.read(from: &buf), 
                 changeId: FfiConverterString.read(from: &buf), 
+                uniqueChangePrefixLength: FfiConverterUInt32.read(from: &buf), 
                 parentIds: FfiConverterSequenceString.read(from: &buf), 
                 description: FfiConverterString.read(from: &buf), 
                 author: FfiConverterString.read(from: &buf), 
                 email: FfiConverterString.read(from: &buf), 
                 timestampMillis: FfiConverterInt64.read(from: &buf), 
                 bookmarks: FfiConverterSequenceString.read(from: &buf), 
+                localBookmarks: FfiConverterSequenceString.read(from: &buf), 
                 isWorkingCopy: FfiConverterBool.read(from: &buf), 
                 isImmutable: FfiConverterBool.read(from: &buf), 
                 hasConflict: FfiConverterBool.read(from: &buf), 
@@ -1464,12 +1872,14 @@ public struct FfiConverterTypeBackendRevision: FfiConverterRustBuffer {
     public static func write(_ value: BackendRevision, into buf: inout [UInt8]) {
         FfiConverterString.write(value.commitId, into: &buf)
         FfiConverterString.write(value.changeId, into: &buf)
+        FfiConverterUInt32.write(value.uniqueChangePrefixLength, into: &buf)
         FfiConverterSequenceString.write(value.parentIds, into: &buf)
         FfiConverterString.write(value.description, into: &buf)
         FfiConverterString.write(value.author, into: &buf)
         FfiConverterString.write(value.email, into: &buf)
         FfiConverterInt64.write(value.timestampMillis, into: &buf)
         FfiConverterSequenceString.write(value.bookmarks, into: &buf)
+        FfiConverterSequenceString.write(value.localBookmarks, into: &buf)
         FfiConverterBool.write(value.isWorkingCopy, into: &buf)
         FfiConverterBool.write(value.isImmutable, into: &buf)
         FfiConverterBool.write(value.hasConflict, into: &buf)
@@ -1494,14 +1904,176 @@ public func FfiConverterTypeBackendRevision_lower(_ value: BackendRevision) -> R
 }
 
 
+public struct BackendWriteReceipt: Equatable, Hashable {
+    public var requestId: String
+    public var workspacePath: String
+    public var initialOperationId: String
+    public var preparationOperationId: String?
+    public var mutationOperationId: String?
+    public var currentOperationId: String?
+    public var commitId: String?
+    public var changeId: String?
+    public var disposition: WriteDisposition
+    public var phase: WritePhase
+    public var cancellationPhase: WritePhase?
+    public var workingCopy: SyncStatus
+    public var git: SyncStatus
+    public var detail: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(requestId: String, workspacePath: String, initialOperationId: String, preparationOperationId: String?, mutationOperationId: String?, currentOperationId: String?, commitId: String?, changeId: String?, disposition: WriteDisposition, phase: WritePhase, cancellationPhase: WritePhase?, workingCopy: SyncStatus, git: SyncStatus, detail: String?) {
+        self.requestId = requestId
+        self.workspacePath = workspacePath
+        self.initialOperationId = initialOperationId
+        self.preparationOperationId = preparationOperationId
+        self.mutationOperationId = mutationOperationId
+        self.currentOperationId = currentOperationId
+        self.commitId = commitId
+        self.changeId = changeId
+        self.disposition = disposition
+        self.phase = phase
+        self.cancellationPhase = cancellationPhase
+        self.workingCopy = workingCopy
+        self.git = git
+        self.detail = detail
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendWriteReceipt: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendWriteReceipt: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendWriteReceipt {
+        return
+            try BackendWriteReceipt(
+                requestId: FfiConverterString.read(from: &buf), 
+                workspacePath: FfiConverterString.read(from: &buf), 
+                initialOperationId: FfiConverterString.read(from: &buf), 
+                preparationOperationId: FfiConverterOptionString.read(from: &buf), 
+                mutationOperationId: FfiConverterOptionString.read(from: &buf), 
+                currentOperationId: FfiConverterOptionString.read(from: &buf), 
+                commitId: FfiConverterOptionString.read(from: &buf), 
+                changeId: FfiConverterOptionString.read(from: &buf), 
+                disposition: FfiConverterTypeWriteDisposition.read(from: &buf), 
+                phase: FfiConverterTypeWritePhase.read(from: &buf), 
+                cancellationPhase: FfiConverterOptionTypeWritePhase.read(from: &buf), 
+                workingCopy: FfiConverterTypeSyncStatus.read(from: &buf), 
+                git: FfiConverterTypeSyncStatus.read(from: &buf), 
+                detail: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendWriteReceipt, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.requestId, into: &buf)
+        FfiConverterString.write(value.workspacePath, into: &buf)
+        FfiConverterString.write(value.initialOperationId, into: &buf)
+        FfiConverterOptionString.write(value.preparationOperationId, into: &buf)
+        FfiConverterOptionString.write(value.mutationOperationId, into: &buf)
+        FfiConverterOptionString.write(value.currentOperationId, into: &buf)
+        FfiConverterOptionString.write(value.commitId, into: &buf)
+        FfiConverterOptionString.write(value.changeId, into: &buf)
+        FfiConverterTypeWriteDisposition.write(value.disposition, into: &buf)
+        FfiConverterTypeWritePhase.write(value.phase, into: &buf)
+        FfiConverterOptionTypeWritePhase.write(value.cancellationPhase, into: &buf)
+        FfiConverterTypeSyncStatus.write(value.workingCopy, into: &buf)
+        FfiConverterTypeSyncStatus.write(value.git, into: &buf)
+        FfiConverterOptionString.write(value.detail, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendWriteReceipt_lift(_ buf: RustBuffer) throws -> BackendWriteReceipt {
+    return try FfiConverterTypeBackendWriteReceipt.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendWriteReceipt_lower(_ value: BackendWriteReceipt) -> RustBuffer {
+    return FfiConverterTypeBackendWriteReceipt.lower(value)
+}
+
+
+public struct BackendWriteTarget: Equatable, Hashable {
+    public var operationId: String
+    public var commitId: String
+    public var changeId: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(operationId: String, commitId: String, changeId: String) {
+        self.operationId = operationId
+        self.commitId = commitId
+        self.changeId = changeId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendWriteTarget: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendWriteTarget: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendWriteTarget {
+        return
+            try BackendWriteTarget(
+                operationId: FfiConverterString.read(from: &buf), 
+                commitId: FfiConverterString.read(from: &buf), 
+                changeId: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendWriteTarget, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.operationId, into: &buf)
+        FfiConverterString.write(value.commitId, into: &buf)
+        FfiConverterString.write(value.changeId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendWriteTarget_lift(_ buf: RustBuffer) throws -> BackendWriteTarget {
+    return try FfiConverterTypeBackendWriteTarget.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendWriteTarget_lower(_ value: BackendWriteTarget) -> RustBuffer {
+    return FfiConverterTypeBackendWriteTarget.lower(value)
+}
+
+
 public struct HistoryInfo: Equatable, Hashable {
+    public var localBookmarks: [BackendBookmarkLocation]
     public var operationId: String
     public var workspacePath: String
     public var backendVersion: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(operationId: String, workspacePath: String, backendVersion: String) {
+    public init(localBookmarks: [BackendBookmarkLocation], operationId: String, workspacePath: String, backendVersion: String) {
+        self.localBookmarks = localBookmarks
         self.operationId = operationId
         self.workspacePath = workspacePath
         self.backendVersion = backendVersion
@@ -1523,6 +2095,7 @@ public struct FfiConverterTypeHistoryInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HistoryInfo {
         return
             try HistoryInfo(
+                localBookmarks: FfiConverterSequenceTypeBackendBookmarkLocation.read(from: &buf), 
                 operationId: FfiConverterString.read(from: &buf), 
                 workspacePath: FfiConverterString.read(from: &buf), 
                 backendVersion: FfiConverterString.read(from: &buf)
@@ -1530,6 +2103,7 @@ public struct FfiConverterTypeHistoryInfo: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: HistoryInfo, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeBackendBookmarkLocation.write(value.localBookmarks, into: &buf)
         FfiConverterString.write(value.operationId, into: &buf)
         FfiConverterString.write(value.workspacePath, into: &buf)
         FfiConverterString.write(value.backendVersion, into: &buf)
@@ -1619,6 +2193,7 @@ enum BackendError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
     )
     case Cancelled
     case Closed
+    case WriterBusy
     case InvalidCursor
     case DiffTooLarge
 
@@ -1655,8 +2230,9 @@ public struct FfiConverterTypeBackendError: FfiConverterRustBuffer {
             )
         case 2: return .Cancelled
         case 3: return .Closed
-        case 4: return .InvalidCursor
-        case 5: return .DiffTooLarge
+        case 4: return .WriterBusy
+        case 5: return .InvalidCursor
+        case 6: return .DiffTooLarge
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1682,12 +2258,16 @@ public struct FfiConverterTypeBackendError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(3))
         
         
-        case .InvalidCursor:
+        case .WriterBusy:
             writeInt(&buf, Int32(4))
         
         
-        case .DiffTooLarge:
+        case .InvalidCursor:
             writeInt(&buf, Int32(5))
+        
+        
+        case .DiffTooLarge:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -1797,6 +2377,79 @@ public func FfiConverterTypeBackendFileKind_lower(_ value: BackendFileKind) -> R
 
 
 
+public enum BackendFileSelection: Equatable, Hashable {
+    
+    case whole(path: String
+    )
+    case hunks(path: String, hunks: [BackendHunk]
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BackendFileSelection: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendFileSelection: FfiConverterRustBuffer {
+    typealias SwiftType = BackendFileSelection
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendFileSelection {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .whole(path: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .hunks(path: try FfiConverterString.read(from: &buf), hunks: try FfiConverterSequenceTypeBackendHunk.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BackendFileSelection, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .whole(path):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(path, into: &buf)
+            
+        
+        case let .hunks(path,hunks):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(path, into: &buf)
+            FfiConverterSequenceTypeBackendHunk.write(hunks, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileSelection_lift(_ buf: RustBuffer) throws -> BackendFileSelection {
+    return try FfiConverterTypeBackendFileSelection.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileSelection_lower(_ value: BackendFileSelection) -> RustBuffer {
+    return FfiConverterTypeBackendFileSelection.lower(value)
+}
+
+
+
+
 public enum BackendFileStatus: Equatable, Hashable {
     
     case modified
@@ -1889,6 +2542,396 @@ public func FfiConverterTypeBackendFileStatus_lower(_ value: BackendFileStatus) 
 }
 
 
+
+
+public enum BackendGraphCommand: Equatable, Hashable {
+    
+    case newChild
+    case edit
+    case rebase(destination: BackendWriteTarget, descendants: Bool
+    )
+    case createBookmark(name: String
+    )
+    case moveBookmark(name: String, destination: BackendWriteTarget
+    )
+    case deleteBookmark(name: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BackendGraphCommand: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendGraphCommand: FfiConverterRustBuffer {
+    typealias SwiftType = BackendGraphCommand
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendGraphCommand {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .newChild
+        
+        case 2: return .edit
+        
+        case 3: return .rebase(destination: try FfiConverterTypeBackendWriteTarget.read(from: &buf), descendants: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 4: return .createBookmark(name: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .moveBookmark(name: try FfiConverterString.read(from: &buf), destination: try FfiConverterTypeBackendWriteTarget.read(from: &buf)
+        )
+        
+        case 6: return .deleteBookmark(name: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BackendGraphCommand, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .newChild:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .edit:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .rebase(destination,descendants):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeBackendWriteTarget.write(destination, into: &buf)
+            FfiConverterBool.write(descendants, into: &buf)
+            
+        
+        case let .createBookmark(name):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(name, into: &buf)
+            
+        
+        case let .moveBookmark(name,destination):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(name, into: &buf)
+            FfiConverterTypeBackendWriteTarget.write(destination, into: &buf)
+            
+        
+        case let .deleteBookmark(name):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(name, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendGraphCommand_lift(_ buf: RustBuffer) throws -> BackendGraphCommand {
+    return try FfiConverterTypeBackendGraphCommand.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendGraphCommand_lower(_ value: BackendGraphCommand) -> RustBuffer {
+    return FfiConverterTypeBackendGraphCommand.lower(value)
+}
+
+
+
+
+public enum SyncStatus: Equatable, Hashable {
+    
+    case skipped
+    case pending
+    case completed
+    case failed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SyncStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSyncStatus: FfiConverterRustBuffer {
+    typealias SwiftType = SyncStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SyncStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .skipped
+        
+        case 2: return .pending
+        
+        case 3: return .completed
+        
+        case 4: return .failed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SyncStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .skipped:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .pending:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .completed:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSyncStatus_lift(_ buf: RustBuffer) throws -> SyncStatus {
+    return try FfiConverterTypeSyncStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSyncStatus_lower(_ value: SyncStatus) -> RustBuffer {
+    return FfiConverterTypeSyncStatus.lower(value)
+}
+
+
+
+
+public enum WriteDisposition: Equatable, Hashable {
+    
+    case succeeded
+    case staleTarget
+    case immutable
+    case staleWorkingCopy
+    case concurrentOperations
+    case failed
+    case cancelled
+    case committedWithSyncFailure
+    case outcomeUnknown
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension WriteDisposition: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWriteDisposition: FfiConverterRustBuffer {
+    typealias SwiftType = WriteDisposition
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WriteDisposition {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .succeeded
+        
+        case 2: return .staleTarget
+        
+        case 3: return .immutable
+        
+        case 4: return .staleWorkingCopy
+        
+        case 5: return .concurrentOperations
+        
+        case 6: return .failed
+        
+        case 7: return .cancelled
+        
+        case 8: return .committedWithSyncFailure
+        
+        case 9: return .outcomeUnknown
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: WriteDisposition, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .succeeded:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .staleTarget:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .immutable:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .staleWorkingCopy:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .concurrentOperations:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .cancelled:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .committedWithSyncFailure:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .outcomeUnknown:
+            writeInt(&buf, Int32(9))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWriteDisposition_lift(_ buf: RustBuffer) throws -> WriteDisposition {
+    return try FfiConverterTypeWriteDisposition.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWriteDisposition_lower(_ value: WriteDisposition) -> RustBuffer {
+    return FfiConverterTypeWriteDisposition.lower(value)
+}
+
+
+
+
+public enum WritePhase: Equatable, Hashable {
+    
+    case queued
+    case preparing
+    case validating
+    case mutating
+    case synchronizing
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension WritePhase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWritePhase: FfiConverterRustBuffer {
+    typealias SwiftType = WritePhase
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WritePhase {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .queued
+        
+        case 2: return .preparing
+        
+        case 3: return .validating
+        
+        case 4: return .mutating
+        
+        case 5: return .synchronizing
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: WritePhase, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .queued:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .preparing:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .validating:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .mutating:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .synchronizing:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWritePhase_lift(_ buf: RustBuffer) throws -> WritePhase {
+    return try FfiConverterTypeWritePhase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWritePhase_lower(_ value: WritePhase) -> RustBuffer {
+    return FfiConverterTypeWritePhase.lower(value)
+}
+
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -1940,6 +2983,30 @@ fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeBackendFileMetadata: FfiConverterRustBuffer {
     typealias SwiftType = BackendFileMetadata?
 
@@ -1956,6 +3023,78 @@ fileprivate struct FfiConverterOptionTypeBackendFileMetadata: FfiConverterRustBu
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeBackendFileMetadata.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeBackendOperation: FfiConverterRustBuffer {
+    typealias SwiftType = BackendOperation?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeBackendOperation.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeBackendOperation.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeWritePhase: FfiConverterRustBuffer {
+    typealias SwiftType = WritePhase?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeWritePhase.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeWritePhase.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -1981,6 +3120,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBackendBookmarkLocation: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendBookmarkLocation]
+
+    public static func write(_ value: [BackendBookmarkLocation], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendBookmarkLocation.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendBookmarkLocation] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendBookmarkLocation]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendBookmarkLocation.read(from: &buf))
         }
         return seq
     }
@@ -2039,6 +3203,56 @@ fileprivate struct FfiConverterSequenceTypeBackendFileStatistics: FfiConverterRu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBackendHunk: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendHunk]
+
+    public static func write(_ value: [BackendHunk], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendHunk.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendHunk] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendHunk]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendHunk.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBackendOperation: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendOperation]
+
+    public static func write(_ value: [BackendOperation], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendOperation.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendOperation] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendOperation]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendOperation.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeBackendRevision: FfiConverterRustBuffer {
     typealias SwiftType = [BackendRevision]
 
@@ -2056,6 +3270,56 @@ fileprivate struct FfiConverterSequenceTypeBackendRevision: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeBackendRevision.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBackendWriteReceipt: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendWriteReceipt]
+
+    public static func write(_ value: [BackendWriteReceipt], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendWriteReceipt.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendWriteReceipt] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendWriteReceipt]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendWriteReceipt.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBackendFileSelection: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendFileSelection]
+
+    public static func write(_ value: [BackendFileSelection], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendFileSelection.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendFileSelection] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendFileSelection]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendFileSelection.read(from: &buf))
         }
         return seq
     }
@@ -2143,6 +3407,36 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_identity() != 30316) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_describe() != 55601) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_graph_command() != 18284) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_is_writing() != 48736) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_operation_history() != 31826) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_snapshot() != 34697) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_take_write_receipts() != 18016) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_undo() != 40372) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_resolve_file() != 26624) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_split() != 18093) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_squash() != 37244) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendhistory_close() != 41414) {

@@ -36,13 +36,16 @@ struct RavelApp: App {
     var body: some Scene {
         Window("Ravel", id: "repository") {
             RepositoryView(session: session, diffSession: diffSession)
+                .modifier(RepositoryRecoveryActions(workspace: workspace, session: session))
                 .environment(diffOptions)
                 .frame(minWidth: 920, minHeight: 560)
                 .task {
                     guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+                    appDelegate.workspace = workspace
                     session.restoreIfNeeded()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    guard !diffSession.isSelectingSplit, !diffSession.isOrganizing else { return }
                     session.refreshIfNeeded()
                 }
         }
@@ -69,7 +72,7 @@ struct RavelApp: App {
                     .disabled(session.repositoryURL == nil || session.isLoading)
                 Button(I18n.historyGoToWorkingCopy, systemImage: "scope") { session.selectWorkingCopy() }
                     .keyboardShortcut("0")
-                    .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
+                    .disabled(session.log == nil)
             }
         }
 

@@ -6,16 +6,26 @@
 //  Copyright © 2026 Ravel. All rights reserved.
 //
 
+mod changes;
+mod conflict;
+pub use changes::{BackendFileSelection, BackendHunk};
 mod diff;
 mod history;
 mod worker;
+mod writer;
+pub use writer::{
+    BackendGraphCommand, BackendOperationHistory, BackendWriteReceipt, BackendWriteTarget,
+    SyncStatus, WriteDisposition, WritePhase,
+};
 
 pub use diff::{
     BackendChangedFile, BackendDiffStatistics, BackendFileKind, BackendFileMetadata,
     BackendFileStatistics, BackendFileStatus,
 };
 use futures::FutureExt;
-pub use history::{BackendHistory, BackendPage, BackendRevision, HistoryInfo};
+pub use history::{
+    BackendBookmarkLocation, BackendHistory, BackendPage, BackendRevision, HistoryInfo,
+};
 use jj_cli::{
     config::{self, ConfigEnv},
     ui::Ui,
@@ -44,6 +54,8 @@ pub enum BackendError {
     Cancelled,
     #[error("The repository or history query is closed")]
     Closed,
+    #[error("The repository writer is busy")]
+    WriterBusy,
     #[error("The cursor does not belong to the current page of this history query")]
     InvalidCursor,
     #[error("The diff exceeds the preview limit")]
@@ -59,6 +71,8 @@ fn read_error(error: impl std::fmt::Display) -> BackendError {
 #[derive(Default, uniffi::Object)]
 pub struct BackendCancellation {
     cancelled: AtomicBool,
+    #[cfg(test)]
+    write_checkpoint: Option<Box<dyn Fn(WritePhase) + Send + Sync>>,
 }
 
 #[uniffi::export]
@@ -100,16 +114,23 @@ struct RepositoryState {
 struct ActiveWorker {
     cancellation: Arc<BackendCancellation>,
     finished: worker::Completion,
+    queued_write: Option<Weak<writer::QueuedWrite>>,
 }
 
 impl RepositoryState {
-    fn register(&mut self, cancellation: Arc<BackendCancellation>, finished: worker::Completion) {
+    fn register(
+        &mut self,
+        cancellation: Arc<BackendCancellation>,
+        finished: worker::Completion,
+    ) -> &mut ActiveWorker {
         self.workers
             .retain(|worker| worker.finished.clone().now_or_never().is_none());
         self.workers.push(ActiveWorker {
             cancellation,
             finished,
+            queued_write: None,
         });
+        self.workers.last_mut().unwrap()
     }
 }
 
@@ -118,6 +139,7 @@ pub struct BackendRepository {
     path: PathBuf,
     identity: RepositoryIdentity,
     state: Mutex<RepositoryState>,
+    receipts: Arc<Mutex<Vec<BackendWriteReceipt>>>,
 }
 
 #[uniffi::export]
@@ -236,6 +258,7 @@ impl BackendRepository {
             path,
             identity,
             state: Mutex::default(),
+            receipts: Arc::default(),
         })
     }
 
@@ -254,6 +277,9 @@ impl BackendRepository {
         };
         for worker in &workers {
             worker.cancellation.cancel();
+            if let Some(job) = worker.queued_write.as_ref().and_then(Weak::upgrade) {
+                job.run_once();
+            }
         }
         for query in queries {
             query.signal_close();
@@ -338,6 +364,7 @@ mod tests {
                 workspace_name: String::new(),
             },
             state: Mutex::default(),
+            receipts: Arc::default(),
         }
     }
 

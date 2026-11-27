@@ -13,6 +13,7 @@ import SwiftUI
 struct RevisionFileRow: View {
     let file: RevisionFilePresentation
     var showsDirectory = false
+    var moveFile: ((RevisionFilePresentation) -> Void)?
 
     var body: some View {
         HStack(spacing: 7) {
@@ -48,6 +49,14 @@ struct RevisionFileRow: View {
         .help(file.displayPath)
         .accessibilityElement(children: .combine)
         .contextMenu {
+            if let moveFile, file.status != .unchanged {
+                Button(I18n.organizeMove) {
+                    moveFile(file)
+                }
+
+                Divider()
+            }
+
             Button(I18n.diffCopyPath) {
                 RevisionPathCopy.copy(file.path)
             }

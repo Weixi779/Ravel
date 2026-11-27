@@ -35,7 +35,8 @@ struct RevisionSplitSelectionTests {
             #expect(selection.canSplit)
         }
         selection.setFile(path, included: true)
-        #expect(!selection.canSplit)
+        #expect(selection.canSplit)
+        #expect(selection.leavesSecondEmpty)
         selection.setHunk(first, included: false, in: path, available: ranges)
         #expect(selection.first[path] == .hunks([second]))
         selection.setHunk(second, included: false, in: path, available: ranges)
@@ -58,6 +59,10 @@ struct RevisionSplitSelectionTests {
         #expect(session.isSelectingSplit)
         session.selectRevision(request, revision: source)
         #expect(session.splitSelection?.source == source)
+        var refreshed = request
+        refreshed.refreshedAt = .now
+        session.selectRevision(refreshed, revision: source)
+        #expect(session.splitSelection?.request == request)
         session.selectRevision(nil)
         #expect(!session.isSelectingSplit)
     }

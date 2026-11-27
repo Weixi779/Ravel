@@ -30,6 +30,20 @@ final class RevisionChangesSession {
     private(set) var errorMessage: String?
     private(set) var fileErrorMessage: String?
     private(set) var statisticsErrorMessage: String?
+    var organization: RevisionOrganizationRequest?
+    var isOrganizing = false
+
+    func files(for source: RevisionDiffRequest) -> [RevisionFilePresentation] {
+        guard displayedRequest?.commitID == source.commitID, displayedRequest?.repositoryURL == source.repositoryURL else { return [] }
+        return files
+    }
+
+    func beginSplitWhenLoaded(_ revision: Revision, request: RevisionDiffRequest, intentID: UUID) async {
+        await loadTask?.value
+        guard organization?.id == intentID else { return }
+        beginSplit(revision, request: request)
+    }
+
     private(set) var splitSelection: RevisionSplitSelection?
     var isSelectingSplit: Bool { splitSelection != nil }
 
@@ -84,7 +98,9 @@ final class RevisionChangesSession {
 
     func selectRevision(_ request: RevisionDiffRequest?, revision: Revision? = nil) {
         guard self.request != request else { return }
-        endSplit()
+        if let splitSelection, request?.repositoryURL != splitSelection.request.repositoryURL || request?.commitID != splitSelection.source.id {
+            endSplit()
+        }
         if let previous = self.request, let request,
            previous.repositoryURL == request.repositoryURL,
            previous.commitID == request.commitID,

@@ -2335,6 +2335,7 @@ dependencies = [
  "erased-serde",
  "etcetera",
  "futures",
+ "gix",
  "globset",
  "indexmap",
  "indoc",
@@ -3269,6 +3270,7 @@ dependencies = [
  "pollster",
  "tempfile",
  "thiserror 2.0.20",
+ "tokio",
  "uniffi",
 ]
 

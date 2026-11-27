@@ -14,6 +14,7 @@ struct RevisionFileList: View {
     @Binding var selection: String?
     let mode: RevisionFileListMode
     var splitSelection: RevisionSplitSelection?
+    var moveFile: ((RevisionFilePresentation) -> Void)?
     @FocusState private var isFileListFocused: Bool
 
     var body: some View {
@@ -39,7 +40,7 @@ struct RevisionFileList: View {
                                 }
                             }
 
-                            RevisionFileRow(file: file, showsDirectory: mode == .list)
+                            RevisionFileRow(file: file, showsDirectory: mode == .list, moveFile: moveFile)
                         }
                         .padding(.leading, mode == .list ? 0 : CGFloat(item.depth) * 14 + 18)
                         .tag(RevisionFileListViewModel.Selection.file(file.id))
