@@ -102,8 +102,19 @@ final nonisolated class CodeRepository: CodeRepositoryReader, CodeRepositoryWrit
     @concurrent
     func snapshot(operationID: String) async throws -> RepositoryWriteReceipt {
         try await write { id, token in
-            try await self.backend.snapshot(requestId: id, operationId: operationID, cancellation: token)
+            try await self.backend.snapshot(requestId: id, operationId: operationID, onlyIfIdle: false, cancellation: token)
         }
+    }
+
+    var isWriting: Bool { backend.isWriting() }
+
+    @concurrent
+    func snapshotIfIdle(operationID: String) async throws -> RepositoryWriteReceipt? {
+        do {
+            return try await write { id, token in
+                try await self.backend.snapshot(requestId: id, operationId: operationID, onlyIfIdle: true, cancellation: token)
+            }
+        } catch BackendError.WriterBusy { return nil }
     }
 
     @concurrent

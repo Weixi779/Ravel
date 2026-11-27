@@ -55,7 +55,9 @@ nonisolated struct RepositoryOperation: Identifiable, Sendable {
     let description: String
     let date: Date
     let workspace: String?
+}
 
+nonisolated extension RepositoryOperation {
     init(_ native: BackendOperation) {
         id = native.id
         description = native.description

@@ -53,6 +53,7 @@ pub(super) async fn prepare(
     context: &WriteContext<'_>,
     repo: &Arc<ReadonlyRepo>,
     wc: &mut dyn LockedWorkingCopy,
+    token: &BackendCancellation,
     receipt: &mut BackendWriteReceipt,
 ) -> Result<Arc<ReadonlyRepo>, BackendError> {
     let WriteContext {
@@ -147,6 +148,7 @@ pub(super) async fn prepare(
             .await
             .map_err(read_error)?;
     }
+    token.check()?;
     if !tx.repo().has_changes() {
         return Ok(repo.clone());
     }
