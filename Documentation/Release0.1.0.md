@@ -29,6 +29,21 @@ Ravel 0.1.0 面向**已经在用 `jj` 的 Mac 用户**：
 9. 从 Finder 启动签名公证后的发布包，选中本地 bookmark，预览目标 remote、远端 bookmark 的起止位置、将公开的提交与将被移出的提交，完成首次发布。
 10. 模拟远端前进导致 Push 被拒，按提示 Fetch 后重新查看差异（整合对方提交、处理 bookmark 冲突或明确确认移动指针），再决定如何发布；模拟回包前断线，确认界面进入「推送结果待确认」并支持 Fetch 核对。
 
+### 2.1 普通 Release 包实测记录（2026-11-28）
+
+**第 1–8 步全部通过。** 在 macOS 27.2.1 上从 Finder 打开 ZIP 解压出的 `Ravel.app`，在同一个一次性 jj 仓库中用 Ravel 与 TextEdit 完成本地整理，最后用 `jj --ignore-working-copy` 核对结果。
+
+- 源码 commit 为 `edff7a20d64f94911a8de69d536cb327e66bf5fc`。
+- 普通包 `Ravel-0.1.0-arm64-local.zip` 的 SHA-256 为 `43307d88c2565cccdc2a441f02a1d28f82afa32c9f80ac2bd9c2690535cb9ad6`。
+
+| 步骤 | 实测结论 |
+| --- | --- |
+| 1–2 · 保存与快照 | TextEdit 在 `Settings.txt` 中修改超时和标题。切回 Ravel 后，Diff 自动显示 `12` 和 `First save`。分屏再次保存时，未获焦的 Ravel 提示磁盘有改动，Diff 仍显示上次快照。点击「更新工作副本快照」后，两段分别更新为 `15` 和 `Ready`。 |
+| 3–4 · Split 与 Describe | 勾选第一段 hunk 后再次保存文件，Ravel 拦截拆分并提示重新查看最新 Diff。重新勾选后，第一笔仅改超时，第二笔仅改标题。选中栈顶时右键修改旧 change，保存后选中改写后的旧 change。jj 读回两笔的标题与正文，分别为 `Set timeout` / `Use 15 seconds.` 和 `Update title` / `Show Ready.`。 |
+| 5–6 · Rebase、bookmark 与 Undo | 把 `Set timeout` 连同后代移到 `Destination`，在栈顶创建 `deliver`，再故意将它移回下层。Undo 确认框显示这次移动的完整 operation ID（前缀 `eb645333b575`）。撤销后，文件、图、`@` 和 bookmark 均恢复到误操作前的状态。 |
+| 7 · 冲突与返回 | 单独将栈顶移到 `Collision` 后，图上保留该 change 并标出 `Settings.txt` 冲突。从 Ravel 打开 TextEdit 解冲突，保存并退出专用编辑器后，Ravel 显示「这笔 change 的冲突已全部解决」。 |
+| 8 · 最终核对 | 最终图从 `Base settings` 分出 `Destination → Set timeout` 和 `Collision → Update title` 两条线。验收仓库的 `@` 与 `deliver` 均指向 `b9652c33587139302530731aad30a9890f436a94`。磁盘上的 `Settings.txt` 保留 `timeout = 60`、`title = Ready` 和末尾换行，与 `jj file show -r @ Settings.txt` 的 235 字节逐字节一致。全图冲突数为 0。 |
+
 ## 3. 跨功能交互约定
 
 - **右键点谁，就操作谁**：首版用上下文菜单把对象操作做透，不以图上拖拽为前提。
