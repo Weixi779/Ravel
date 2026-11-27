@@ -67,7 +67,7 @@ extension RevisionChangesSession {
                 guard log.repositoryURL == input.request.repositoryURL else { return }
                 let remaining = result.files.filter { $0.after?.kind == .conflict }.map(\.path)
                 if !remaining.isEmpty {
-                    log.commandNotice = String(localized: I18n.diffConflicts) + "\n" + remaining.joined(separator: "\n")
+                    log.commandNotice = String(localized: I18n.organizeUnresolvedFiles) + "\n" + remaining.joined(separator: "\n")
                 } else if case .resolveFile = input.action {
                     log.commandNotice = String(localized: I18n.organizeResolved)
                 }

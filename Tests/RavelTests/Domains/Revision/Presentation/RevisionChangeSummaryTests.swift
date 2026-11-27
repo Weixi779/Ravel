@@ -13,6 +13,28 @@ import Testing
 @MainActor
 struct RevisionChangeSummaryTests {
     @Test
+    func executableChangesRequireKnownModesOnBothSides() {
+        let file = FileMetadata(kind: .file, executable: false, conflictSides: 0)
+        let script = FileMetadata(kind: .file, executable: true, conflictSides: 0)
+        let conflict = FileMetadata(kind: .conflict, executable: nil, conflictSides: 2)
+
+        func modeChanged(from before: FileMetadata, to after: FileMetadata) -> Bool {
+            RevisionFilePresentation(ChangedFile(
+                path: "a",
+                sourcePath: "a",
+                status: .modified,
+                before: before,
+                after: after,
+            )).modeChanged
+        }
+
+        #expect(!modeChanged(from: conflict, to: file))
+        #expect(!modeChanged(from: file, to: conflict))
+        #expect(modeChanged(from: script, to: file))
+        #expect(modeChanged(from: file, to: script))
+    }
+
+    @Test
     func summaryKeepsConflictSeparateFromChangeKindAndBinaryCountsUnknown() {
         let files = [
             RevisionFilePresentation(ChangedFile(
