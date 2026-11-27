@@ -36,12 +36,14 @@ use std::{
 pub struct BackendRevision {
     pub commit_id: String,
     pub change_id: String,
+    pub unique_change_prefix_length: u32,
     pub parent_ids: Vec<String>,
     pub description: String,
     pub author: String,
     pub email: String,
     pub timestamp_millis: i64,
     pub bookmarks: Vec<String>,
+    pub local_bookmarks: Vec<String>,
     pub is_working_copy: bool,
     pub is_immutable: bool,
     pub has_conflict: bool,
@@ -57,9 +59,16 @@ pub struct BackendPage {
 
 #[derive(Clone, uniffi::Record)]
 pub struct HistoryInfo {
+    pub local_bookmarks: Vec<BackendBookmarkLocation>,
     pub operation_id: String,
     pub workspace_path: String,
     pub backend_version: String,
+}
+
+#[derive(Clone, uniffi::Record)]
+pub struct BackendBookmarkLocation {
+    pub name: String,
+    pub commit_ids: Vec<String>,
 }
 
 enum Request {
@@ -291,6 +300,8 @@ async fn run(
     let mut stream = all.stream();
     let working_copy = repo.view().get_wc_commit_id(workspace.workspace_name());
     let mut bookmarks: HashMap<CommitId, Vec<String>> = HashMap::new();
+    let mut local_names: HashMap<CommitId, Vec<String>> = HashMap::new();
+    let mut local_bookmarks = Vec::new();
     for (name, targets) in repo.view().bookmarks() {
         let local = targets.local_target;
         let unsynced = targets
@@ -308,7 +319,17 @@ async fn run(
                 ""
             }
         );
+        if local.is_present() {
+            local_bookmarks.push(BackendBookmarkLocation {
+                name: name.as_str().into(),
+                commit_ids: local.added_ids().map(ObjectId::hex).collect(),
+            });
+        }
         for id in local.added_ids() {
+            local_names
+                .entry(id.clone())
+                .or_default()
+                .push(name.as_str().into());
             bookmarks.entry(id.clone()).or_default().push(label.clone());
         }
         for (remote_name, remote) in targets.remote_refs {
@@ -337,6 +358,7 @@ async fn run(
         .take()
         .unwrap()
         .send(Ok(HistoryInfo {
+            local_bookmarks,
             operation_id: head.hex(),
             workspace_path: workspace.workspace_root().to_string_lossy().into_owned(),
             backend_version: "jj-lib 0.41.0".into(),
@@ -398,6 +420,11 @@ async fn run(
                 let record = BackendRevision {
                     commit_id: id.hex(),
                     change_id: commit.change_id().reverse_hex(),
+                    unique_change_prefix_length: repo
+                        .shortest_unique_change_id_prefix_len(commit.change_id())
+                        .map_err(read_error)?
+                        as u32,
+                    local_bookmarks: local_names.get(id).cloned().unwrap_or_default(),
                     parent_ids: commit.parent_ids().iter().map(ObjectId::hex).collect(),
                     description: commit.description().to_owned(),
                     author: commit.author().name.clone(),
@@ -459,6 +486,7 @@ mod tests {
         (
             BackendHistory {
                 info: HistoryInfo {
+                    local_bookmarks: vec![],
                     operation_id: String::new(),
                     workspace_path: String::new(),
                     backend_version: String::new(),

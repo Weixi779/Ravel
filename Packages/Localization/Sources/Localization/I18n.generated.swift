@@ -528,6 +528,24 @@ public nonisolated enum I18n {
     }
 
     /**
+     Revision history interaction.
+     
+     Localized string for key “historyBookmarkName” in table “Localizable.xcstrings”.
+     */
+    public static var historyBookmarkName: LocalizedStringResource {
+        LocalizedStringResource("historyBookmarkName", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyBookmarks” in table “Localizable.xcstrings”.
+     */
+    public static var historyBookmarks: LocalizedStringResource {
+        LocalizedStringResource("historyBookmarks", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Dismiss without saving.
      
      Localized string for key “historyCancel” in table “Localizable.xcstrings”.
@@ -573,6 +591,33 @@ public nonisolated enum I18n {
     }
 
     /**
+     Revision history interaction.
+     
+     Localized string for key “historyCopyChangeID” in table “Localizable.xcstrings”.
+     */
+    public static var historyCopyChangeID: LocalizedStringResource {
+        LocalizedStringResource("historyCopyChangeID", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyCopyCommitID” in table “Localizable.xcstrings”.
+     */
+    public static var historyCopyCommitID: LocalizedStringResource {
+        LocalizedStringResource("historyCopyCommitID", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyCreateBookmark” in table “Localizable.xcstrings”.
+     */
+    public static var historyCreateBookmark: LocalizedStringResource {
+        LocalizedStringResource("historyCreateBookmark", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Graph cell accessibility label.
      
      Localized string for key “historyCurrentWorkingCopy” in table “Localizable.xcstrings”.
@@ -588,6 +633,24 @@ public nonisolated enum I18n {
      */
     public static var historyCurrentWorkingCopyHelp: LocalizedStringResource {
         LocalizedStringResource("historyCurrentWorkingCopyHelp", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyDeleteBookmark” in table “Localizable.xcstrings”.
+     */
+    public static var historyDeleteBookmark: LocalizedStringResource {
+        LocalizedStringResource("historyDeleteBookmark", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyDeleteBookmarkSummary” in table “Localizable.xcstrings”.
+     */
+    public static func historyDeleteBookmarkSummary(_ arg1: String, _ arg2: String) -> LocalizedStringResource {
+        LocalizedStringResource("historyDeleteBookmarkSummary", defaultValue: "\(arg1)\(arg2)", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -636,6 +699,24 @@ public nonisolated enum I18n {
     }
 
     /**
+     Revision history interaction.
+     
+     Localized string for key “historyEdit” in table “Localizable.xcstrings”.
+     */
+    public static var historyEdit: LocalizedStringResource {
+        LocalizedStringResource("historyEdit", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyEmptyBadge” in table “Localizable.xcstrings”.
+     */
+    public static var historyEmptyBadge: LocalizedStringResource {
+        LocalizedStringResource("historyEmptyBadge", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Empty state caused by the jj log revset selection.
      
      Localized string for key “historyEmptyDetail” in table “Localizable.xcstrings”.
@@ -651,6 +732,15 @@ public nonisolated enum I18n {
      */
     public static var historyEmptyTitle: LocalizedStringResource {
         LocalizedStringResource("historyEmptyTitle", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyFind” in table “Localizable.xcstrings”.
+     */
+    public static var historyFind: LocalizedStringResource {
+        LocalizedStringResource("historyFind", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -753,12 +843,48 @@ public nonisolated enum I18n {
     }
 
     /**
+     Revision history interaction.
+     
+     Localized string for key “historyMoveBookmark” in table “Localizable.xcstrings”.
+     */
+    public static var historyMoveBookmark: LocalizedStringResource {
+        LocalizedStringResource("historyMoveBookmark", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyMoveBookmarkSummary” in table “Localizable.xcstrings”.
+     */
+    public static func historyMoveBookmarkSummary(_ arg1: String, _ arg2: String, _ arg3: String) -> LocalizedStringResource {
+        LocalizedStringResource("historyMoveBookmarkSummary", defaultValue: "\(arg1)\(arg2)\(arg3)", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Graph cell accessibility label.
      
      Localized string for key “historyMutableCommit” in table “Localizable.xcstrings”.
      */
     public static var historyMutableCommit: LocalizedStringResource {
         LocalizedStringResource("historyMutableCommit", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyNewChild” in table “Localizable.xcstrings”.
+     */
+    public static var historyNewChild: LocalizedStringResource {
+        LocalizedStringResource("historyNewChild", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyOnlyThis” in table “Localizable.xcstrings”.
+     */
+    public static var historyOnlyThis: LocalizedStringResource {
+        LocalizedStringResource("historyOnlyThis", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -800,6 +926,33 @@ public nonisolated enum I18n {
      */
     public static var historyReady: LocalizedStringResource {
         LocalizedStringResource("historyReady", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyRebase” in table “Localizable.xcstrings”.
+     */
+    public static var historyRebase: LocalizedStringResource {
+        LocalizedStringResource("historyRebase", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyRebaseOneSummary” in table “Localizable.xcstrings”.
+     */
+    public static func historyRebaseOneSummary(_ arg1: String, _ arg2: String) -> LocalizedStringResource {
+        LocalizedStringResource("historyRebaseOneSummary", defaultValue: "\(arg1)\(arg2)", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyRebaseStackSummary” in table “Localizable.xcstrings”.
+     */
+    public static func historyRebaseStackSummary(_ arg1: String, _ arg2: Int, _ arg3: String) -> LocalizedStringResource {
+        LocalizedStringResource("historyRebaseStackSummary", defaultValue: "\(arg1)\(arg2, specifier: "%lld")\(arg3)", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -866,6 +1019,15 @@ public nonisolated enum I18n {
     }
 
     /**
+     Revision history interaction.
+     
+     Localized string for key “historyReviewNewSnapshot” in table “Localizable.xcstrings”.
+     */
+    public static var historyReviewNewSnapshot: LocalizedStringResource {
+        LocalizedStringResource("historyReviewNewSnapshot", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Two-line tooltip. Arguments are the full change ID and commit ID, in that order.
      
      Localized string for key “historyRevisionIdentity” in table “Localizable.xcstrings”.
@@ -881,6 +1043,33 @@ public nonisolated enum I18n {
      */
     public static var historySave: LocalizedStringResource {
         LocalizedStringResource("historySave", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyScope” in table “Localizable.xcstrings”.
+     */
+    public static var historyScope: LocalizedStringResource {
+        LocalizedStringResource("historyScope", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     History search field prompt.
+     
+     Localized string for key “historySearchHint” in table “Localizable.xcstrings”.
+     */
+    public static var historySearchHint: LocalizedStringResource {
+        LocalizedStringResource("historySearchHint", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Source revision remains visible throughout target selection.
+     
+     Localized string for key “historySource” in table “Localizable.xcstrings”.
+     */
+    public static var historySource: LocalizedStringResource {
+        LocalizedStringResource("historySource", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
@@ -908,6 +1097,15 @@ public nonisolated enum I18n {
      */
     public static func historyUpdated(_ arg1: String) -> LocalizedStringResource {
         LocalizedStringResource("historyUpdated", defaultValue: "\(arg1)", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Revision history interaction.
+     
+     Localized string for key “historyWithDescendants” in table “Localizable.xcstrings”.
+     */
+    public static var historyWithDescendants: LocalizedStringResource {
+        LocalizedStringResource("historyWithDescendants", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**

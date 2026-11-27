@@ -7,6 +7,9 @@
 //
 
 mod describe;
+mod graph;
+mod target;
+pub use graph::BackendGraphCommand;
 mod operations;
 mod preparation;
 
@@ -93,6 +96,7 @@ pub struct BackendWriteReceipt {
 
 enum Command {
     Describe(BackendWriteTarget, String),
+    Graph(BackendWriteTarget, BackendGraphCommand),
     Snapshot(String),
     Undo { head: String, operation: String },
 }
@@ -101,13 +105,14 @@ impl Command {
     fn name(&self) -> &'static str {
         match self {
             Self::Describe(..) => "describe",
+            Self::Graph(_, action) => action.name(),
             Self::Snapshot(_) => "status",
             Self::Undo { .. } => "undo",
         }
     }
     fn origin(&self) -> &str {
         match self {
-            Self::Describe(t, _) => &t.operation_id,
+            Self::Describe(t, _) | Self::Graph(t, _) => &t.operation_id,
             Self::Snapshot(id) => id,
             Self::Undo { head, .. } => head,
         }
@@ -151,6 +156,17 @@ impl BackendRepository {
             cancellation,
         )
         .await
+    }
+
+    pub async fn graph_command(
+        &self,
+        request_id: String,
+        source: BackendWriteTarget,
+        command: BackendGraphCommand,
+        cancellation: Arc<BackendCancellation>,
+    ) -> Result<BackendWriteReceipt, BackendError> {
+        self.submit(request_id, Command::Graph(source, command), cancellation)
+            .await
     }
 
     pub async fn snapshot(
@@ -473,6 +489,9 @@ async fn mutate(
     tx.set_workspace_name(ctx.name);
     let change = match command {
         Command::Snapshot(_) => None,
+        Command::Graph(source, action) => {
+            graph::apply(ctx, repo, &mut tx, source, action, receipt).await?
+        }
         Command::Describe(target, message) => {
             describe::rewrite(ctx, repo, &mut tx, target, message, receipt).await?
         }

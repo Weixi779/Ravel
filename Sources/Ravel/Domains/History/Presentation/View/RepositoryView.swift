@@ -46,7 +46,7 @@ struct RepositoryView: View {
                     Button { session.selectWorkingCopy() } label: {
                         Label(I18n.historyWorkingCopy, systemImage: "scope")
                     }
-                    .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
+                    .disabled(session.log == nil)
                     .help(I18n.historyWorkingCopyHelp)
                     Button { session.refresh() } label: {
                         Label(I18n.commonRefresh, systemImage: "arrow.clockwise")
@@ -61,6 +61,26 @@ struct RepositoryView: View {
                 session.describeTarget = nil
             } save: { draft in
                 Task { await session.saveDescription(draft, for: target) }
+            }
+        }
+        .sheet(item: $session.commandRequest) { request in
+            if let log = session.log {
+                HistoryCommandSheet(
+                    request: request,
+                    log: log,
+                    isLoading: session.isLoadingMore,
+                    loadRemaining: { await session.loadRemainingPages(in: log.snapshotID) },
+                    cancel: { session.commandRequest = nil },
+                    locate: { id in
+                        session.commandRequest = nil
+                        session.selectCommit(id)
+                    },
+                    submit: { row, command in
+                        Task { await session.run(command, on: row) }
+                    },
+                    pageError: session.pageErrorMessage,
+                    retry: { session.loadMore(retry: true) },
+                )
             }
         }
         .alert(I18n.historyCommandResult, isPresented: Binding(
@@ -80,6 +100,49 @@ struct RepositoryView: View {
                     .padding(.vertical, 3)
                     .listRowBackground(Color.accentColor.opacity(0.12))
             }
+            if let log = session.log {
+                Button(I18n.historyWorkingCopy, systemImage: "scope") {
+                    session.selectWorkingCopy()
+                }
+
+                Button(I18n.historyFind, systemImage: "magnifyingglass") {
+                    session.commandRequest = .find
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+
+                if !log.localBookmarks.isEmpty {
+                    Section(I18n.historyBookmarks) {
+                        ForEach(log.localBookmarks) { bookmark in
+                            ForEach(bookmark.commitIDs, id: \.self) { id in
+                                Button {
+                                    session.selectCommit(id)
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "bookmark")
+
+                                        Text(verbatim: bookmark.name)
+
+                                        if bookmark.commitIDs.count > 1 {
+                                            Text(verbatim: String(id.prefix(8)))
+                                                .font(.caption.monospaced())
+                                        }
+                                    }
+                                }
+                                .contextMenu {
+                                    Button(I18n.historyMoveBookmark) {
+                                        session.openBookmark(bookmark.name, commitID: id, move: true)
+                                    }
+
+                                    Button(I18n.historyDeleteBookmark) {
+                                        session.openBookmark(bookmark.name, commitID: id, move: false)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if !session.recentPaths.isEmpty {
                 Section(I18n.repositoryRepositories) {
                     ForEach(session.recentPaths, id: \.self) { path in
@@ -165,8 +228,7 @@ struct RepositoryView: View {
                             selection: $session.selectedRevisionID,
                             graphStyle: session.graphStyle,
                             menuForRevision: { revision in
-                                let target = HistoryRevision(repositoryURL: log.repositoryURL, operationID: log.operationID, revision: revision)
-                                return RevisionActionMenu.describe { session.beginDescribe(target) }
+                                RevisionActionMenu.menu(for: log.target(for: revision), session: session)
                             },
                             loadMore: { session.loadMore() },
                         )

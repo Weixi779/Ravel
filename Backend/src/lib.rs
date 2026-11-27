@@ -11,8 +11,8 @@ mod history;
 mod worker;
 mod writer;
 pub use writer::{
-    BackendOperationHistory, BackendWriteReceipt, BackendWriteTarget, SyncStatus, WriteDisposition,
-    WritePhase,
+    BackendGraphCommand, BackendOperationHistory, BackendWriteReceipt, BackendWriteTarget,
+    SyncStatus, WriteDisposition, WritePhase,
 };
 
 pub use diff::{
@@ -20,7 +20,9 @@ pub use diff::{
     BackendFileStatistics, BackendFileStatus,
 };
 use futures::FutureExt;
-pub use history::{BackendHistory, BackendPage, BackendRevision, HistoryInfo};
+pub use history::{
+    BackendBookmarkLocation, BackendHistory, BackendPage, BackendRevision, HistoryInfo,
+};
 use jj_cli::{
     config::{self, ConfigEnv},
     ui::Ui,

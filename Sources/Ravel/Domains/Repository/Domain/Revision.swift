@@ -11,6 +11,8 @@ import Foundation
 nonisolated struct Revision: Identifiable, Hashable, Sendable {
     let commitID: String
     let changeID: String
+    var uniqueChangePrefixLength: Int = 8
+    var localBookmarkNames: [String] = []
     let parentIDs: [String]
     let description: String
     let author: String

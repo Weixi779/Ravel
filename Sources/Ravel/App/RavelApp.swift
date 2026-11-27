@@ -69,7 +69,7 @@ struct RavelApp: App {
                     .disabled(session.repositoryURL == nil || session.isLoading)
                 Button(I18n.historyGoToWorkingCopy, systemImage: "scope") { session.selectWorkingCopy() }
                     .keyboardShortcut("0")
-                    .disabled(session.log?.revisions.contains(where: \.isWorkingCopy) != true)
+                    .disabled(session.log == nil)
             }
         }
 

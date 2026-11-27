@@ -880,6 +880,8 @@ public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
     func describe(requestId: String, target: BackendWriteTarget, description: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
     
+    func graphCommand(requestId: String, source: BackendWriteTarget, command: BackendGraphCommand, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
     func operationHistory(limit: UInt32, cancellation: BackendCancellation) async throws  -> BackendOperationHistory
     
     func snapshot(requestId: String, operationId: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
@@ -1066,6 +1068,22 @@ open func describe(requestId: String, target: BackendWriteTarget, description: S
         )
 }
     
+open func graphCommand(requestId: String, source: BackendWriteTarget, command: BackendGraphCommand, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_graph_command(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterTypeBackendGraphCommand_lower(command),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
 open func operationHistory(limit: UInt32, cancellation: BackendCancellation)async throws  -> BackendOperationHistory  {
     return
         try  await uniffiRustCallAsync(
@@ -1169,6 +1187,60 @@ public func FfiConverterTypeBackendRepository_lower(_ value: BackendRepository) 
 }
 
 
+
+
+public struct BackendBookmarkLocation: Equatable, Hashable {
+    public var name: String
+    public var commitIds: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, commitIds: [String]) {
+        self.name = name
+        self.commitIds = commitIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendBookmarkLocation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendBookmarkLocation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendBookmarkLocation {
+        return
+            try BackendBookmarkLocation(
+                name: FfiConverterString.read(from: &buf), 
+                commitIds: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendBookmarkLocation, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterSequenceString.write(value.commitIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendBookmarkLocation_lift(_ buf: RustBuffer) throws -> BackendBookmarkLocation {
+    return try FfiConverterTypeBackendBookmarkLocation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendBookmarkLocation_lower(_ value: BackendBookmarkLocation) -> RustBuffer {
+    return FfiConverterTypeBackendBookmarkLocation.lower(value)
+}
 
 
 public struct BackendChangedFile: Equatable, Hashable {
@@ -1602,12 +1674,14 @@ public func FfiConverterTypeBackendPage_lower(_ value: BackendPage) -> RustBuffe
 public struct BackendRevision: Equatable, Hashable {
     public var commitId: String
     public var changeId: String
+    public var uniqueChangePrefixLength: UInt32
     public var parentIds: [String]
     public var description: String
     public var author: String
     public var email: String
     public var timestampMillis: Int64
     public var bookmarks: [String]
+    public var localBookmarks: [String]
     public var isWorkingCopy: Bool
     public var isImmutable: Bool
     public var hasConflict: Bool
@@ -1616,15 +1690,17 @@ public struct BackendRevision: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(commitId: String, changeId: String, parentIds: [String], description: String, author: String, email: String, timestampMillis: Int64, bookmarks: [String], isWorkingCopy: Bool, isImmutable: Bool, hasConflict: Bool, isDivergent: Bool, isEmpty: Bool) {
+    public init(commitId: String, changeId: String, uniqueChangePrefixLength: UInt32, parentIds: [String], description: String, author: String, email: String, timestampMillis: Int64, bookmarks: [String], localBookmarks: [String], isWorkingCopy: Bool, isImmutable: Bool, hasConflict: Bool, isDivergent: Bool, isEmpty: Bool) {
         self.commitId = commitId
         self.changeId = changeId
+        self.uniqueChangePrefixLength = uniqueChangePrefixLength
         self.parentIds = parentIds
         self.description = description
         self.author = author
         self.email = email
         self.timestampMillis = timestampMillis
         self.bookmarks = bookmarks
+        self.localBookmarks = localBookmarks
         self.isWorkingCopy = isWorkingCopy
         self.isImmutable = isImmutable
         self.hasConflict = hasConflict
@@ -1650,12 +1726,14 @@ public struct FfiConverterTypeBackendRevision: FfiConverterRustBuffer {
             try BackendRevision(
                 commitId: FfiConverterString.read(from: &buf), 
                 changeId: FfiConverterString.read(from: &buf), 
+                uniqueChangePrefixLength: FfiConverterUInt32.read(from: &buf), 
                 parentIds: FfiConverterSequenceString.read(from: &buf), 
                 description: FfiConverterString.read(from: &buf), 
                 author: FfiConverterString.read(from: &buf), 
                 email: FfiConverterString.read(from: &buf), 
                 timestampMillis: FfiConverterInt64.read(from: &buf), 
                 bookmarks: FfiConverterSequenceString.read(from: &buf), 
+                localBookmarks: FfiConverterSequenceString.read(from: &buf), 
                 isWorkingCopy: FfiConverterBool.read(from: &buf), 
                 isImmutable: FfiConverterBool.read(from: &buf), 
                 hasConflict: FfiConverterBool.read(from: &buf), 
@@ -1667,12 +1745,14 @@ public struct FfiConverterTypeBackendRevision: FfiConverterRustBuffer {
     public static func write(_ value: BackendRevision, into buf: inout [UInt8]) {
         FfiConverterString.write(value.commitId, into: &buf)
         FfiConverterString.write(value.changeId, into: &buf)
+        FfiConverterUInt32.write(value.uniqueChangePrefixLength, into: &buf)
         FfiConverterSequenceString.write(value.parentIds, into: &buf)
         FfiConverterString.write(value.description, into: &buf)
         FfiConverterString.write(value.author, into: &buf)
         FfiConverterString.write(value.email, into: &buf)
         FfiConverterInt64.write(value.timestampMillis, into: &buf)
         FfiConverterSequenceString.write(value.bookmarks, into: &buf)
+        FfiConverterSequenceString.write(value.localBookmarks, into: &buf)
         FfiConverterBool.write(value.isWorkingCopy, into: &buf)
         FfiConverterBool.write(value.isImmutable, into: &buf)
         FfiConverterBool.write(value.hasConflict, into: &buf)
@@ -1858,13 +1938,15 @@ public func FfiConverterTypeBackendWriteTarget_lower(_ value: BackendWriteTarget
 
 
 public struct HistoryInfo: Equatable, Hashable {
+    public var localBookmarks: [BackendBookmarkLocation]
     public var operationId: String
     public var workspacePath: String
     public var backendVersion: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(operationId: String, workspacePath: String, backendVersion: String) {
+    public init(localBookmarks: [BackendBookmarkLocation], operationId: String, workspacePath: String, backendVersion: String) {
+        self.localBookmarks = localBookmarks
         self.operationId = operationId
         self.workspacePath = workspacePath
         self.backendVersion = backendVersion
@@ -1886,6 +1968,7 @@ public struct FfiConverterTypeHistoryInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HistoryInfo {
         return
             try HistoryInfo(
+                localBookmarks: FfiConverterSequenceTypeBackendBookmarkLocation.read(from: &buf), 
                 operationId: FfiConverterString.read(from: &buf), 
                 workspacePath: FfiConverterString.read(from: &buf), 
                 backendVersion: FfiConverterString.read(from: &buf)
@@ -1893,6 +1976,7 @@ public struct FfiConverterTypeHistoryInfo: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: HistoryInfo, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeBackendBookmarkLocation.write(value.localBookmarks, into: &buf)
         FfiConverterString.write(value.operationId, into: &buf)
         FfiConverterString.write(value.workspacePath, into: &buf)
         FfiConverterString.write(value.backendVersion, into: &buf)
@@ -2249,6 +2333,114 @@ public func FfiConverterTypeBackendFileStatus_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeBackendFileStatus_lower(_ value: BackendFileStatus) -> RustBuffer {
     return FfiConverterTypeBackendFileStatus.lower(value)
+}
+
+
+
+
+public enum BackendGraphCommand: Equatable, Hashable {
+    
+    case newChild
+    case edit
+    case rebase(destination: BackendWriteTarget, descendants: Bool
+    )
+    case createBookmark(name: String
+    )
+    case moveBookmark(name: String, destination: BackendWriteTarget
+    )
+    case deleteBookmark(name: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BackendGraphCommand: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendGraphCommand: FfiConverterRustBuffer {
+    typealias SwiftType = BackendGraphCommand
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendGraphCommand {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .newChild
+        
+        case 2: return .edit
+        
+        case 3: return .rebase(destination: try FfiConverterTypeBackendWriteTarget.read(from: &buf), descendants: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 4: return .createBookmark(name: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .moveBookmark(name: try FfiConverterString.read(from: &buf), destination: try FfiConverterTypeBackendWriteTarget.read(from: &buf)
+        )
+        
+        case 6: return .deleteBookmark(name: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BackendGraphCommand, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .newChild:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .edit:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .rebase(destination,descendants):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeBackendWriteTarget.write(destination, into: &buf)
+            FfiConverterBool.write(descendants, into: &buf)
+            
+        
+        case let .createBookmark(name):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(name, into: &buf)
+            
+        
+        case let .moveBookmark(name,destination):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(name, into: &buf)
+            FfiConverterTypeBackendWriteTarget.write(destination, into: &buf)
+            
+        
+        case let .deleteBookmark(name):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(name, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendGraphCommand_lift(_ buf: RustBuffer) throws -> BackendGraphCommand {
+    return try FfiConverterTypeBackendGraphCommand.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendGraphCommand_lower(_ value: BackendGraphCommand) -> RustBuffer {
+    return FfiConverterTypeBackendGraphCommand.lower(value)
 }
 
 
@@ -2706,6 +2898,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBackendBookmarkLocation: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendBookmarkLocation]
+
+    public static func write(_ value: [BackendBookmarkLocation], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendBookmarkLocation.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendBookmarkLocation] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendBookmarkLocation]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendBookmarkLocation.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeBackendChangedFile: FfiConverterRustBuffer {
     typealias SwiftType = [BackendChangedFile]
 
@@ -2913,6 +3130,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_describe() != 55601) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_graph_command() != 18284) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_operation_history() != 31826) {

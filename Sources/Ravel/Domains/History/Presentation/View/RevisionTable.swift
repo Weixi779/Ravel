@@ -219,7 +219,11 @@ struct RevisionTable: NSViewRepresentable {
             cell.identifier = identifier
             switch identifier.rawValue {
             case "change":
-                cell.label.stringValue = revision.shortChangeID
+                let displayID = String(revision.changeID.prefix(max(8, revision.uniqueChangePrefixLength)))
+                let id = NSMutableAttributedString(string: displayID)
+                let prefixLength = min(displayID.count, revision.uniqueChangePrefixLength)
+                id.addAttributes([.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .bold), .foregroundColor: NSColor.labelColor], range: NSRange(location: 0, length: prefixLength))
+                cell.label.attributedStringValue = id
                 cell.label.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
                 cell.toolTip = String(localized: I18n.historyRevisionIdentity(revision.changeID, revision.commitID))
             case "author":

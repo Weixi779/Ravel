@@ -66,6 +66,10 @@ actor RepositoryWorkspace {
         try await current(at: target.workspaceURL).describe(target, title: title, body: body)
     }
 
+    func apply(_ command: RevisionGraphCommand, to source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt {
+        try await current(at: source.workspaceURL).apply(command, to: source)
+    }
+
     func snapshot(at workspaceURL: URL, operationID: String) async throws -> RepositoryWriteReceipt {
         try await current(at: workspaceURL).snapshot(operationID: operationID)
     }

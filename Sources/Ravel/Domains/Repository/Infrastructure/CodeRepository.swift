@@ -19,6 +19,7 @@ nonisolated protocol CodeRepositoryReader: Sendable {
 }
 
 nonisolated struct HistoryIdentity: Sendable {
+    var localBookmarks: [LocalBookmark] = []
     let queryID: UUID
     let operationID: String
     let repositoryURL: URL
@@ -43,6 +44,7 @@ nonisolated protocol HistoryQuery: Sendable {
 
 nonisolated protocol CodeRepositoryWriter: Sendable {
     func describe(_ target: RevisionWriteTarget, title: String, body: String) async throws -> RepositoryWriteReceipt
+    func apply(_ command: RevisionGraphCommand, to source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt
     func snapshot(operationID: String) async throws -> RepositoryWriteReceipt
     func undo(_ history: RepositoryOperationHistory) async throws -> RepositoryWriteReceipt
 }
@@ -96,6 +98,27 @@ final nonisolated class CodeRepository: CodeRepositoryReader, CodeRepositoryWrit
         let message = description
         return try await write { id, token in
             try await self.backend.describe(requestId: id, target: target, description: message, cancellation: token)
+        }
+    }
+
+    @concurrent
+    func apply(_ command: RevisionGraphCommand, to source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt {
+        guard source.workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path == workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path else { throw BackendError.Closed }
+        func target(_ value: RevisionWriteTarget) throws -> BackendWriteTarget {
+            guard value.workspaceURL == source.workspaceURL else { throw BackendError.Closed }
+            return BackendWriteTarget(operationId: value.operationID, commitId: value.commitID, changeId: value.changeID)
+        }
+        let native: BackendGraphCommand = switch command {
+        case .newChild: .newChild
+        case .edit: .edit
+        case let .rebase(destination, descendants): try .rebase(destination: target(destination), descendants: descendants)
+        case let .createBookmark(name): .createBookmark(name: name)
+        case let .moveBookmark(name, destination): try .moveBookmark(name: name, destination: target(destination))
+        case let .deleteBookmark(name): .deleteBookmark(name: name)
+        }
+        let origin = try target(source)
+        return try await write { id, token in
+            try await self.backend.graphCommand(requestId: id, source: origin, command: native, cancellation: token)
         }
     }
 
@@ -194,6 +217,7 @@ private final nonisolated class RustHistoryQuery: HistoryQuery {
         self.backend = backend
         let info = backend.info()
         identity = HistoryIdentity(
+            localBookmarks: info.localBookmarks.map { LocalBookmark(name: $0.name, commitIDs: $0.commitIds) },
             queryID: UUID(),
             operationID: info.operationId,
             repositoryURL: URL(fileURLWithPath: info.workspacePath, isDirectory: true),
@@ -226,6 +250,8 @@ private nonisolated extension Revision {
         self.init(
             commitID: value.commitId,
             changeID: value.changeId,
+            uniqueChangePrefixLength: Int(value.uniqueChangePrefixLength),
+            localBookmarkNames: value.localBookmarks,
             parentIDs: value.parentIds,
             description: value.description,
             author: value.author,

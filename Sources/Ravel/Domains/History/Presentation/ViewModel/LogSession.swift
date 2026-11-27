@@ -31,6 +31,7 @@ final class LogSession {
     private(set) var lastUpdated: Date?
     var selectedRevisionID: String?
     var describeTarget: HistoryRevision?
+    var commandRequest: HistoryCommandRequest?
     var commandNotice: String?
     private(set) var isSubmitting = false
 
@@ -57,6 +58,7 @@ final class LogSession {
     @ObservationIgnored private let loader: Loader
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var pageTask: Task<Void, Never>?
+    @ObservationIgnored private var navigationTask: Task<Void, Never>?
     @ObservationIgnored private var query: (any HistoryQuery)?
     @ObservationIgnored private var cursor: HistoryCursor?
     @ObservationIgnored private var requestID = 0
@@ -75,6 +77,7 @@ final class LogSession {
     isolated deinit {
         loadTask?.cancel()
         pageTask?.cancel()
+        navigationTask?.cancel()
         if let query { Task { await query.close() } }
     }
 
@@ -107,6 +110,7 @@ final class LogSession {
         let normalized = url.standardizedFileURL
         if repositoryURL != normalized {
             describeTarget = nil
+            commandRequest = nil
             commandNotice = nil
             if let query { Task { await query.close() } }
             query = nil
@@ -128,6 +132,7 @@ final class LogSession {
     func refresh(selecting commitID: String? = nil) {
         guard let directory = repositoryURL else { return }
         loadTask?.cancel()
+        navigationTask?.cancel()
         pageTask?.cancel()
         pageTask = nil
         isLoadingMore = false
@@ -237,6 +242,7 @@ final class LogSession {
     private static func makeLog(identity: HistoryIdentity, revisions: [Revision], hasMore: Bool) async throws -> RepositoryLog {
         try RepositoryLog(
             repositoryURL: identity.repositoryURL,
+            localBookmarks: identity.localBookmarks,
             operationID: identity.operationID,
             revisions: revisions,
             graph: LogGraph(revisions: revisions),
@@ -251,7 +257,53 @@ final class LogSession {
     }
 
     func selectWorkingCopy() {
-        selectedRevisionID = log?.revisions.first(where: \.isWorkingCopy)?.id
+        locate { $0.isWorkingCopy }
+    }
+
+    func selectCommit(_ id: String) {
+        locate { $0.id == id }
+    }
+
+    func openBookmark(_ name: String, commitID: String, move: Bool) {
+        guard let snapshot = log?.snapshotID else { return }
+        navigationTask?.cancel()
+        navigationTask = Task {
+            repeat {
+                guard let log, !Task.isCancelled, log.snapshotID == snapshot else { return }
+                if let revision = log.revisions.first(where: { $0.id == commitID }) {
+                    let row = log.target(for: revision)
+                    commandRequest = move ? .moveBookmark(row, name) : .deleteBookmark(row, name)
+                    return
+                }
+            } while await loadNextPage(in: snapshot)
+        }
+    }
+
+    private func locate(_ matches: @escaping (Revision) -> Bool) {
+        navigationTask?.cancel()
+        guard let log else { return }
+        if let revision = log.revisions.first(where: matches) {
+            selectedRevisionID = revision.id
+            return
+        }
+        let snapshotID = log.snapshotID
+        navigationTask = Task { [weak self] in
+            while let self, await loadNextPage(in: snapshotID) {
+                if let revision = self.log?.revisions.first(where: matches) {
+                    selectedRevisionID = revision.id
+                    return
+                }
+            }
+        }
+    }
+
+    func loadNextPage(in snapshotID: UUID) async -> Bool {
+        guard !Task.isCancelled, log?.snapshotID == snapshotID, log?.hasMore == true,
+              !isLoading, pageErrorMessage == nil else { return false }
+        loadMore()
+        guard let pageTask else { return false }
+        await pageTask.value
+        return !Task.isCancelled && log?.snapshotID == snapshotID && pageErrorMessage == nil
     }
 
     func forget(_ path: String) {
@@ -281,6 +333,28 @@ final class LogSession {
         let feedback = await submit(target, draft)
         isSubmitting = false
         guard repositoryURL == target.repositoryURL else { return }
+        apply(feedback)
+    }
+
+    func run(_ command: RevisionGraphCommand, on target: HistoryRevision) async {
+        guard repositoryURL == target.repositoryURL, !isSubmitting else { return }
+        commandRequest = nil
+        isSubmitting = true
+        defer { isSubmitting = false }
+        do {
+            let receipt = try await workspace.apply(command, to: target.writeTarget)
+            guard repositoryURL == target.repositoryURL else { return }
+            apply(HistoryWriteFeedback(receipt))
+        } catch {
+            if repositoryURL == target.repositoryURL { commandNotice = error.localizedDescription }
+        }
+    }
+
+    func loadRemainingPages(in snapshotID: UUID) async {
+        while await loadNextPage(in: snapshotID) {}
+    }
+
+    private func apply(_ feedback: HistoryWriteFeedback) {
         commandNotice = feedback.message
         if feedback.needsRefresh {
             refresh(selecting: feedback.commitID)
