@@ -141,6 +141,20 @@ pub(super) async fn apply(
                 .apply(tx.repo_mut(), &RebaseOptions::default())
                 .await
                 .map_err(read_error)?;
+            let immutable =
+                crate::history::immutable_revisions_at(ctx.path, ctx.name, ctx.settings, repo)?;
+            let is_immutable = immutable.containing_fn();
+            for id in stats.rebased_commits.keys() {
+                if is_immutable(id).map_err(read_error)? {
+                    return Err(receipt.reject(
+                        WriteDisposition::Immutable,
+                        &format!(
+                            "Rebase would rewrite {} which matches immutable().",
+                            id.hex()
+                        ),
+                    ));
+                }
+            }
             let result = match stats.rebased_commits.remove(source.id()) {
                 Some(RebasedCommit::Rewritten(commit)) => commit,
                 None => source.clone(),

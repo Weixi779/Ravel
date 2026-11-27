@@ -10,10 +10,25 @@ import AppKit
 import Localization
 import SwiftUI
 
+#if DEBUG
+    #Preview {
+        @Previewable @State var selected: String?
+        let revisions = [HistoryPreviewData.source]
+        if let graph = try? LogGraph(revisions: revisions) {
+            RevisionTable(
+                log: RepositoryLog(repositoryURL: URL(filePath: "/preview"), operationID: "preview", revisions: revisions, graph: graph, hasMore: false, backendVersion: "Preview"),
+                selection: $selected,
+            )
+            .frame(width: 720, height: 200)
+        }
+    }
+#endif
+
 struct RevisionTable: NSViewRepresentable {
     let log: RepositoryLog
     @Binding var selection: String?
     var graphStyle: HistoryGraphStyle = .rounded
+    var revealRequest = 0
     var menuForRevision: ((Revision) -> NSMenu?)?
     var loadMore: () -> Void = {}
 
@@ -67,7 +82,7 @@ struct RevisionTable: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.menuForRevision = menuForRevision
-        context.coordinator.update(log: log, selection: $selection, graphStyle: graphStyle, loadMore: loadMore)
+        context.coordinator.update(log: log, selection: $selection, graphStyle: graphStyle, revealRequest: revealRequest, loadMore: loadMore)
         (scrollView as? RevisionScrollView)?.fitColumns()
     }
 
@@ -94,6 +109,7 @@ struct RevisionTable: NSViewRepresentable {
         private var isApplying = false
         private var snapshotID: UUID?
         private var selectedID: String?
+        private var revealRequest = 0
         private var focusedPath: Int?
         private var graphStyle: HistoryGraphStyle = .rounded
         private var loadMore: (() -> Void)?
@@ -110,11 +126,13 @@ struct RevisionTable: NSViewRepresentable {
             self.selection = selection
         }
 
-        func update(log: RepositoryLog, selection: Binding<String?>, graphStyle: HistoryGraphStyle = .rounded, loadMore: @escaping () -> Void) {
+        func update(log: RepositoryLog, selection: Binding<String?>, graphStyle: HistoryGraphStyle = .rounded, revealRequest: Int = 0, loadMore: @escaping () -> Void) {
             guard let table else { return }
             self.selection = selection
             self.loadMore = loadMore
             let changedSelection = selectedID != selection.wrappedValue
+            let requestedReveal = self.revealRequest != revealRequest
+            self.revealRequest = revealRequest
             selectedID = selection.wrappedValue
             self.graphStyle = graphStyle
             focusedPath = log.revisions.firstIndex(where: { $0.id == selectedID }).map { log.graph.rows[$0].color }
@@ -155,7 +173,7 @@ struct RevisionTable: NSViewRepresentable {
                 if table.selectedRow != index {
                     table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
                 }
-                if changedRepository || changedSelection { table.scrollRowToVisible(index) }
+                if changedRepository || changedSelection || requestedReveal { table.scrollRowToVisible(index) }
             } else {
                 table.deselectAll(nil)
             }
@@ -219,12 +237,11 @@ struct RevisionTable: NSViewRepresentable {
             cell.identifier = identifier
             switch identifier.rawValue {
             case "change":
-                let displayID = String(revision.changeID.prefix(max(8, revision.uniqueChangePrefixLength)))
-                let id = NSMutableAttributedString(string: displayID)
+                let displayID = revision.shortChangeID
+                let id = NSMutableAttributedString(string: displayID, attributes: [.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)])
                 let prefixLength = min(displayID.count, revision.uniqueChangePrefixLength)
                 id.addAttributes([.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .bold), .foregroundColor: NSColor.labelColor], range: NSRange(location: 0, length: prefixLength))
                 cell.label.attributedStringValue = id
-                cell.label.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
                 cell.toolTip = String(localized: I18n.historyRevisionIdentity(revision.changeID, revision.commitID))
             case "author":
                 cell.label.stringValue = revision.author

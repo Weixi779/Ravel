@@ -13,8 +13,6 @@ struct RepositoryRecoveryActions: ViewModifier {
     let workspace: RepositoryWorkspace
     let session: LogSession
     @State private var showsOperations = false
-    @State private var snapshotInProgress = false
-    @State private var message: String?
 
     func body(content: Content) -> some View {
         content
@@ -22,9 +20,9 @@ struct RepositoryRecoveryActions: ViewModifier {
                 ToolbarItem {
                     Menu {
                         Button(I18n.repositorySnapshot) {
-                            snapshot()
+                            Task { await session.snapshotDiskChanges() }
                         }
-                        .disabled(snapshotInProgress)
+                        .disabled(session.isSnapshotting)
 
                         Button(I18n.repositoryOperations) {
                             showsOperations = true
@@ -48,33 +46,9 @@ struct RepositoryRecoveryActions: ViewModifier {
                     .id(url)
                 }
             }
-            .alert(I18n.repositorySnapshot, isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
-                Button(I18n.repositoryDismiss) {
-                    message = nil
-                }
-            } message: {
-                Text(verbatim: message ?? "")
-            }
             .onChange(of: session.repositoryURL) {
                 showsOperations = false
-                message = nil
             }
-    }
-
-    private func snapshot() {
-        guard let url = session.log?.repositoryURL, let id = session.displayedOperationID else { return }
-        snapshotInProgress = true
-        Task {
-            defer { snapshotInProgress = false }
-            do {
-                let receipt = try await workspace.snapshot(at: url, operationID: id)
-                guard session.log?.repositoryURL == url else { return }
-                refreshAfterWrite(receipt, at: url)
-                message = receipt.feedback
-            } catch {
-                if session.log?.repositoryURL == url { message = error.localizedDescription }
-            }
-        }
     }
 
     private func refreshAfterWrite(_ receipt: RepositoryWriteReceipt, at url: URL) {

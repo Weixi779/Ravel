@@ -19,6 +19,7 @@ nonisolated protocol CodeRepositoryReader: Sendable {
 }
 
 nonisolated struct HistoryIdentity: Sendable {
+    var backingRepositoryURL: URL?
     var localBookmarks: [LocalBookmark] = []
     let queryID: UUID
     let operationID: String
@@ -85,7 +86,7 @@ final nonisolated class CodeRepository: CodeRepositoryReader, CodeRepositoryWrit
                 await query.close()
                 throw CancellationError()
             }
-            return RustHistoryQuery(backend: query)
+            return RustHistoryQuery(backend: query, backingRepositoryURL: repositoryURL)
         } onCancel: { cancellation.cancel() }
     }
 
@@ -130,6 +131,22 @@ final nonisolated class CodeRepository: CodeRepositoryReader, CodeRepositoryWrit
     }
 
     var isWriting: Bool { backend.isWriting() }
+
+    @concurrent
+    func operationHeads() async throws -> [String] {
+        let token = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try await backendRead { try await backend.operationHeads(cancellation: token) }
+        } onCancel: { token.cancel() }
+    }
+
+    @concurrent
+    func hasDiskChanges(paths: [String]) async throws -> Bool {
+        let token = BackendCancellation()
+        return try await withTaskCancellationHandler {
+            try await backendRead { try await backend.hasDiskChanges(changedPaths: paths, cancellation: token) }
+        } onCancel: { token.cancel() }
+    }
 
     @concurrent
     func snapshotIfIdle(operationID: String) async throws -> RepositoryWriteReceipt? {
@@ -257,10 +274,11 @@ private final nonisolated class RustHistoryQuery: HistoryQuery {
     let identity: HistoryIdentity
     private let backend: BackendHistory
 
-    init(backend: BackendHistory) {
+    init(backend: BackendHistory, backingRepositoryURL: URL) {
         self.backend = backend
         let info = backend.info()
         identity = HistoryIdentity(
+            backingRepositoryURL: backingRepositoryURL,
             localBookmarks: info.localBookmarks.map { LocalBookmark(name: $0.name, commitIDs: $0.commitIds) },
             queryID: UUID(),
             operationID: info.operationId,

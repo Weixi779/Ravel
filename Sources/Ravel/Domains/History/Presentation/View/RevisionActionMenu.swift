@@ -15,8 +15,8 @@ enum RevisionActionMenu {
         let revision = row.revision
         let menu = describe { session.beginDescribe(row) }
         func rewrite(_ action: () -> Void) {
-            if revision.isImmutable {
-                session.commandNotice = String(localized: I18n.historyImmutableReason(revision.shortChangeID))
+            if let reason = revision.rewriteRestriction {
+                session.commandNotice = String(localized: reason)
             } else {
                 action()
             }

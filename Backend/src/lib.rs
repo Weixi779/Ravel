@@ -11,6 +11,7 @@ mod conflict;
 pub use changes::{BackendFileSelection, BackendHunk};
 mod diff;
 mod history;
+mod window_status;
 mod worker;
 mod writer;
 pub use writer::{

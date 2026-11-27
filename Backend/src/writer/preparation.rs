@@ -18,7 +18,10 @@ use jj_lib::{
 };
 use std::path::PathBuf;
 
-fn ignores(path: &Path, repo: &ReadonlyRepo) -> Result<Arc<GitIgnoreFile>, BackendError> {
+pub(crate) fn ignores(
+    path: &Path,
+    repo: &ReadonlyRepo,
+) -> Result<Arc<GitIgnoreFile>, BackendError> {
     let mut ignores = GitIgnoreFile::empty();
     if let Ok(backend) = git::get_git_backend(repo.store()) {
         let git_repo = backend.git_repo();
@@ -47,6 +50,36 @@ fn ignores(path: &Path, repo: &ReadonlyRepo) -> Result<Arc<GitIgnoreFile>, Backe
             .map_err(read_error)?;
     }
     Ok(ignores)
+}
+
+pub(crate) fn tracking_policy(
+    path: &Path,
+    settings: &jj_lib::settings::UserSettings,
+) -> Result<(Box<dyn jj_lib::matchers::Matcher>, u64), BackendError> {
+    let aliases: FilesetAliasesMap = load_aliases_map(
+        &Ui::null(),
+        settings.config(),
+        &"fileset-aliases".parse().unwrap(),
+    )
+    .map_err(|e| read_error(e.error))?;
+    let paths = RepoPathUiConverter::Fs {
+        base: path.into(),
+        cwd: path.into(),
+    };
+    let ctx = FilesetParseContext {
+        aliases_map: &aliases,
+        path_converter: &paths,
+    };
+    let pattern = settings
+        .get_string("snapshot.auto-track")
+        .map_err(read_error)?;
+    let matcher = fileset::parse(&mut FilesetDiagnostics::new(), &pattern, &ctx)
+        .map_err(read_error)?
+        .to_matcher();
+    let HumanByteSize(limit) = settings
+        .get_value_with("snapshot.max-new-file-size", TryInto::try_into)
+        .map_err(read_error)?;
+    Ok((matcher, limit))
 }
 
 pub(super) async fn prepare(
@@ -86,29 +119,7 @@ pub(super) async fn prepare(
                 .map_err(read_error)?;
         }
     }
-    let aliases: FilesetAliasesMap = load_aliases_map(
-        &Ui::null(),
-        settings.config(),
-        &"fileset-aliases".parse().unwrap(),
-    )
-    .map_err(|e| read_error(e.error))?;
-    let paths = RepoPathUiConverter::Fs {
-        base: path.into(),
-        cwd: path.into(),
-    };
-    let ctx = FilesetParseContext {
-        aliases_map: &aliases,
-        path_converter: &paths,
-    };
-    let pattern = settings
-        .get_string("snapshot.auto-track")
-        .map_err(read_error)?;
-    let matcher = fileset::parse(&mut FilesetDiagnostics::new(), &pattern, &ctx)
-        .map_err(read_error)?
-        .to_matcher();
-    let HumanByteSize(limit) = settings
-        .get_value_with("snapshot.max-new-file-size", TryInto::try_into)
-        .map_err(read_error)?;
+    let (matcher, limit) = tracking_policy(path, settings)?;
     let options = SnapshotOptions {
         base_ignores: ignores(path, repo)?,
         progress: None,

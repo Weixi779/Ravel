@@ -44,10 +44,6 @@ struct RavelApp: App {
                     appDelegate.workspace = workspace
                     session.restoreIfNeeded()
                 }
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                    guard !diffSession.isSelectingSplit, !diffSession.isOrganizing else { return }
-                    session.refreshIfNeeded()
-                }
         }
         .defaultSize(width: 1240, height: 800)
         .windowResizability(.contentMinSize)

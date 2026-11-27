@@ -142,11 +142,27 @@ struct DescribeInteractionTests {
         let selected = try #require(session.describeTarget)
         #expect(selected.revision.description == "B\n\nold first line\nold second line\n")
         #expect(session.selectedRevisionID == a.id)
-        session.describeTarget = nil
+        let firstSheet = try await presentedSheet(of: window)
+        try press(key: "\u{1b}", code: 53, in: firstSheet)
+        try await wait { session.describeTarget == nil && window.attachedSheet == nil }
         #expect(session.selectedRevisionID == a.id)
         menu.performActionForItem(at: index)
-        let draft = RevisionDescriptionDraft("Updated B\n\nnew first line\nnew second line")
-        await session.saveDescription(draft, for: selected)
+        let sheet = try await presentedSheet(of: window)
+        let fields = try #require(sheet.contentView)
+        let title = try #require(child(NSTextField.self, of: fields) { $0.isEditable })
+        let body = try #require(child(NSTextView.self, of: fields) { !$0.isFieldEditor })
+        #expect(title.stringValue == "B")
+        #expect(body.string == "old first line\nold second line\n")
+        sheet.makeFirstResponder(title)
+        let fieldEditor = try #require(title.currentEditor() as? NSTextView)
+        fieldEditor.selectAll(nil)
+        fieldEditor.insertText("Updated B", replacementRange: fieldEditor.selectedRange())
+        sheet.makeFirstResponder(body)
+        body.selectAll(nil)
+        body.insertText("new first line\nnew second line", replacementRange: body.selectedRange())
+        sheet.makeFirstResponder(nil)
+        try press(key: "\r", code: 36, in: sheet)
+        try await wait { session.selectedRevision?.changeID == selected.revision.changeID && session.selectedRevisionID != target.id }
         try await settle(session)
         #expect(session.commandNotice == nil)
         let rewritten = try #require(session.selectedRevision)
@@ -158,7 +174,7 @@ struct DescribeInteractionTests {
         let root = try #require(session.log?.revisions.first { $0.isImmutable })
         session.beginDescribe(HistoryRevision(repositoryURL: log.repositoryURL, operationID: log.operationID, revision: root))
         #expect(session.describeTarget == nil)
-        #expect(session.commandNotice?.contains("immutable()") == true)
+        #expect(session.commandNotice?.contains("root()") == true)
         let graphArgs = ["--ignore-working-copy", "log", "-r", "all()", "--no-graph", "-T", "commit_id ++ ' ' ++ change_id ++ ' ' ++ parents.map(|p| p.commit_id()).join(',') ++ '\n'"]
         let graphAfterDescribe = try await runJJ(graphArgs, at: url)
         let workingCopy = try await runJJ(["--ignore-working-copy", "log", "-r", "@", "--no-graph", "-T", "commit_id"], at: url)
@@ -184,12 +200,55 @@ struct DescribeInteractionTests {
         #expect(try await runJJ(["--ignore-working-copy", "log", "-r", "@", "--no-graph", "-T", "commit_id"], at: url) == workingCopy)
         #expect(try await runJJ(bookmarkArgs, at: url) == rewritten.id)
         #expect(try String(contentsOf: file, encoding: .utf8) == "A file\n")
+        _ = try await runJJ(["config", "set", "--repo", "revset-aliases.'immutable_heads()'", "delivery"], at: url)
+        session.refresh()
+        try await settle(session)
+        let protectedLog = try #require(session.log)
+        let protected = try #require(protectedLog.revisions.first { $0.changeID == rewritten.changeID })
+        session.beginDescribe(protectedLog.target(for: protected))
+        #expect(session.describeTarget == nil)
+        #expect(session.commandNotice?.contains("immutable()") == true)
+        #expect(session.commandNotice?.contains(protected.shortChangeID) == true)
         await session.workspace.close()
     }
 
-    @Test(arguments: ["", "Title", "Title\n", "Title\nBody", "Title\n\nBody\n\nNext\n", "\n\nBody"])
-    func unchangedFieldsPreserveExactDescription(_ text: String) {
-        #expect(RevisionDescriptionDraft(text).description == text)
+    @Test(arguments: [
+        ("", "", ""), ("Title", "Title", ""), ("Title\n", "Title", ""), ("Title\nBody", "Title", "Body"),
+        ("Title\n\nBody\n\nNext\n", "Title", "Body\n\nNext\n"), ("\n\nBody", "", "Body"),
+    ])
+    func draftPreservesTitleAndMultilineBody(_ text: String, _ title: String, _ body: String) {
+        let draft = RevisionDescriptionDraft(text)
+        #expect(draft.title == title)
+        #expect(draft.body == body)
+    }
+
+    private func presentedSheet(of window: NSWindow) async throws -> NSWindow {
+        try await wait { window.attachedSheet?.contentView != nil }
+        let sheet = try #require(window.attachedSheet)
+        sheet.contentView?.layoutSubtreeIfNeeded()
+        return sheet
+    }
+
+    private func press(key: String, code: UInt16, in sheet: NSWindow) throws {
+        let event = try #require(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: sheet.windowNumber,
+            context: nil,
+            characters: key,
+            charactersIgnoringModifiers: key,
+            isARepeat: false,
+            keyCode: code,
+        ))
+        if !sheet.performKeyEquivalent(with: event) { sheet.sendEvent(event) }
+    }
+
+    private func wait(sourceLocation: SourceLocation = #_sourceLocation, until condition: () -> Bool) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(4))
+        while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        try #require(condition(), sourceLocation: sourceLocation)
     }
 
     private func settle(_ session: LogSession) async throws {

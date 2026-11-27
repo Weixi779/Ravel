@@ -35,7 +35,7 @@ nonisolated struct Revision: Identifiable, Hashable, Sendable {
     }
 
     var shortChangeID: String {
-        String(changeID.prefix(8))
+        String(changeID.prefix(max(8, uniqueChangePrefixLength)))
     }
 
     var shortCommitID: String {

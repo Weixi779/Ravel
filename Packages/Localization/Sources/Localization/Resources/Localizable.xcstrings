@@ -4911,6 +4911,66 @@
         }
       }
     },
+    "historyDiskChanged": {
+      "comment": "Status when visible working-copy files differ from the recorded snapshot.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unrecorded changes on disk"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "磁盘上有未快照的修改"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "磁碟上有尚未快照的修改"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ディスクに未記録の変更があります"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "디스크에 기록되지 않은 변경 사항이 있습니다"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht erfasste Änderungen auf dem Datenträger"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifications sur disque non enregistrées"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambios en el disco sin registrar"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alterações em disco ainda não registradas"
+          }
+        }
+      }
+    },
     "historyDivergentBadge": {
       "comment": "Compact badge for a divergent jj change.",
       "extractionState": "manual",
@@ -7245,6 +7305,66 @@
           "stringUnit": {
             "state": "translated",
             "value": "Alteração %1$@\nCommit %2$@"
+          }
+        }
+      }
+    },
+    "historyRootReason": {
+      "comment": "Explain why the root revision cannot be rewritten.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() is the permanent root commit and cannot be rewritten."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() 是仓库的永久根提交，无法改写。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() 是儲存庫永久的根提交，無法改寫。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() はリポジトリの恒久的なルートコミットのため、書き換えられません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root()는 저장소의 영구 루트 커밋이므로 다시 쓸 수 없습니다."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() ist der unveränderliche Wurzel-Commit des Repositorys."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() est le commit racine permanent du dépôt et ne peut pas être réécrit."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() es el commit raíz permanente del repositorio y no se puede reescribir."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "root() é o commit raiz permanente do repositório e não pode ser reescrito."
           }
         }
       }

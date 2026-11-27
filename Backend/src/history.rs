@@ -432,7 +432,8 @@ async fn run(
                     timestamp_millis: commit.committer().timestamp.timestamp.0,
                     bookmarks: bookmarks.get(id).cloned().unwrap_or_default(),
                     is_working_copy: working_copy == Some(id),
-                    is_immutable: is_immutable(id).map_err(read_error)?,
+                    is_immutable: id == repo.store().root_commit_id()
+                        || is_immutable(id).map_err(read_error)?,
                     has_conflict: commit.has_conflict(),
                     is_divergent: repo
                         .resolve_change_id(commit.change_id())

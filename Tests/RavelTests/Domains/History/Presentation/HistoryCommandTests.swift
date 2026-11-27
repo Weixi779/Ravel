@@ -75,6 +75,38 @@ struct HistoryCommandTests {
         await session.workspace.close()
     }
 
+    @Test(.enabled(if: FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/jj")))
+    func terminalChangesInvalidateBookmarkAndRebaseConfirmations() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Graph-stale-\(UUID())", isDirectory: true)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: url) }
+        _ = try await runJJ(["git", "init", "--colocate"], at: url)
+        _ = try await runJJ(["describe", "-m", "source"], at: url)
+        _ = try await runJJ(["bookmark", "create", "topic"], at: url)
+        _ = try await runJJ(["new", "root()", "-m", "destination"], at: url)
+
+        let suite = "StaleGraph.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let session = LogSession(defaults: defaults)
+        session.open(url)
+        try await settle(session)
+        let log = try #require(session.log)
+        let source = try log.target(for: #require(log.revisions.first { $0.summary == "source" })).writeTarget
+        let destination = try log.target(for: #require(log.revisions.first { $0.summary == "destination" })).writeTarget
+        _ = try await runJJ(["bookmark", "set", "topic", "-r", "@", "--allow-backwards"], at: url)
+        let deletion = try await session.workspace.apply(.deleteBookmark(name: "topic"), to: source)
+        #expect(deletion.disposition == .staleTarget)
+        #expect(deletion.mutationOperationID == nil)
+        #expect(try await runJJ(["--ignore-working-copy", "log", "-r", "topic", "--no-graph", "-T", "commit_id"], at: url) == destination.commitID)
+
+        _ = try await runJJ(["new", "--no-edit", source.commitID, "-m", "external child"], at: url)
+        let move = try await session.workspace.apply(.rebase(destination: destination, descendants: true), to: source)
+        #expect(move.disposition == .staleTarget)
+        #expect(move.mutationOperationID == nil)
+        await session.workspace.close()
+    }
+
     @Test
     func workingCopyAndSearchReachLaterPages() async throws {
         let url = URL(fileURLWithPath: "/paged", isDirectory: true)
@@ -97,6 +129,9 @@ struct HistoryCommandTests {
             try await Task.sleep(for: .milliseconds(5))
         }
         #expect(session.selectedRevisionID == wc.id)
+        let firstReveal = session.revealRequest
+        session.selectWorkingCopy()
+        #expect(session.revealRequest == firstReveal + 1)
         #expect(await history.requests == [0, 100, 200, 300])
         #expect(RevisionTargetPicker.matches(wc, query: "ZZYY"))
         #expect(RevisionTargetPicker.matches(bookmarked, query: "rewritten"))

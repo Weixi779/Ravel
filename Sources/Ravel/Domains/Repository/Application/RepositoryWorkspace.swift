@@ -78,6 +78,14 @@ actor RepositoryWorkspace {
         try await current(at: workspaceURL).snapshot(operationID: operationID)
     }
 
+    func operationHeads(at url: URL) async throws -> [String] {
+        try await current(at: url).operationHeads()
+    }
+
+    func hasDiskChanges(at url: URL, paths: [String] = []) async throws -> Bool {
+        try await current(at: url).hasDiskChanges(paths: paths)
+    }
+
     func isWriting(at workspaceURL: URL) throws -> Bool {
         try current(at: workspaceURL).isWriting
     }

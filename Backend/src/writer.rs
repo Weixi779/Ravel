@@ -11,7 +11,7 @@ mod graph;
 pub use graph::BackendGraphCommand;
 mod operations;
 mod organize;
-mod preparation;
+pub(crate) mod preparation;
 mod target;
 #[cfg(test)]
 mod tests;

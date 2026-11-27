@@ -690,6 +690,15 @@ public nonisolated enum I18n {
     }
 
     /**
+     Status when visible working-copy files differ from the recorded snapshot.
+     
+     Localized string for key “historyDiskChanged” in table “Localizable.xcstrings”.
+     */
+    public static var historyDiskChanged: LocalizedStringResource {
+        LocalizedStringResource("historyDiskChanged", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Compact badge for a divergent jj change.
      
      Localized string for key “historyDivergentBadge” in table “Localizable.xcstrings”.
@@ -1034,6 +1043,15 @@ public nonisolated enum I18n {
      */
     public static func historyRevisionIdentity(_ arg1: String, _ arg2: String) -> LocalizedStringResource {
         LocalizedStringResource("historyRevisionIdentity", defaultValue: "\(arg1)\(arg2)", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Explain why the root revision cannot be rewritten.
+     
+     Localized string for key “historyRootReason” in table “Localizable.xcstrings”.
+     */
+    public static var historyRootReason: LocalizedStringResource {
+        LocalizedStringResource("historyRootReason", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**

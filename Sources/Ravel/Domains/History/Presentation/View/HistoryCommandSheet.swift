@@ -125,10 +125,15 @@ struct HistoryCommandSheet: View {
             return includeDescendants ? I18n.historyRebaseStackSummary(source.shortChangeID, descendants.count, destination.shortChangeID)
                 : I18n.historyRebaseOneSummary(source.shortChangeID, destination.shortChangeID)
         case let .moveBookmark(_, name):
-            return destination.map { I18n.historyMoveBookmarkSummary(name, source.shortChangeID, $0.shortChangeID) }
-        case let .deleteBookmark(_, name): return I18n.historyDeleteBookmarkSummary(name, source.shortChangeID)
+            return destination.map { I18n.historyMoveBookmarkSummary(name, bookmarkOrigin(name, source: source), $0.shortChangeID) }
+        case let .deleteBookmark(_, name): return I18n.historyDeleteBookmarkSummary(name, bookmarkOrigin(name, source: source))
         default: return nil
         }
+    }
+
+    private func bookmarkOrigin(_ name: String, source: Revision) -> String {
+        guard let bookmark = log.localBookmarks.first(where: { $0.name == name }), bookmark.commitIDs.count > 1 else { return source.shortChangeID }
+        return bookmark.commitIDs.map { String($0.prefix(12)) }.joined(separator: ", ")
     }
 
     private func confirm() {

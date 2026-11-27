@@ -59,20 +59,25 @@ pub(super) async fn resolve(
             "The selected revision changed. Refresh and review it again.",
         ));
     }
+    if rewritable && &id == repo.store().root_commit_id() {
+        return Err(receipt.reject(
+            WriteDisposition::Immutable,
+            "root() is the permanent root commit.",
+        ));
+    }
     if rewritable
-        && (&id == repo.store().root_commit_id()
-            || crate::history::immutable_revisions_at(
-                context.path,
-                context.name,
-                context.settings,
-                repo,
-            )?
-            .containing_fn()(&id)
-            .map_err(read_error)?)
+        && crate::history::immutable_revisions_at(
+            context.path,
+            context.name,
+            context.settings,
+            repo,
+        )?
+        .containing_fn()(&id)
+        .map_err(read_error)?
     {
         return Err(receipt.reject(
             WriteDisposition::Immutable,
-            "The repository marks this revision immutable.",
+            "This revision is protected by the repository's immutable() rules.",
         ));
     }
     Ok(commit)

@@ -56,6 +56,9 @@ struct RepositoryView: View {
                 }
             }
         }
+        .background {
+            RepositoryWindowObserver(session: session, isSelectingSplit: { diffSession.isSelectingSplit || diffSession.isOrganizing })
+        }
         .sheet(item: $session.describeTarget) { target in
             RevisionDescriptionEditor(revision: target.revision) {
                 session.describeTarget = nil
@@ -79,8 +82,9 @@ struct RepositoryView: View {
                         Task { await session.run(command, on: row) }
                     },
                     pageError: session.pageErrorMessage,
-                    retry: { session.loadMore(retry: true) },
+                    retry: { Task { await session.loadRemainingPages(in: log.snapshotID, retry: true) } },
                 )
+                .id(log.snapshotID)
             }
         }
         .alert(I18n.historyCommandResult, isPresented: Binding(
@@ -227,6 +231,7 @@ struct RepositoryView: View {
                             log: log,
                             selection: $session.selectedRevisionID,
                             graphStyle: session.graphStyle,
+                            revealRequest: session.revealRequest,
                             menuForRevision: { revision in
                                 RevisionActionMenu.menu(for: log.target(for: revision), session: session) { action in
                                     guard session.log?.snapshotID == log.snapshotID else {
@@ -293,6 +298,13 @@ struct RepositoryView: View {
             } else if session.errorMessage != nil {
                 Image(systemName: "exclamationmark.circle")
                 Text(session.log == nil ? I18n.historyLoadFailed : I18n.historyRefreshFailed)
+            } else if session.hasDiskChanges {
+                Text(I18n.historyDiskChanged)
+
+                Button(I18n.repositorySnapshot) {
+                    Task { await session.snapshotDiskChanges() }
+                }
+                .disabled(session.isSnapshotting)
             } else if let log = session.log {
                 Circle().fill(Color.accentColor).frame(width: 5, height: 5)
                 Text(log.backendVersion)

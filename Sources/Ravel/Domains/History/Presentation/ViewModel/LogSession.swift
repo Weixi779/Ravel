@@ -30,9 +30,12 @@ final class LogSession {
     @ObservationIgnored private(set) var recentPaths: [String]
     private(set) var lastUpdated: Date?
     var selectedRevisionID: String?
+    private(set) var revealRequest = 0
     var describeTarget: HistoryRevision?
     var commandRequest: HistoryCommandRequest?
     var commandNotice: String?
+    var hasDiskChanges = false
+    var isSnapshotting = false
     private(set) var isSubmitting = false
 
     @ObservedDefault(.lastWorkspacePath, store: \Self.store)
@@ -116,6 +119,7 @@ final class LogSession {
             describeTarget = nil
             commandRequest = nil
             commandNotice = nil
+            hasDiskChanges = false
             if let query { Task { await query.close() } }
             query = nil
             cursor = nil
@@ -127,15 +131,13 @@ final class LogSession {
         refresh()
     }
 
-    func refreshIfNeeded() {
-        guard !isLoading, repositoryURL != nil else { return }
-        if let lastUpdated, Date.now.timeIntervalSince(lastUpdated) < 1 { return }
-        refresh()
-    }
-
     func refreshForSplit(selecting commitID: String) async {
         refresh(selecting: commitID)
-        await loadTask?.value
+        await waitForHistoryRefresh()
+    }
+
+    func waitForHistoryRefresh() async {
+        while !Task.isCancelled, let task = loadTask { await task.value }
     }
 
     func refresh(selecting commitID: String? = nil) {
@@ -195,6 +197,7 @@ final class LogSession {
 
                 if let commitID {
                     if foundRequestedCommit {
+                        revealRequest += 1
                         selectedRevisionID = commitID
                         return
                     }
@@ -251,6 +254,7 @@ final class LogSession {
     private static func makeLog(identity: HistoryIdentity, revisions: [Revision], hasMore: Bool) async throws -> RepositoryLog {
         try RepositoryLog(
             repositoryURL: identity.repositoryURL,
+            backingRepositoryURL: identity.backingRepositoryURL,
             localBookmarks: identity.localBookmarks,
             operationID: identity.operationID,
             revisions: revisions,
@@ -292,6 +296,7 @@ final class LogSession {
         navigationTask?.cancel()
         guard let log else { return }
         if let revision = log.revisions.first(where: matches) {
+            revealRequest += 1
             selectedRevisionID = revision.id
             return
         }
@@ -299,6 +304,7 @@ final class LogSession {
         navigationTask = Task { [weak self] in
             while let self, await loadNextPage(in: snapshotID) {
                 if let revision = self.log?.revisions.first(where: matches) {
+                    revealRequest += 1
                     selectedRevisionID = revision.id
                     return
                 }
@@ -324,8 +330,8 @@ final class LogSession {
 
     func beginDescribe(_ target: HistoryRevision) {
         guard target.repositoryURL == repositoryURL, !isSubmitting else { return }
-        if target.revision.isImmutable {
-            commandNotice = String(localized: I18n.historyImmutableReason(target.revision.shortChangeID))
+        if let reason = target.revision.rewriteRestriction {
+            commandNotice = String(localized: reason)
         } else {
             describeTarget = target
         }
@@ -359,7 +365,11 @@ final class LogSession {
         }
     }
 
-    func loadRemainingPages(in snapshotID: UUID) async {
+    func loadRemainingPages(in snapshotID: UUID, retry: Bool = false) async {
+        if retry, log?.snapshotID == snapshotID, pageErrorMessage != nil {
+            loadMore(retry: true)
+            await pageTask?.value
+        }
         while await loadNextPage(in: snapshotID) {}
     }
 

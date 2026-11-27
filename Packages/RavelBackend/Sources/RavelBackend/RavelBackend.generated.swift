@@ -878,6 +878,10 @@ public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
     func identity()  -> RepositoryIdentity
     
+    func hasDiskChanges(changedPaths: [String], cancellation: BackendCancellation) async throws  -> Bool
+    
+    func operationHeads(cancellation: BackendCancellation) async throws  -> [String]
+    
     func describe(requestId: String, target: BackendWriteTarget, description: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
     
     func graphCommand(requestId: String, source: BackendWriteTarget, command: BackendGraphCommand, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
@@ -1058,6 +1062,38 @@ open func identity() -> RepositoryIdentity  {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
+}
+    
+open func hasDiskChanges(changedPaths: [String], cancellation: BackendCancellation)async throws  -> Bool  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_has_disk_changes(
+                        self.uniffiCloneHandle(),FfiConverterSequenceString.lower(changedPaths),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_i8,
+            completeFunc: ffi_ravel_backend_rust_future_complete_i8,
+            freeFunc: ffi_ravel_backend_rust_future_free_i8,
+            liftFunc: FfiConverterBool.lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func operationHeads(cancellation: BackendCancellation)async throws  -> [String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_operation_heads(
+                        self.uniffiCloneHandle(),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceString.lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
 }
     
 open func describe(requestId: String, target: BackendWriteTarget, description: String, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
@@ -3407,6 +3443,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_identity() != 30316) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_has_disk_changes() != 9595) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_operation_heads() != 63452) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_describe() != 55601) {
