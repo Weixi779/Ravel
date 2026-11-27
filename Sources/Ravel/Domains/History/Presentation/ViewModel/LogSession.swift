@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Localization
 import Logger
 import Observation
 import UserDefaultsKit
@@ -29,6 +30,9 @@ final class LogSession {
     @ObservationIgnored private(set) var recentPaths: [String]
     private(set) var lastUpdated: Date?
     var selectedRevisionID: String?
+    var describeTarget: HistoryRevision?
+    var commandNotice: String?
+    private(set) var isSubmitting = false
 
     @ObservedDefault(.lastWorkspacePath, store: \Self.store)
     @ObservationIgnored private var lastWorkspacePath: String?
@@ -49,6 +53,7 @@ final class LogSession {
     }
 
     private let store: UserDefaultsStore
+    let workspace: RepositoryWorkspace
     @ObservationIgnored private let loader: Loader
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var pageTask: Task<Void, Never>?
@@ -59,6 +64,7 @@ final class LogSession {
 
     init(store: UserDefaultsStore = .standard, workspace: RepositoryWorkspace = RepositoryWorkspace(), loader: Loader? = nil) {
         self.store = store
+        self.workspace = workspace
         self.loader = loader ?? { url, pageSize in try await workspace.history(at: url, pageSize: pageSize) }
     }
 
@@ -100,6 +106,8 @@ final class LogSession {
     func open(_ url: URL) {
         let normalized = url.standardizedFileURL
         if repositoryURL != normalized {
+            describeTarget = nil
+            commandNotice = nil
             if let query { Task { await query.close() } }
             query = nil
             cursor = nil
@@ -117,7 +125,7 @@ final class LogSession {
         refresh()
     }
 
-    func refresh() {
+    func refresh(selecting commitID: String? = nil) {
         guard let directory = repositoryURL else { return }
         loadTask?.cancel()
         pageTask?.cancel()
@@ -143,12 +151,16 @@ final class LogSession {
                 candidate = history
                 var revisions: [Revision] = []
                 var cursor: HistoryCursor?
+                var foundRequestedCommit = false
                 repeat {
                     let page = try await history.page(after: cursor)
                     try Task.checkCancellation()
                     revisions.append(contentsOf: page.revisions)
+                    if let commitID, page.revisions.contains(where: { $0.id == commitID }) {
+                        foundRequestedCommit = true
+                    }
                     cursor = page.nextCursor
-                } while cursor != nil && revisions.count < desiredCount
+                } while cursor != nil && (revisions.count < desiredCount || (commitID != nil && !foundRequestedCommit))
                 let log = try await Self.makeLog(identity: history.identity, revisions: revisions, hasMore: cursor != nil)
                 try Task.checkCancellation()
                 guard let self, requestID == request else {
@@ -167,6 +179,13 @@ final class LogSession {
                 logger.info("Repository refreshed generation=\(request) revisionCount=\(log.revisions.count) duration=\(String(describing: started.duration(to: .now)), privacy: .public)")
                 if let previous { Task { await previous.close() } }
 
+                if let commitID {
+                    if foundRequestedCommit {
+                        selectedRevisionID = commitID
+                        return
+                    }
+                    commandNotice = String(localized: I18n.historyResultMissing)
+                }
                 if let selected = selectedRevisionID, log.revisions.contains(where: { $0.id == selected }) { return }
                 // Preserve a rewritten change only if the mapping is unambiguous.
                 if let previousSelection {
@@ -218,6 +237,7 @@ final class LogSession {
     private static func makeLog(identity: HistoryIdentity, revisions: [Revision], hasMore: Bool) async throws -> RepositoryLog {
         try RepositoryLog(
             repositoryURL: identity.repositoryURL,
+            operationID: identity.operationID,
             revisions: revisions,
             graph: LogGraph(revisions: revisions),
             hasMore: hasMore,
@@ -238,6 +258,32 @@ final class LogSession {
         recentPaths.removeAll { $0 == path }
         if lastWorkspacePath == path {
             lastWorkspacePath = nil
+        }
+    }
+
+    func beginDescribe(_ target: HistoryRevision) {
+        guard target.repositoryURL == repositoryURL, !isSubmitting else { return }
+        if target.revision.isImmutable {
+            commandNotice = String(localized: I18n.historyImmutableReason(target.revision.shortChangeID))
+        } else {
+            describeTarget = target
+        }
+    }
+
+    func submitDescription(
+        _ draft: RevisionDescriptionDraft,
+        for target: HistoryRevision,
+        using submit: (HistoryRevision, RevisionDescriptionDraft) async -> HistoryWriteFeedback,
+    ) async {
+        guard describeTarget == target, !isSubmitting else { return }
+        isSubmitting = true
+        describeTarget = nil
+        let feedback = await submit(target, draft)
+        isSubmitting = false
+        guard repositoryURL == target.repositoryURL else { return }
+        commandNotice = feedback.message
+        if feedback.needsRefresh {
+            refresh(selecting: feedback.commitID)
         }
     }
 

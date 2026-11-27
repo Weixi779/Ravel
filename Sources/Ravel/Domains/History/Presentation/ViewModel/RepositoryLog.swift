@@ -10,6 +10,7 @@ import Foundation
 
 nonisolated struct RepositoryLog: Sendable {
     let repositoryURL: URL
+    let operationID: String
     let snapshotID = UUID()
     var revisions: [Revision]
     var graph: LogGraph

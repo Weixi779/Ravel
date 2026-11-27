@@ -14,6 +14,7 @@ struct RevisionTable: NSViewRepresentable {
     let log: RepositoryLog
     @Binding var selection: String?
     var graphStyle: HistoryGraphStyle = .rounded
+    var menuForRevision: ((Revision) -> NSMenu?)?
     var loadMore: () -> Void = {}
 
     func makeCoordinator() -> Coordinator {
@@ -21,7 +22,10 @@ struct RevisionTable: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let table = NSTableView()
+        let table = RevisionContextTable()
+        table.menuForRow = { [weak coordinator = context.coordinator] row in
+            coordinator?.menu(forRow: row)
+        }
         table.delegate = context.coordinator
         table.dataSource = context.coordinator
         table.rowHeight = 32
@@ -62,6 +66,7 @@ struct RevisionTable: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.menuForRevision = menuForRevision
         context.coordinator.update(log: log, selection: $selection, graphStyle: graphStyle, loadMore: loadMore)
         (scrollView as? RevisionScrollView)?.fitColumns()
     }
@@ -76,6 +81,12 @@ struct RevisionTable: NSViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         weak var table: NSTableView?
+        var menuForRevision: ((Revision) -> NSMenu?)?
+
+        func menu(forRow row: Int) -> NSMenu? {
+            guard revisions.indices.contains(row) else { return nil }
+            return menuForRevision?(revisions[row])
+        }
         private var selection: Binding<String?>
         private var revisions: [Revision] = []
         private var graph: LogGraph?
@@ -143,8 +154,8 @@ struct RevisionTable: NSViewRepresentable {
             {
                 if table.selectedRow != index {
                     table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
-                    if changedRepository || changedSelection { table.scrollRowToVisible(index) }
                 }
+                if changedRepository || changedSelection { table.scrollRowToVisible(index) }
             } else {
                 table.deselectAll(nil)
             }
@@ -225,6 +236,21 @@ struct RevisionTable: NSViewRepresentable {
 
         func tableView(_: NSTableView, typeSelectStringFor _: NSTableColumn?, row: Int) -> String? {
             revisions.indices.contains(row) ? revisions[row].summary : nil
+        }
+    }
+}
+
+@MainActor
+private final class RevisionContextTable: NSTableView {
+    var menuForRow: ((Int) -> NSMenu?)?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        menuForRow?(row(at: convert(event.locationInWindow, from: nil)))
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        if let menu = menu(for: event) {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
         }
     }
 }

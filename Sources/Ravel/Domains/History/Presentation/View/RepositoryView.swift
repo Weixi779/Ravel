@@ -56,6 +56,19 @@ struct RepositoryView: View {
                 }
             }
         }
+        .sheet(item: $session.describeTarget) { target in
+            RevisionDescriptionEditor(revision: target.revision) {
+                session.describeTarget = nil
+            } save: { draft in
+                Task { await session.saveDescription(draft, for: target) }
+            }
+        }
+        .alert(I18n.historyCommandResult, isPresented: Binding(
+            get: { session.commandNotice != nil },
+            set: { if !$0 { session.commandNotice = nil } },
+        )) {} message: {
+            Text(verbatim: session.commandNotice ?? "")
+        }
     }
 
     private var sidebar: some View {
@@ -147,7 +160,16 @@ struct RepositoryView: View {
             } else {
                 VSplitView {
                     VStack(spacing: 0) {
-                        RevisionTable(log: log, selection: $session.selectedRevisionID, graphStyle: session.graphStyle) { session.loadMore() }
+                        RevisionTable(
+                            log: log,
+                            selection: $session.selectedRevisionID,
+                            graphStyle: session.graphStyle,
+                            menuForRevision: { revision in
+                                let target = HistoryRevision(repositoryURL: log.repositoryURL, operationID: log.operationID, revision: revision)
+                                return RevisionActionMenu.describe { session.beginDescribe(target) }
+                            },
+                            loadMore: { session.loadMore() },
+                        )
                         if session.isLoadingMore || session.pageErrorMessage != nil || log.hasMore {
                             Divider()
                             HStack {
