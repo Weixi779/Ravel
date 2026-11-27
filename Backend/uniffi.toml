@@ -1,0 +1,13 @@
+#
+#  uniffi.toml
+#  Ravel
+#
+#  Created by weixi on 2026/09/17.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+
+[bindings.swift]
+module_name = "RavelBackend"
+ffi_module_name = "RavelBackendFFI"
+generate_module_map = true
+omit_argument_labels = false

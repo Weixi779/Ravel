@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+#  format
+#  Ravel
+#
+#  Created by weixi on 2026/09/17.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+
+set -eu
+
+ravel_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if ! command -v swiftformat >/dev/null 2>&1; then
+    echo "SwiftFormat is required. Install it with: brew install swiftformat" >&2
+    exit 1
+fi
+
+cd "$ravel_root"
+mkdir -p .build
+exec swiftformat Sources Tests Packages Tools \
+    --config .swiftformat --cache .build/swiftformat.cache "$@"

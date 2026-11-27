@@ -1,0 +1,31 @@
+{
+  "configurations" : [
+    {
+      "id" : "30BD8B85-4DAF-439C-BC74-CA15E0280118",
+      "name" : "Thread Performance Checker",
+      "options" : {}
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Ravel.xcodeproj",
+        "identifier" : "59830EBC3A4184110566BF1A",
+        "name" : "RavelTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Packages/Localization",
+        "identifier" : "LocalizationTests",
+        "name" : "LocalizationTests"
+      }
+    }
+  ],
+  "version" : 1
+}

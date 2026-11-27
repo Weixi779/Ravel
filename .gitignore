@@ -21,6 +21,12 @@ build/
 .jj/
 .codegraph/
 
+# Local upstream source checkouts and research notes
+/research/
+
+# Rust build products (Cargo.lock is tracked)
+/Backend/target/
+
 # Local credentials
 .env
 .env.*

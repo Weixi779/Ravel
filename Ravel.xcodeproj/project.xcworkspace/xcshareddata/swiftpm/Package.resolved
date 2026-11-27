@@ -1,22 +1,40 @@
 {
-  "originHash" : "8e896c8452ed0a886aa16443d5677ca92019b6615ae1a96abbcdd6dc7850dc09",
+  "originHash" : "9d65228c3872ba3666442cb1e44b289d317c646cf7e7ef3edeab7834e1250c05",
   "pins" : [
     {
-      "identity" : "swift-subprocess",
+      "identity" : "coretextswift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-subprocess.git",
+      "location" : "https://github.com/krzyzanowskim/CoreTextSwift",
       "state" : {
-        "revision" : "b3937ab85dd32f6e9435914599c1519074769c1a",
-        "version" : "1.0.0"
+        "revision" : "833177201d6421e6322296f39fce6ff6ae52618a",
+        "version" : "0.2.0"
       }
     },
     {
-      "identity" : "swift-system",
+      "identity" : "sttextkitplus",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-system",
+      "location" : "https://github.com/krzyzanowskim/STTextKitPlus",
       "state" : {
-        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
-        "version" : "1.8.1"
+        "revision" : "8117f3b6a20633e4ce92df102dd260b808ffc9bd",
+        "version" : "0.3.1"
+      }
+    },
+    {
+      "identity" : "sttextview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzyzanowskim/STTextView",
+      "state" : {
+        "revision" : "bbdcfd9d413ad3055dafd23a223be9bd39742f89",
+        "version" : "2.4.1"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
       }
     }
   ],

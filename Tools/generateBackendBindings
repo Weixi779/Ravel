@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+#  generateBackendBindings
+#  Ravel
+#
+#  Created by weixi on 2026/09/17.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+
+set -eu
+ravel_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ravel_root/Tools/rustEnvironment"
+cd "$ravel_root/Backend"
+export RUSTUP_TOOLCHAIN=1.96.0
+cargo build --locked --features bindgen
+bindings="$ravel_root/.build/rust-bindings"
+"$CARGO_TARGET_DIR/debug/uniffi-bindgen" generate \
+    --library "$CARGO_TARGET_DIR/debug/libravel_backend.dylib" --language swift --out-dir "$bindings"
+cp "$bindings/RavelBackend.swift" "$ravel_root/Packages/RavelBackend/Sources/RavelBackend/RavelBackend.generated.swift"
+cp "$bindings/RavelBackendFFI.h" "$ravel_root/Packages/RavelBackend/Sources/RavelBackendFFI/"
+cp "$bindings/RavelBackendFFI.modulemap" "$ravel_root/Packages/RavelBackend/Sources/RavelBackendFFI/module.modulemap"

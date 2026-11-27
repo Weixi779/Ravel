@@ -1,0 +1,38 @@
+{
+  "fill-specializations": [
+    { "value": { "solid": "srgb:1.00000,1.00000,1.00000,1.00000" } },
+    { "appearance": "dark", "value": { "solid": "srgb:0.07059,0.10196,0.14118,1.00000" } }
+  ],
+  "groups": [
+    {
+      "name": "Ravel artwork",
+      "layers": [
+        {
+          "name": "Light",
+          "image-name": "Light.png",
+          "glass": false,
+          "hidden-specializations": [
+            { "value": false },
+            { "appearance": "dark", "value": true }
+          ],
+          "position": { "scale": 1.025, "translation-in-points": [2, 13] }
+        },
+        {
+          "name": "Dark",
+          "image-name": "Dark.png",
+          "glass": false,
+          "hidden-specializations": [
+            { "value": true },
+            { "appearance": "dark", "value": false }
+          ],
+          "position": { "scale": 1.025, "translation-in-points": [13, 26] }
+        }
+      ],
+      "lighting": "individual",
+      "shadow": { "kind": "neutral", "opacity": 0 },
+      "specular": false,
+      "translucency": { "enabled": false, "value": 0 }
+    }
+  ],
+  "supported-platforms": { "squares": ["macOS"] }
+}
