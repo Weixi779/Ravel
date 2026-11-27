@@ -36,10 +36,12 @@ struct RavelApp: App {
     var body: some Scene {
         Window("Ravel", id: "repository") {
             RepositoryView(session: session, diffSession: diffSession)
+                .modifier(RepositoryRecoveryActions(workspace: workspace, session: session))
                 .environment(diffOptions)
                 .frame(minWidth: 920, minHeight: 560)
                 .task {
                     guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+                    appDelegate.workspace = workspace
                     session.restoreIfNeeded()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

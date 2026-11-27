@@ -48,7 +48,7 @@ pub(super) async fn head(
         receipt.current_operation_id = None;
         return Err(receipt.reject(
             WriteDisposition::ConcurrentOperations,
-            "Concurrent operation heads. Reconcile them with jj and refresh.",
+            "Concurrent operation heads. Run jj status in this workspace to reconcile the heads, then refresh and review.",
         ));
     };
     receipt.current_operation_id = Some(id.hex());
@@ -102,7 +102,7 @@ pub(super) async fn history(
         .map_err(read_error)?;
     let [id] = ids.as_slice() else {
         return Err(read_error(
-            "Concurrent operation heads. Reconcile them with jj and refresh.",
+            "Concurrent operation heads. Run jj status in this workspace to reconcile the heads, then refresh and review.",
         ));
     };
     let op = loader.load_operation(id).await.map_err(read_error)?;
@@ -125,6 +125,7 @@ pub(super) async fn history(
 pub(super) async fn restore(
     repo: &ReadonlyRepo,
     tx: &mut Transaction,
+    workspace: &WorkspaceName,
     head: &str,
     expected: &str,
     receipt: &mut BackendWriteReceipt,
@@ -150,6 +151,11 @@ pub(super) async fn restore(
     )
     .await?;
     let mut view = op.view().await.map_err(read_error)?.store_view().clone();
+    if !view.wc_commit_ids.contains_key(workspace) {
+        return Err(read_error(
+            "Undo would remove the open workspace. Review this operation in another workspace.",
+        ));
+    }
     // Keep knowledge of actual Git refs and HEAD until local export reconciles them.
     view.git_refs = repo.view().store_view().git_refs.clone();
     view.git_head = repo.view().git_head().clone();

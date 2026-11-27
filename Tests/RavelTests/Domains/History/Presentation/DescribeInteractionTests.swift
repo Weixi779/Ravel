@@ -98,7 +98,12 @@ struct DescribeInteractionTests {
         defer { try? FileManager.default.removeItem(at: url) }
         _ = try await runJJ(["git", "init", "--colocate"], at: url)
         _ = try await runJJ(["describe", "-m", "B\n\nold first line\nold second line"], at: url)
+        let file = url.appendingPathComponent("tracked.txt")
+        try "B file\n".write(to: file, atomically: true, encoding: .utf8)
+        _ = try await runJJ(["bookmark", "create", "delivery", "-r", "@"], at: url)
         _ = try await runJJ(["new", "-m", "A"], at: url)
+        try "A file\n".write(to: file, atomically: true, encoding: .utf8)
+        _ = try await runJJ(["status"], at: url)
         let suite = "LiveDescribe.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -154,6 +159,31 @@ struct DescribeInteractionTests {
         session.beginDescribe(HistoryRevision(repositoryURL: log.repositoryURL, operationID: log.operationID, revision: root))
         #expect(session.describeTarget == nil)
         #expect(session.commandNotice?.contains("immutable()") == true)
+        let graphArgs = ["--ignore-working-copy", "log", "-r", "all()", "--no-graph", "-T", "commit_id ++ ' ' ++ change_id ++ ' ' ++ parents.map(|p| p.commit_id()).join(',') ++ '\n'"]
+        let graphAfterDescribe = try await runJJ(graphArgs, at: url)
+        let workingCopy = try await runJJ(["--ignore-working-copy", "log", "-r", "@", "--no-graph", "-T", "commit_id"], at: url)
+        let bookmarkArgs = ["--ignore-working-copy", "log", "-r", "delivery", "--no-graph", "-T", "commit_id"]
+        #expect(try await runJJ(bookmarkArgs, at: url) == rewritten.id)
+        let previousHistory = try await session.workspace.operationHistory(at: url)
+        _ = try await runJJ(["new", "root()", "-m", "terminal detour"], at: url)
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+        let refused = try await session.workspace.undo(previousHistory)
+        #expect(refused.disposition == .staleTarget)
+        #expect(refused.mutationOperationID == nil)
+        let confirmation = try await session.workspace.operationHistory(at: url)
+        let actual = try #require(confirmation.undoTarget)
+        #expect(actual.id != previousHistory.undoTarget?.id)
+        #expect(actual.id == confirmation.headID)
+        let opArgs = ["--ignore-working-copy", "op", "log", "--no-graph", "-n", "1", "-T"]
+        #expect(try await runJJ(opArgs + ["id"], at: url) == actual.id)
+        #expect(try await runJJ(opArgs + ["description"], at: url) == actual.description)
+        let undone = try await session.workspace.undo(confirmation)
+        #expect(undone.disposition == .succeeded)
+        #expect(undone.mutationOperationID != nil)
+        #expect(try await runJJ(graphArgs, at: url) == graphAfterDescribe)
+        #expect(try await runJJ(["--ignore-working-copy", "log", "-r", "@", "--no-graph", "-T", "commit_id"], at: url) == workingCopy)
+        #expect(try await runJJ(bookmarkArgs, at: url) == rewritten.id)
+        #expect(try String(contentsOf: file, encoding: .utf8) == "A file\n")
         await session.workspace.close()
     }
 

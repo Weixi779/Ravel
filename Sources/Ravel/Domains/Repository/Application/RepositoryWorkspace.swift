@@ -74,6 +74,14 @@ actor RepositoryWorkspace {
         try await current(at: workspaceURL).snapshot(operationID: operationID)
     }
 
+    func isWriting(at workspaceURL: URL) throws -> Bool {
+        try current(at: workspaceURL).isWriting
+    }
+
+    func snapshotIfIdle(at workspaceURL: URL, operationID: String) async throws -> RepositoryWriteReceipt? {
+        try await current(at: workspaceURL).snapshotIfIdle(operationID: operationID)
+    }
+
     func operationHistory(at workspaceURL: URL, limit: UInt32 = 50) async throws -> RepositoryOperationHistory {
         try await current(at: workspaceURL).operationHistory(limit: limit)
     }

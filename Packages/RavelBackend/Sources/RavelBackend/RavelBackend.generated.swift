@@ -882,9 +882,11 @@ public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
     func graphCommand(requestId: String, source: BackendWriteTarget, command: BackendGraphCommand, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
     
+    func isWriting()  -> Bool
+    
     func operationHistory(limit: UInt32, cancellation: BackendCancellation) async throws  -> BackendOperationHistory
     
-    func snapshot(requestId: String, operationId: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    func snapshot(requestId: String, operationId: String, onlyIfIdle: Bool, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
     
     func takeWriteReceipts()  -> [BackendWriteReceipt]
     
@@ -1084,6 +1086,15 @@ open func graphCommand(requestId: String, source: BackendWriteTarget, command: B
         )
 }
     
+open func isWriting() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_ravel_backend_fn_method_backendrepository_is_writing(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
 open func operationHistory(limit: UInt32, cancellation: BackendCancellation)async throws  -> BackendOperationHistory  {
     return
         try  await uniffiRustCallAsync(
@@ -1100,12 +1111,12 @@ open func operationHistory(limit: UInt32, cancellation: BackendCancellation)asyn
         )
 }
     
-open func snapshot(requestId: String, operationId: String, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+open func snapshot(requestId: String, operationId: String, onlyIfIdle: Bool, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_ravel_backend_fn_method_backendrepository_snapshot(
-                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterString.lower(operationId),FfiConverterTypeBackendCancellation_lower(cancellation)
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterString.lower(operationId),FfiConverterBool.lower(onlyIfIdle),FfiConverterTypeBackendCancellation_lower(cancellation)
                 )
             },
             pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
@@ -2066,6 +2077,7 @@ enum BackendError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
     )
     case Cancelled
     case Closed
+    case WriterBusy
     case InvalidCursor
     case DiffTooLarge
 
@@ -2102,8 +2114,9 @@ public struct FfiConverterTypeBackendError: FfiConverterRustBuffer {
             )
         case 2: return .Cancelled
         case 3: return .Closed
-        case 4: return .InvalidCursor
-        case 5: return .DiffTooLarge
+        case 4: return .WriterBusy
+        case 5: return .InvalidCursor
+        case 6: return .DiffTooLarge
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -2129,12 +2142,16 @@ public struct FfiConverterTypeBackendError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(3))
         
         
-        case .InvalidCursor:
+        case .WriterBusy:
             writeInt(&buf, Int32(4))
         
         
-        case .DiffTooLarge:
+        case .InvalidCursor:
             writeInt(&buf, Int32(5))
+        
+        
+        case .DiffTooLarge:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -3135,10 +3152,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_ravel_backend_checksum_method_backendrepository_graph_command() != 18284) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_is_writing() != 48736) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_ravel_backend_checksum_method_backendrepository_operation_history() != 31826) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_ravel_backend_checksum_method_backendrepository_snapshot() != 26479) {
+    if (uniffi_ravel_backend_checksum_method_backendrepository_snapshot() != 34697) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_take_write_receipts() != 18016) {

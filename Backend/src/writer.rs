@@ -12,6 +12,8 @@ mod target;
 pub use graph::BackendGraphCommand;
 mod operations;
 mod preparation;
+#[cfg(test)]
+mod tests;
 
 use crate::{
     BackendCancellation, BackendError, BackendRepository, load_workspace_for, read_error, worker,
@@ -120,19 +122,33 @@ impl Command {
 }
 
 type Job = Box<dyn FnOnce() + Send>;
-type Lane = mpsc::Sender<Job>;
+pub(super) struct QueuedWrite(Mutex<Option<Job>>);
+
+impl QueuedWrite {
+    pub(super) fn run_once(&self) {
+        let job = self.0.lock().unwrap().take();
+        if let Some(job) = job {
+            job();
+        }
+    }
+}
+
+type Lane = mpsc::Sender<Arc<QueuedWrite>>;
 static LANES: LazyLock<Mutex<HashMap<String, Weak<Lane>>>> = LazyLock::new(Mutex::default);
 
-fn lane(path: &str) -> Result<Arc<Lane>, BackendError> {
+fn lane(path: &str, only_if_idle: bool) -> Result<Arc<Lane>, BackendError> {
     let mut lanes = LANES.lock().unwrap();
     if let Some(lane) = lanes.get(path).and_then(Weak::upgrade) {
+        if only_if_idle {
+            return Err(BackendError::WriterBusy);
+        }
         return Ok(lane);
     }
     lanes.retain(|_, lane| lane.strong_count() > 0);
-    let (sender, receiver) = mpsc::channel::<Job>();
+    let (sender, receiver) = mpsc::channel::<Arc<QueuedWrite>>();
     worker::spawn("ravel-writer", move || {
         for job in receiver {
-            job();
+            job.run_once();
         }
         Ok(())
     })?;
@@ -154,6 +170,7 @@ impl BackendRepository {
             request_id,
             Command::Describe(target, description),
             cancellation,
+            false,
         )
         .await
     }
@@ -165,18 +182,29 @@ impl BackendRepository {
         command: BackendGraphCommand,
         cancellation: Arc<BackendCancellation>,
     ) -> Result<BackendWriteReceipt, BackendError> {
-        self.submit(request_id, Command::Graph(source, command), cancellation)
-            .await
+        self.submit(
+            request_id,
+            Command::Graph(source, command),
+            cancellation,
+            false,
+        )
+        .await
     }
 
     pub async fn snapshot(
         &self,
         request_id: String,
         operation_id: String,
+        only_if_idle: bool,
         cancellation: Arc<BackendCancellation>,
     ) -> Result<BackendWriteReceipt, BackendError> {
-        self.submit(request_id, Command::Snapshot(operation_id), cancellation)
-            .await
+        self.submit(
+            request_id,
+            Command::Snapshot(operation_id),
+            cancellation,
+            only_if_idle,
+        )
+        .await
     }
 
     pub async fn undo(
@@ -193,6 +221,7 @@ impl BackendRepository {
                 operation: operation_id,
             },
             cancellation,
+            false,
         )
         .await
     }
@@ -209,6 +238,14 @@ impl BackendRepository {
         .await
     }
 
+    pub fn is_writing(&self) -> bool {
+        LANES
+            .lock()
+            .unwrap()
+            .get(&self.identity.repository_path)
+            .is_some_and(|lane| lane.strong_count() > 0)
+    }
+
     pub fn take_write_receipts(&self) -> Vec<BackendWriteReceipt> {
         std::mem::take(&mut *self.receipts.lock().unwrap())
     }
@@ -220,6 +257,7 @@ impl BackendRepository {
         id: String,
         command: Command,
         token: Arc<BackendCancellation>,
+        only_if_idle: bool,
     ) -> Result<BackendWriteReceipt, BackendError> {
         let (reply, result) = oneshot::channel();
         {
@@ -228,12 +266,12 @@ impl BackendRepository {
                 return Err(BackendError::Closed);
             }
             let (done, completion) = oneshot::channel();
-            let lane = lane(&self.identity.repository_path)?;
+            let lane = lane(&self.identity.repository_path, only_if_idle)?;
             let keep_lane = lane.clone();
             let path = self.path.clone();
             let receipts = self.receipts.clone();
             let cancel = token.clone();
-            lane.send(Box::new(move || {
+            let job = Arc::new(QueuedWrite(Mutex::new(Some(Box::new(move || {
                 let _lane = keep_lane;
                 let mut receipt = BackendWriteReceipt::new(id, &path, &command);
                 let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
@@ -250,12 +288,18 @@ impl BackendRepository {
                         );
                     }
                 }
+                if cancel.check().is_err() && receipt.mutation_operation_id.is_some() {
+                    receipt.cancellation_phase = Some(WritePhase::Synchronizing);
+                }
                 receipts.lock().unwrap().push(receipt.clone());
                 let _ = reply.send(receipt);
                 let _ = done.send(());
-            }))
-            .map_err(|_| read_error("The repository writer stopped"))?;
-            state.register(token, completion.map(|_| ()).boxed().shared());
+            })))));
+            lane.send(job.clone())
+                .map_err(|_| read_error("The repository writer stopped"))?;
+            state
+                .register(token, completion.map(|_| ()).boxed().shared())
+                .queued_write = Some(Arc::downgrade(&job));
         }
         result
             .await
@@ -264,6 +308,14 @@ impl BackendRepository {
 }
 
 impl BackendWriteReceipt {
+    fn enter(&mut self, phase: WritePhase, _token: &BackendCancellation) {
+        self.phase = phase;
+        #[cfg(test)]
+        if let Some(observer) = &_token.write_checkpoint {
+            observer(phase);
+        }
+    }
+
     fn new(id: String, path: &Path, command: &Command) -> Self {
         Self {
             request_id: id,
@@ -287,12 +339,10 @@ impl BackendWriteReceipt {
         if matches!(error, BackendError::Cancelled) {
             self.cancellation_phase = Some(self.phase);
             self.disposition = WriteDisposition::Cancelled;
+        } else if self.mutation_operation_id.is_some() {
+            self.disposition = WriteDisposition::CommittedWithSyncFailure;
         } else if self.disposition == WriteDisposition::Succeeded {
-            self.disposition = if self.mutation_operation_id.is_some() {
-                WriteDisposition::CommittedWithSyncFailure
-            } else {
-                WriteDisposition::Failed
-            };
+            self.disposition = WriteDisposition::Failed;
         }
         self.detail = Some(error.to_string());
     }
@@ -326,7 +376,11 @@ async fn publish(
         .await
         .map_err(|err| {
             receipt.disposition = WriteDisposition::OutcomeUnknown;
-            read_error(err)
+            receipt.current_operation_id = None;
+            read_error(format!(
+                "Inspect operation {} in local operation history: {err}",
+                op.id().hex()
+            ))
         })?;
     let repo = unpublished.leave_unpublished();
     receipt.current_operation_id = Some(repo.op_id().hex());
@@ -340,7 +394,7 @@ async fn execute(
     receipt: &mut BackendWriteReceipt,
 ) -> Result<(), BackendError> {
     token.check()?;
-    receipt.phase = WritePhase::Preparing;
+    receipt.enter(WritePhase::Preparing, token);
     let mut workspace = load_workspace_for(path, command.name())?;
     let loader = workspace.repo_loader().clone();
     let name = workspace.workspace_name().to_owned();
@@ -383,7 +437,7 @@ async fn execute(
     }
     token.check()?;
     // Preparation may publish independently of the requested command.
-    repo = match preparation::prepare(&context, &repo, locked.locked_wc(), receipt).await {
+    repo = match preparation::prepare(&context, &repo, locked.locked_wc(), token, receipt).await {
         Ok(repo) => repo,
         Err(error) => {
             if receipt.preparation_operation_id.is_some()
@@ -407,12 +461,12 @@ async fn execute(
     let result = match mutation {
         Ok(Some(committed)) => {
             repo = committed;
-            receipt.phase = WritePhase::Synchronizing;
-            let new_wc = working_commit(&repo, &name)?;
+            receipt.enter(WritePhase::Synchronizing, token);
             receipt.working_copy = SyncStatus::Pending;
             if colocated {
                 receipt.git = SyncStatus::Pending;
             }
+            let new_wc = working_commit(&repo, &name)?;
             let checkout = if prepared_wc.tree().tree_ids_and_labels()
                 != new_wc.tree().tree_ids_and_labels()
             {
@@ -425,12 +479,9 @@ async fn execute(
             } else {
                 Ok(())
             };
-            if checkout.is_err() {
+            checkout.inspect_err(|_| {
                 receipt.working_copy = SyncStatus::Failed;
-            }
-            if let Err(error) = checkout {
-                return Err(error);
-            }
+            })?;
             if colocated {
                 match preparation::export(&repo, &name, &new_wc, heads.as_ref(), receipt).await {
                     Ok(exported) => {
@@ -462,9 +513,6 @@ async fn execute(
     if receipt.working_copy == SyncStatus::Pending || receipt.preparation_operation_id.is_some() {
         receipt.working_copy = SyncStatus::Completed;
     }
-    if token.check().is_err() && receipt.mutation_operation_id.is_some() {
-        receipt.cancellation_phase = Some(WritePhase::Synchronizing);
-    }
     result
 }
 
@@ -484,7 +532,8 @@ async fn mutate(
     receipt: &mut BackendWriteReceipt,
 ) -> Result<Option<Arc<ReadonlyRepo>>, BackendError> {
     token.check()?;
-    receipt.phase = WritePhase::Validating;
+    receipt.enter(WritePhase::Validating, token);
+    token.check()?;
     let mut tx = repo.start_transaction();
     tx.set_workspace_name(ctx.name);
     let change = match command {
@@ -496,14 +545,14 @@ async fn mutate(
             describe::rewrite(ctx, repo, &mut tx, target, message, receipt).await?
         }
         Command::Undo { head, operation } => Some((
-            operations::restore(repo, &mut tx, &head, &operation, receipt).await?,
+            operations::restore(repo, &mut tx, ctx.name, &head, &operation, receipt).await?,
             None,
         )),
     };
     let Some((description, new)) = change else {
         return Ok(None);
     };
-    receipt.phase = WritePhase::Mutating;
+    receipt.enter(WritePhase::Mutating, token);
     token.check()?;
     let committed = publish(tx, &description, ctx.heads, receipt).await?;
     receipt.mutation_operation_id = Some(committed.op_id().hex());

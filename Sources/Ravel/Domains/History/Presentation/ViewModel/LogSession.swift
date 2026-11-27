@@ -85,6 +85,10 @@ final class LogSession {
         log?.revisions.first { $0.id == selectedRevisionID }
     }
 
+    var displayedOperationID: String? {
+        query?.identity.operationID
+    }
+
     var diffRequest: RevisionDiffRequest? {
         guard let repositoryURL = log?.repositoryURL, let selectedRevision, let query else { return nil }
         return RevisionDiffRequest(

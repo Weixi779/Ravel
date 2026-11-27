@@ -1145,6 +1145,24 @@ public nonisolated enum I18n {
     }
 
     /**
+     Explain a local operation that committed before synchronization failed.
+     
+     Localized string for key “repositoryCommittedSyncFailure” in table “Localizable.xcstrings”.
+     */
+    public static var repositoryCommittedSyncFailure: LocalizedStringResource {
+        LocalizedStringResource("repositoryCommittedSyncFailure", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Dismiss the operation history or a write result.
+     
+     Localized string for key “repositoryDismiss” in table “Localizable.xcstrings”.
+     */
+    public static var repositoryDismiss: LocalizedStringResource {
+        LocalizedStringResource("repositoryDismiss", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Menu or button opening a repository picker.
      
      Localized string for key “repositoryOpen” in table “Localizable.xcstrings”.
@@ -1190,6 +1208,15 @@ public nonisolated enum I18n {
     }
 
     /**
+     Recent local jj operations for this repository.
+     
+     Localized string for key “repositoryOperations” in table “Localizable.xcstrings”.
+     */
+    public static var repositoryOperations: LocalizedStringResource {
+        LocalizedStringResource("repositoryOperations", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Remove only the recent entry, not the repository files.
      
      Localized string for key “repositoryRemoveRecent” in table “Localizable.xcstrings”.
@@ -1208,12 +1235,30 @@ public nonisolated enum I18n {
     }
 
     /**
+     Explicitly snapshot files from disk into the current jj working copy.
+     
+     Localized string for key “repositorySnapshot” in table “Localizable.xcstrings”.
+     */
+    public static var repositorySnapshot: LocalizedStringResource {
+        LocalizedStringResource("repositorySnapshot", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Default window subtitle.
      
      Localized string for key “repositorySubtitle” in table “Localizable.xcstrings”.
      */
     public static var repositorySubtitle: LocalizedStringResource {
         LocalizedStringResource("repositorySubtitle", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Confirm undo of the displayed local operation.
+     
+     Localized string for key “repositoryUndoLocal” in table “Localizable.xcstrings”.
+     */
+    public static var repositoryUndoLocal: LocalizedStringResource {
+        LocalizedStringResource("repositoryUndoLocal", table: "Localizable", bundle: resourceBundleDescription)
     }
 
     /**
