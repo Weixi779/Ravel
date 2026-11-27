@@ -14,12 +14,14 @@ actor RepositoryWorkspace {
     private var repository: CodeRepository?
     private var requestedURL: URL?
     private var generation = 0
+    private var retiredReceipts: [RepositoryWriteReceipt] = []
+    private var retirements: [UUID: Task<Void, Never>] = [:]
 
     func history(at url: URL, pageSize: Int) async throws -> any HistoryQuery {
         generation += 1
         let request = generation
         let normalized = url.standardizedFileURL.resolvingSymlinksInPath()
-        if let repository, requestedURL == normalized || repository.workspaceURL == normalized {
+        if let repository, requestedURL == normalized || repository.workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path == normalized.path {
             return try await repository.history(pageSize: pageSize)
         }
         let candidate = try await CodeRepository.open(normalized)
@@ -30,7 +32,7 @@ actor RepositoryWorkspace {
         let previous = repository
         repository = candidate
         requestedURL = normalized
-        await previous?.close()
+        await retire(previous)
         return try await candidate.history(pageSize: pageSize)
     }
 
@@ -39,24 +41,58 @@ actor RepositoryWorkspace {
         let previous = repository
         repository = nil
         requestedURL = nil
-        await previous?.close()
+        await retire(previous)
+        for pending in Array(retirements.values) { await pending.value }
+    }
+
+    private func retire(_ previous: CodeRepository?) async {
+        guard let previous else { return }
+        let id = UUID()
+        let task = Task {
+            await previous.close()
+            retiredReceipts.append(contentsOf: previous.takeWriteReceipts())
+            retirements.removeValue(forKey: id)
+        }
+        retirements[id] = task
+        await task.value
+    }
+
+    func takeWriteReceipts() -> [RepositoryWriteReceipt] {
+        defer { retiredReceipts.removeAll() }
+        return retiredReceipts + (repository?.takeWriteReceipts() ?? [])
+    }
+
+    func describe(_ target: RevisionWriteTarget, title: String, body: String) async throws -> RepositoryWriteReceipt {
+        try await current(at: target.workspaceURL).describe(target, title: title, body: body)
+    }
+
+    func snapshot(at workspaceURL: URL, operationID: String) async throws -> RepositoryWriteReceipt {
+        try await current(at: workspaceURL).snapshot(operationID: operationID)
+    }
+
+    func operationHistory(at workspaceURL: URL, limit: UInt32 = 50) async throws -> RepositoryOperationHistory {
+        try await current(at: workspaceURL).operationHistory(limit: limit)
+    }
+
+    func undo(_ history: RepositoryOperationHistory) async throws -> RepositoryWriteReceipt {
+        try await current(at: history.workspaceURL).undo(history)
     }
 
     func diff(_ request: RevisionDiffRequest) async throws -> RevisionDiff {
-        try await reader(for: request).diff(commitID: request.commitID, at: request.operationID)
+        try await current(at: request.repositoryURL).diff(commitID: request.commitID, at: request.operationID)
     }
 
     func fileDiff(_ request: RevisionDiffRequest, file: ChangedFile) async throws -> FileDiff {
-        try await reader(for: request).fileDiff(commitID: request.commitID, path: file.path, at: request.operationID)
+        try await current(at: request.repositoryURL).fileDiff(commitID: request.commitID, path: file.path, at: request.operationID)
     }
 
     func diffStatistics(_ request: RevisionDiffRequest) async throws -> RevisionDiffStatistics {
-        try await reader(for: request).diffStatistics(commitID: request.commitID, at: request.operationID)
+        try await current(at: request.repositoryURL).diffStatistics(commitID: request.commitID, at: request.operationID)
     }
 
-    private func reader(for request: RevisionDiffRequest) throws -> CodeRepository {
-        let normalized = request.repositoryURL.standardizedFileURL.resolvingSymlinksInPath()
-        guard let repository, repository.workspaceURL == normalized else { throw CancellationError() }
+    private func current(at workspaceURL: URL) throws -> CodeRepository {
+        let normalized = workspaceURL.standardizedFileURL.resolvingSymlinksInPath()
+        guard let repository, repository.workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path == normalized.path else { throw CancellationError() }
         return repository
     }
 }

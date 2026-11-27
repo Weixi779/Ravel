@@ -9,6 +9,11 @@
 mod diff;
 mod history;
 mod worker;
+mod writer;
+pub use writer::{
+    BackendOperationHistory, BackendWriteReceipt, BackendWriteTarget, SyncStatus, WriteDisposition,
+    WritePhase,
+};
 
 pub use diff::{
     BackendChangedFile, BackendDiffStatistics, BackendFileKind, BackendFileMetadata,
@@ -118,6 +123,7 @@ pub struct BackendRepository {
     path: PathBuf,
     identity: RepositoryIdentity,
     state: Mutex<RepositoryState>,
+    receipts: Arc<Mutex<Vec<BackendWriteReceipt>>>,
 }
 
 #[uniffi::export]
@@ -236,6 +242,7 @@ impl BackendRepository {
             path,
             identity,
             state: Mutex::default(),
+            receipts: Arc::default(),
         })
     }
 
@@ -338,6 +345,7 @@ mod tests {
                 workspace_name: String::new(),
             },
             state: Mutex::default(),
+            receipts: Arc::default(),
         }
     }
 

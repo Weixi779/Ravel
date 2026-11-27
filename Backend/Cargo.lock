@@ -2335,6 +2335,7 @@ dependencies = [
  "erased-serde",
  "etcetera",
  "futures",
+ "gix",
  "globset",
  "indexmap",
  "indoc",

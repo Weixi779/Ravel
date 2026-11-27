@@ -203,6 +203,51 @@ impl BackendHistory {
     }
 }
 
+pub(crate) fn immutable_revisions_at<'a>(
+    path: &std::path::Path,
+    name: &jj_lib::ref_name::WorkspaceName,
+    settings: &jj_lib::settings::UserSettings,
+    repo: &'a jj_lib::repo::ReadonlyRepo,
+) -> Result<Box<dyn jj_lib::revset::Revset + 'a>, BackendError> {
+    let ui = Ui::null();
+    let aliases: RevsetAliasesMap =
+        load_aliases_map(&ui, settings.config(), &"revset-aliases".parse().unwrap())
+            .map_err(|error| read_error(error.error))?;
+    let filesets: FilesetAliasesMap =
+        load_aliases_map(&ui, settings.config(), &"fileset-aliases".parse().unwrap())
+            .map_err(|error| read_error(error.error))?;
+    let extensions = RevsetExtensions::default();
+    let path_converter = RepoPathUiConverter::Fs {
+        cwd: path.to_owned(),
+        base: path.to_owned(),
+    };
+    let context = RevsetParseContext {
+        aliases_map: &aliases,
+        local_variables: HashMap::new(),
+        user_email: settings.user_email(),
+        date_pattern_context: chrono::Local::now().into(),
+        default_ignored_remote: Some(REMOTE_NAME_FOR_LOCAL_GIT_REPO),
+        fileset_aliases_map: &filesets,
+        use_glob_by_default: settings
+            .config()
+            .get("ui.revsets-use-glob-by-default")
+            .map_err(read_error)?,
+        extensions: &extensions,
+        workspace: Some(RevsetWorkspaceContext {
+            path_converter: &path_converter,
+            workspace_name: name,
+        }),
+    };
+    let immutable_expression =
+        revset::parse(&mut RevsetDiagnostics::new(), "immutable()", &context)
+            .map_err(read_error)?;
+    let resolver = SymbolResolver::new(repo, extensions.symbol_resolvers());
+    let immutable_expression = immutable_expression
+        .resolve_user_expression(repo, &resolver)
+        .map_err(read_error)?;
+    immutable_expression.evaluate(repo).map_err(read_error)
+}
+
 async fn run(
     path: PathBuf,
     page_size: usize,
@@ -233,46 +278,12 @@ async fn run(
         .map_err(read_error)?;
     let operation = Operation::new(loader.op_store().clone(), head.clone(), data);
     let repo = loader.load_at(&operation).await.map_err(read_error)?;
-    let settings = workspace.settings();
-    let ui = Ui::null();
-    let aliases: RevsetAliasesMap =
-        load_aliases_map(&ui, settings.config(), &"revset-aliases".parse().unwrap())
-            .map_err(|error| read_error(error.error))?;
-    let filesets: FilesetAliasesMap =
-        load_aliases_map(&ui, settings.config(), &"fileset-aliases".parse().unwrap())
-            .map_err(|error| read_error(error.error))?;
-    let extensions = RevsetExtensions::default();
-    let path_converter = RepoPathUiConverter::Fs {
-        cwd: path.clone(),
-        base: workspace.workspace_root().to_path_buf(),
-    };
-    let context = RevsetParseContext {
-        aliases_map: &aliases,
-        local_variables: HashMap::new(),
-        user_email: settings.user_email(),
-        date_pattern_context: chrono::Local::now().into(),
-        default_ignored_remote: Some(REMOTE_NAME_FOR_LOCAL_GIT_REPO),
-        fileset_aliases_map: &filesets,
-        use_glob_by_default: settings
-            .config()
-            .get("ui.revsets-use-glob-by-default")
-            .map_err(read_error)?,
-        extensions: &extensions,
-        workspace: Some(RevsetWorkspaceContext {
-            path_converter: &path_converter,
-            workspace_name: workspace.workspace_name(),
-        }),
-    };
-    let immutable_expression =
-        revset::parse(&mut RevsetDiagnostics::new(), "immutable()", &context)
-            .map_err(read_error)?;
-    let resolver = SymbolResolver::new(repo.as_ref(), extensions.symbol_resolvers());
-    let immutable_expression = immutable_expression
-        .resolve_user_expression(repo.as_ref(), &resolver)
-        .map_err(read_error)?;
-    let immutable = immutable_expression
-        .evaluate(repo.as_ref())
-        .map_err(read_error)?;
+    let immutable = immutable_revisions_at(
+        &path,
+        workspace.workspace_name(),
+        workspace.settings(),
+        repo.as_ref(),
+    )?;
     let is_immutable = immutable.containing_fn();
     let all = ResolvedRevsetExpression::all()
         .evaluate(repo.as_ref())
