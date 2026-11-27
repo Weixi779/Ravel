@@ -84,11 +84,15 @@ struct UserDefaultsReentrancyTests {
                     return
                 }
                 let finished = DispatchSemaphore(value: 0)
-                DispatchQueue.global().async {
-                    #expect((try? sameStore.read(trigger)) == 1)
+                let result = Mutex<Int?>(nil)
+                // The callback blocks while the reader acquires the store on another thread.
+                Thread.detachNewThread {
+                    let value = try? sameStore.read(trigger)
+                    result.withLock { $0 = value }
                     finished.signal()
                 }
                 #expect(finished.wait(timeout: .now() + 2) == .success)
+                #expect(result.withLock { $0 } == 1)
             }
             slot.withLock { $0 = store }
             defer { slot.withLock { $0 = nil } }

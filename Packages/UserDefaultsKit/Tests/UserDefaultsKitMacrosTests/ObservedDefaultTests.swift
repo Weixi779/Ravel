@@ -164,11 +164,15 @@ struct ObservedDefaultTests {
             let model = Model(store: store)
             let finished = DispatchSemaphore(value: 0)
             withObservationTracking { _ = model.path } onChange: {
-                DispatchQueue.global().async {
-                    #expect((try? store.read(UserDefaultsKey<String?>.observedPath)) == "/new")
+                let result = Mutex<String?>(nil)
+                // The callback blocks while the reader acquires the store on another thread.
+                Thread.detachNewThread {
+                    let value = try? store.read(UserDefaultsKey<String?>.observedPath)
+                    result.withLock { $0 = value }
                     finished.signal()
                 }
                 #expect(finished.wait(timeout: .now() + 2) == .success)
+                #expect(result.withLock { $0 } == "/new")
             }
             model.path = "/new"
         }

@@ -285,12 +285,15 @@ struct UserDefaultsKitTests {
             let store = UserDefaultsStore(defaults: defaults) { _ in
                 let sameStore = slot.withLock { $0! }
                 let finished = DispatchSemaphore(value: 0)
-                DispatchQueue.global().async {
-                    // A different thread must be able to acquire the same store's lock.
-                    #expect((try? sameStore.read(UserDefaultsKey("other", default: 2))) == 2)
+                let result = Mutex<Int?>(nil)
+                // The callback blocks while the reader acquires the store on another thread.
+                Thread.detachNewThread {
+                    let value = try? sameStore.read(UserDefaultsKey("other", default: 2))
+                    result.withLock { $0 = value }
                     finished.signal()
                 }
                 #expect(finished.wait(timeout: .now() + 2) == .success)
+                #expect(result.withLock { $0 } == 2)
             }
             slot.withLock { $0 = store }
             defer { slot.withLock { $0 = nil } }
