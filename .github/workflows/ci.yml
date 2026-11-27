@@ -89,4 +89,8 @@ jobs:
         run: |
           xcodebuild test -project Ravel.xcodeproj -scheme Ravel \
             -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/DerivedData \
-            -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation
+            -onlyUsePackageVersionsFromResolvedFile -skipMacroValidation \
+            -parallel-testing-enabled NO -resultBundlePath .build/RavelTests.xcresult
+      - name: Report app test failures
+        if: failure() && hashFiles('.build/RavelTests.xcresult/Info.plist') != ''
+        run: xcrun xcresulttool get test-results summary --path .build/RavelTests.xcresult
