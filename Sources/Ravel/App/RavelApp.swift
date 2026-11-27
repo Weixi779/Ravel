@@ -45,6 +45,7 @@ struct RavelApp: App {
                     session.restoreIfNeeded()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    guard !diffSession.isSelectingSplit, !diffSession.isOrganizing else { return }
                     session.refreshIfNeeded()
                 }
         }

@@ -1136,6 +1136,76 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “organizeCannotSplit” in table “Localizable.xcstrings”.
+     */
+    public static var organizeCannotSplit: LocalizedStringResource {
+        LocalizedStringResource("organizeCannotSplit", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeMove” in table “Localizable.xcstrings”.
+     */
+    public static var organizeMove: LocalizedStringResource {
+        LocalizedStringResource("organizeMove", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeMutableDestination” in table “Localizable.xcstrings”.
+     */
+    public static var organizeMutableDestination: LocalizedStringResource {
+        LocalizedStringResource("organizeMutableDestination", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeReadBackFailed” in table “Localizable.xcstrings”.
+     */
+    public static var organizeReadBackFailed: LocalizedStringResource {
+        LocalizedStringResource("organizeReadBackFailed", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeResolve” in table “Localizable.xcstrings”.
+     */
+    public static var organizeResolve: LocalizedStringResource {
+        LocalizedStringResource("organizeResolve", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeResolved” in table “Localizable.xcstrings”.
+     */
+    public static var organizeResolved: LocalizedStringResource {
+        LocalizedStringResource("organizeResolved", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeSnapshot” in table “Localizable.xcstrings”.
+     */
+    public static var organizeSnapshot: LocalizedStringResource {
+        LocalizedStringResource("organizeSnapshot", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeSplit” in table “Localizable.xcstrings”.
+     */
+    public static var organizeSplit: LocalizedStringResource {
+        LocalizedStringResource("organizeSplit", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeSquash” in table “Localizable.xcstrings”.
+     */
+    public static var organizeSquash: LocalizedStringResource {
+        LocalizedStringResource("organizeSquash", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “organizeStale” in table “Localizable.xcstrings”.
+     */
+    public static var organizeStale: LocalizedStringResource {
+        LocalizedStringResource("organizeStale", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Repository picker instructions.
      
      Localized string for key “repositoryChooseWorkspace” in table “Localizable.xcstrings”.
@@ -1430,5 +1500,54 @@ public nonisolated enum I18n {
      */
     public static var revisionWorkingCopy: LocalizedStringResource {
         LocalizedStringResource("revisionWorkingCopy", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitCancel” in table “Localizable.xcstrings”.
+     */
+    public static var splitCancel: LocalizedStringResource {
+        LocalizedStringResource("splitCancel", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitFileOnly” in table “Localizable.xcstrings”.
+     */
+    public static var splitFileOnly: LocalizedStringResource {
+        LocalizedStringResource("splitFileOnly", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitFirst” in table “Localizable.xcstrings”.
+     */
+    public static var splitFirst: LocalizedStringResource {
+        LocalizedStringResource("splitFirst", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitPartial” in table “Localizable.xcstrings”.
+     */
+    public static var splitPartial: LocalizedStringResource {
+        LocalizedStringResource("splitPartial", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitReview” in table “Localizable.xcstrings”.
+     */
+    public static var splitReview: LocalizedStringResource {
+        LocalizedStringResource("splitReview", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitSecond” in table “Localizable.xcstrings”.
+     */
+    public static var splitSecond: LocalizedStringResource {
+        LocalizedStringResource("splitSecond", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitWholeFile” in table “Localizable.xcstrings”.
+     */
+    public static var splitWholeFile: LocalizedStringResource {
+        LocalizedStringResource("splitWholeFile", table: "Localizable", bundle: resourceBundleDescription)
     }
 }

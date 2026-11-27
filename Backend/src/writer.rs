@@ -8,10 +8,11 @@
 
 mod describe;
 mod graph;
-mod target;
 pub use graph::BackendGraphCommand;
 mod operations;
+mod organize;
 mod preparation;
+mod target;
 #[cfg(test)]
 mod tests;
 
@@ -99,8 +100,18 @@ pub struct BackendWriteReceipt {
 enum Command {
     Describe(BackendWriteTarget, String),
     Graph(BackendWriteTarget, BackendGraphCommand),
+    Split(BackendWriteTarget, Vec<crate::BackendFileSelection>),
+    Squash(BackendWriteTarget, BackendWriteTarget, Option<Vec<String>>),
+    Resolve {
+        target: BackendWriteTarget,
+        path: String,
+        resolved: Option<jj_lib::merged_tree::MergedTree>,
+    },
     Snapshot(String),
-    Undo { head: String, operation: String },
+    Undo {
+        head: String,
+        operation: String,
+    },
 }
 
 impl Command {
@@ -108,13 +119,20 @@ impl Command {
         match self {
             Self::Describe(..) => "describe",
             Self::Graph(_, action) => action.name(),
+            Self::Split(..) => "split",
+            Self::Squash(..) => "squash",
+            Self::Resolve { .. } => "resolve",
             Self::Snapshot(_) => "status",
             Self::Undo { .. } => "undo",
         }
     }
     fn origin(&self) -> &str {
         match self {
-            Self::Describe(t, _) | Self::Graph(t, _) => &t.operation_id,
+            Self::Describe(t, _)
+            | Self::Graph(t, _)
+            | Self::Split(t, _)
+            | Self::Squash(t, ..)
+            | Self::Resolve { target: t, .. } => &t.operation_id,
             Self::Snapshot(id) => id,
             Self::Undo { head, .. } => head,
         }
@@ -389,7 +407,7 @@ async fn publish(
 
 async fn execute(
     path: &Path,
-    command: Command,
+    mut command: Command,
     token: &BackendCancellation,
     receipt: &mut BackendWriteReceipt,
 ) -> Result<(), BackendError> {
@@ -402,6 +420,25 @@ async fn execute(
     let heads = loader.op_heads_store().clone();
     let before = operations::head(&loader, receipt).await?;
     let colocated = is_colocated_git_workspace(&workspace, &before);
+    let context = WriteContext {
+        path,
+        name: &name,
+        settings: &settings,
+        heads: heads.as_ref(),
+        colocated,
+    };
+    // External tools may stay open while the user works in another jj client. Revalidate
+    // both the working copy and the full source after the tool exits and preparation runs.
+    if let Command::Resolve {
+        target,
+        path: file,
+        resolved,
+    } = &mut command
+    {
+        let source = target::resolve(&context, &before, target, true, receipt).await?;
+        *resolved = Some(crate::conflict::edit(path, &settings, &source, file).await?);
+        token.check()?;
+    }
     let _git_lock = if colocated {
         Some(
             FileLock::lock(workspace.repo_path().join("git_import_export.lock"))
@@ -416,13 +453,6 @@ async fn execute(
         .map_err(read_error)?;
     let _head_lock = heads.lock().await.map_err(read_error)?;
     let mut repo = operations::head(&loader, receipt).await?;
-    let context = WriteContext {
-        path,
-        name: &name,
-        settings: &settings,
-        heads: heads.as_ref(),
-        colocated,
-    };
     let old = working_commit(&repo, &name)?;
     if !matches!(
         WorkingCopyFreshness::check_stale(locked.locked_wc(), &old, &repo)
@@ -537,12 +567,68 @@ async fn mutate(
     let mut tx = repo.start_transaction();
     tx.set_workspace_name(ctx.name);
     let change = match command {
-        Command::Snapshot(_) => None,
         Command::Graph(source, action) => {
             graph::apply(ctx, repo, &mut tx, source, action, receipt).await?
         }
+        Command::Snapshot(_) => {
+            let wc = working_commit(repo, ctx.name)?;
+            receipt.commit_id = Some(wc.id().hex());
+            receipt.change_id = Some(wc.change_id().reverse_hex());
+            None
+        }
         Command::Describe(target, message) => {
             describe::rewrite(ctx, repo, &mut tx, target, message, receipt).await?
+        }
+        Command::Split(target, selection) => {
+            let source = target::resolve(ctx, repo, &target, true, receipt).await?;
+            receipt.phase = WritePhase::Mutating;
+            let picked = crate::changes::select(ctx.path, repo, &source, &selection, token).await?;
+            let second = crate::changes::split(tx.repo_mut(), picked).await?;
+            Some((format!("split commit {}", source.id().hex()), Some(second)))
+        }
+        Command::Squash(target, destination, paths) => {
+            let source = target::resolve(ctx, repo, &target, true, receipt).await?;
+            let dest = target::resolve(ctx, repo, &destination, true, receipt).await?;
+            receipt.phase = WritePhase::Mutating;
+            let picked = if let Some(paths) = paths {
+                let files = paths
+                    .into_iter()
+                    .map(|path| crate::BackendFileSelection::Whole { path })
+                    .collect::<Vec<_>>();
+                crate::changes::select(ctx.path, repo, &source, &files, token).await?
+            } else {
+                jj_lib::rewrite::CommitWithSelection {
+                    parent_tree: source
+                        .parent_tree(repo.as_ref())
+                        .await
+                        .map_err(read_error)?,
+                    selected_tree: source.tree(),
+                    commit: source.clone(),
+                }
+            };
+            let dest = crate::changes::squash(tx.repo_mut(), picked, &dest).await?;
+            Some((format!("squash commit {}", source.id().hex()), Some(dest)))
+        }
+        Command::Resolve {
+            target,
+            path,
+            resolved,
+        } => {
+            let source = target::resolve(ctx, repo, &target, true, receipt).await?;
+            let tree = resolved.ok_or_else(|| read_error("No merge tool result."))?;
+            receipt.phase = WritePhase::Mutating;
+            let new = tx
+                .repo_mut()
+                .rewrite_commit(&source)
+                .set_tree(tree)
+                .write()
+                .await
+                .map_err(read_error)?;
+            tx.repo_mut()
+                .rebase_descendants()
+                .await
+                .map_err(read_error)?;
+            Some((format!("resolve conflict in {path}"), Some(new)))
         }
         Command::Undo { head, operation } => Some((
             operations::restore(repo, &mut tx, ctx.name, &head, &operation, receipt).await?,
@@ -558,6 +644,7 @@ async fn mutate(
     receipt.mutation_operation_id = Some(committed.op_id().hex());
     if let Some(new) = new {
         receipt.commit_id = Some(new.id().hex());
+        receipt.change_id = Some(new.change_id().reverse_hex());
     }
     Ok(Some(committed))
 }

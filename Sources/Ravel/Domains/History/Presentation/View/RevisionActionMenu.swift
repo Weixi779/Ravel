@@ -11,7 +11,7 @@ import Localization
 
 @MainActor
 enum RevisionActionMenu {
-    static func menu(for row: HistoryRevision, session: LogSession) -> NSMenu {
+    static func menu(for row: HistoryRevision, session: LogSession, organize: ((RevisionOrganizationAction) -> Void)? = nil) -> NSMenu {
         let revision = row.revision
         let menu = describe { session.beginDescribe(row) }
         func rewrite(_ action: () -> Void) {
@@ -27,6 +27,10 @@ enum RevisionActionMenu {
         menu.addItem(RevisionMenuAction.item(I18n.historyEdit) {
             rewrite { Task { await session.run(.edit, on: row) } }
         })
+        if let organize {
+            menu.addItem(RevisionMenuAction.item(I18n.splitReview) { rewrite { organize(.split) } })
+            menu.addItem(RevisionMenuAction.item(I18n.organizeSquash) { rewrite { organize(.squash) } })
+        }
         menu.addItem(RevisionMenuAction.item(I18n.historyRebase) {
             rewrite { session.commandRequest = .rebase(row) }
         })

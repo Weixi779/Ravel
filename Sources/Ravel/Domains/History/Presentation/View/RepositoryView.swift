@@ -228,7 +228,18 @@ struct RepositoryView: View {
                             selection: $session.selectedRevisionID,
                             graphStyle: session.graphStyle,
                             menuForRevision: { revision in
-                                RevisionActionMenu.menu(for: log.target(for: revision), session: session)
+                                RevisionActionMenu.menu(for: log.target(for: revision), session: session) { action in
+                                    guard session.log?.snapshotID == log.snapshotID else {
+                                        session.commandNotice = String(localized: I18n.organizeStale)
+                                        return
+                                    }
+                                    session.selectedRevisionID = revision.id
+                                    diffSession.requestOrganization(action, source: revision, request: .init(
+                                        repositoryURL: log.repositoryURL,
+                                        commitID: revision.id,
+                                        operationID: log.operationID,
+                                    ))
+                                }
                             },
                             loadMore: { session.loadMore() },
                         )
@@ -252,7 +263,7 @@ struct RepositoryView: View {
                         }
                     }
                     .frame(minHeight: 180, idealHeight: 350)
-                    RevisionInspectorView(revision: session.selectedRevision, request: session.diffRequest, diff: diffSession)
+                    RevisionInspectorView(revision: session.selectedRevision, request: session.diffRequest, diff: diffSession, logSession: session)
                         .frame(minHeight: 240, idealHeight: 350)
                 }
             }

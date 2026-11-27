@@ -13,6 +13,8 @@ struct RevisionFileList: View {
     @Bindable var model: RevisionFileListViewModel
     @Binding var selection: String?
     let mode: RevisionFileListMode
+    var splitSelection: RevisionSplitSelection?
+    var moveFile: ((RevisionFilePresentation) -> Void)?
     @FocusState private var isFileListFocused: Bool
 
     var body: some View {
@@ -20,9 +22,28 @@ struct RevisionFileList: View {
             List(selection: $model.navigationSelection) {
                 ForEach(model.visibleNodes(mode: mode)) { item in
                     if let file = item.node.file {
-                        RevisionFileRow(file: file, showsDirectory: mode == .list)
-                            .padding(.leading, mode == .list ? 0 : CGFloat(item.depth) * 14 + 18)
-                            .tag(RevisionFileListViewModel.Selection.file(file.id))
+                        HStack {
+                            if let splitSelection, file.status != .unchanged {
+                                let portion = splitSelection.first[file.path]
+                                Toggle(isOn: Binding(get: { portion == .file }, set: { selected in
+                                    splitSelection.setFile(file.path, included: selected)
+                                })) {
+                                    Text(verbatim: file.path)
+                                }
+                                .toggleStyle(.checkbox)
+                                .labelsHidden()
+                                .help(I18n.splitWholeFile)
+
+                                if case .hunks = portion {
+                                    Image(systemName: "square.lefthalf.filled")
+                                        .accessibilityLabel(I18n.splitPartial)
+                                }
+                            }
+
+                            RevisionFileRow(file: file, showsDirectory: mode == .list, moveFile: moveFile)
+                        }
+                        .padding(.leading, mode == .list ? 0 : CGFloat(item.depth) * 14 + 18)
+                        .tag(RevisionFileListViewModel.Selection.file(file.id))
                     } else {
                         RevisionDirectoryRow(item: item, isCollapsed: model.isCollapsed(item.id, mode: mode)) {
                             model.toggle(item.id, mode: mode)

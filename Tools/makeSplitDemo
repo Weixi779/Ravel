@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+#  makeSplitDemo
+#  Ravel
+#
+#  Created by weixi on 2026/11/27.
+#  Copyright © 2026 Ravel. All rights reserved.
+#
+
+set -eu
+repo=$(mktemp -d "${TMPDIR:-/tmp}/Ravel-Split.XXXXXX")
+cd "$repo"
+jj git init --colocate .
+cat > Settings.swift <<'SWIFT'
+let timeout = 5
+
+struct Playback {
+    let rate = 1
+    let repeats = false
+}
+
+struct Playlist {
+    let shuffle = false
+    let limit = 50
+}
+
+let title = "Draft"
+SWIFT
+jj new -m 'Tune playback and title'
+awk '/^let timeout/ { print "let timeout = 15"; print "let retries = 2"; next } { sub(/"Draft"/, "\"Ready\""); print }' Settings.swift > edited
+mv edited Settings.swift
+printf 'unrelated work\n' > notes.txt
+pwd

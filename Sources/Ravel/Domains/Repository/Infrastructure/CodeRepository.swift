@@ -46,6 +46,7 @@ nonisolated protocol CodeRepositoryWriter: Sendable {
     func describe(_ target: RevisionWriteTarget, title: String, body: String) async throws -> RepositoryWriteReceipt
     func apply(_ command: RevisionGraphCommand, to source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt
     func snapshot(operationID: String) async throws -> RepositoryWriteReceipt
+    func organize(_ operation: RevisionChangeOperation, source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt
     func undo(_ history: RepositoryOperationHistory) async throws -> RepositoryWriteReceipt
 }
 
@@ -90,8 +91,7 @@ final nonisolated class CodeRepository: CodeRepositoryReader, CodeRepositoryWrit
 
     @concurrent
     func describe(_ target: RevisionWriteTarget, title: String, body: String) async throws -> RepositoryWriteReceipt {
-        guard target.workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path == workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path else { throw BackendError.Closed }
-        let target = BackendWriteTarget(operationId: target.operationID, commitId: target.commitID, changeId: target.changeID)
+        let target = try nativeWriteTarget(target)
         var description = title
         if !body.isEmpty { description += "\n\n" + body }
         if !description.isEmpty, !description.hasSuffix("\n") { description += "\n" }
@@ -155,6 +155,39 @@ final nonisolated class CodeRepository: CodeRepositoryReader, CodeRepositoryWrit
         return try await write { id, token in
             try await self.backend.undo(requestId: id, headId: history.headID, operationId: target.id, cancellation: token)
         }
+    }
+
+    @concurrent
+    func organize(_ operation: RevisionChangeOperation, source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt {
+        let target = try nativeWriteTarget(source)
+        switch operation {
+        case let .split(first):
+            let selection: [BackendFileSelection] = first.map { path, portion in
+                switch portion {
+                case .file: .whole(path: path)
+                case let .hunks(ranges): .hunks(path: path, hunks: ranges.map {
+                        BackendHunk(oldStart: UInt64($0.oldStart), oldCount: UInt64($0.oldCount), newStart: UInt64($0.newStart), newCount: UInt64($0.newCount))
+                    })
+                }
+            }
+            return try await write { id, token in
+                try await self.backend.split(requestId: id, source: target, selection: selection, cancellation: token)
+            }
+        case let .squash(into, paths):
+            let destination = try nativeWriteTarget(into)
+            return try await write { id, token in
+                try await self.backend.squash(requestId: id, source: target, destination: destination, paths: paths, cancellation: token)
+            }
+        case let .resolve(path):
+            return try await write { id, token in
+                try await self.backend.resolveFile(requestId: id, source: target, path: path, cancellation: token)
+            }
+        }
+    }
+
+    private func nativeWriteTarget(_ value: RevisionWriteTarget) throws -> BackendWriteTarget {
+        guard value.workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path == workspaceURL.standardizedFileURL.resolvingSymlinksInPath().path else { throw BackendError.Closed }
+        return BackendWriteTarget(operationId: value.operationID, commitId: value.commitID, changeId: value.changeID)
     }
 
     private func write(_ perform: @Sendable (String, BackendCancellation) async throws -> BackendWriteReceipt) async throws -> RepositoryWriteReceipt {

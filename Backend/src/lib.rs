@@ -6,6 +6,9 @@
 //  Copyright © 2026 Ravel. All rights reserved.
 //
 
+mod changes;
+mod conflict;
+pub use changes::{BackendFileSelection, BackendHunk};
 mod diff;
 mod history;
 mod worker;

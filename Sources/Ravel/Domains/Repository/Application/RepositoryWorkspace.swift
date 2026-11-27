@@ -62,6 +62,10 @@ actor RepositoryWorkspace {
         return retiredReceipts + (repository?.takeWriteReceipts() ?? [])
     }
 
+    func organize(_ operation: RevisionChangeOperation, source: RevisionWriteTarget) async throws -> RepositoryWriteReceipt {
+        try await current(at: source.workspaceURL).organize(operation, source: source)
+    }
+
     func describe(_ target: RevisionWriteTarget, title: String, body: String) async throws -> RepositoryWriteReceipt {
         try await current(at: target.workspaceURL).describe(target, title: title, body: body)
     }

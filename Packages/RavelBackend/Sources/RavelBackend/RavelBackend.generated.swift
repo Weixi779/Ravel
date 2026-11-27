@@ -892,6 +892,12 @@ public protocol BackendRepositoryProtocol: AnyObject, Sendable {
     
     func undo(requestId: String, headId: String, operationId: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
     
+    func resolveFile(requestId: String, source: BackendWriteTarget, path: String, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func split(requestId: String, source: BackendWriteTarget, selection: [BackendFileSelection], cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
+    func squash(requestId: String, source: BackendWriteTarget, destination: BackendWriteTarget, paths: [String]?, cancellation: BackendCancellation) async throws  -> BackendWriteReceipt
+    
 }
 open class BackendRepository: BackendRepositoryProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -1142,6 +1148,54 @@ open func undo(requestId: String, headId: String, operationId: String, cancellat
             rustFutureFunc: {
                 uniffi_ravel_backend_fn_method_backendrepository_undo(
                         self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterString.lower(headId),FfiConverterString.lower(operationId),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func resolveFile(requestId: String, source: BackendWriteTarget, path: String, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_resolve_file(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterString.lower(path),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func split(requestId: String, source: BackendWriteTarget, selection: [BackendFileSelection], cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_split(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterSequenceTypeBackendFileSelection.lower(selection),FfiConverterTypeBackendCancellation_lower(cancellation)
+                )
+            },
+            pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
+            completeFunc: ffi_ravel_backend_rust_future_complete_rust_buffer,
+            freeFunc: ffi_ravel_backend_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBackendWriteReceipt_lift,
+            errorHandler: FfiConverterTypeBackendError_lift
+        )
+}
+    
+open func squash(requestId: String, source: BackendWriteTarget, destination: BackendWriteTarget, paths: [String]?, cancellation: BackendCancellation)async throws  -> BackendWriteReceipt  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_ravel_backend_fn_method_backendrepository_squash(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(requestId),FfiConverterTypeBackendWriteTarget_lower(source),FfiConverterTypeBackendWriteTarget_lower(destination),FfiConverterOptionSequenceString.lower(paths),FfiConverterTypeBackendCancellation_lower(cancellation)
                 )
             },
             pollFunc: ffi_ravel_backend_rust_future_poll_rust_buffer,
@@ -1505,6 +1559,68 @@ public func FfiConverterTypeBackendFileStatistics_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeBackendFileStatistics_lower(_ value: BackendFileStatistics) -> RustBuffer {
     return FfiConverterTypeBackendFileStatistics.lower(value)
+}
+
+
+public struct BackendHunk: Equatable, Hashable {
+    public var oldStart: UInt64
+    public var oldCount: UInt64
+    public var newStart: UInt64
+    public var newCount: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(oldStart: UInt64, oldCount: UInt64, newStart: UInt64, newCount: UInt64) {
+        self.oldStart = oldStart
+        self.oldCount = oldCount
+        self.newStart = newStart
+        self.newCount = newCount
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BackendHunk: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendHunk: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendHunk {
+        return
+            try BackendHunk(
+                oldStart: FfiConverterUInt64.read(from: &buf), 
+                oldCount: FfiConverterUInt64.read(from: &buf), 
+                newStart: FfiConverterUInt64.read(from: &buf), 
+                newCount: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BackendHunk, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.oldStart, into: &buf)
+        FfiConverterUInt64.write(value.oldCount, into: &buf)
+        FfiConverterUInt64.write(value.newStart, into: &buf)
+        FfiConverterUInt64.write(value.newCount, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendHunk_lift(_ buf: RustBuffer) throws -> BackendHunk {
+    return try FfiConverterTypeBackendHunk.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendHunk_lower(_ value: BackendHunk) -> RustBuffer {
+    return FfiConverterTypeBackendHunk.lower(value)
 }
 
 
@@ -2261,6 +2377,79 @@ public func FfiConverterTypeBackendFileKind_lower(_ value: BackendFileKind) -> R
 
 
 
+public enum BackendFileSelection: Equatable, Hashable {
+    
+    case whole(path: String
+    )
+    case hunks(path: String, hunks: [BackendHunk]
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BackendFileSelection: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBackendFileSelection: FfiConverterRustBuffer {
+    typealias SwiftType = BackendFileSelection
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BackendFileSelection {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .whole(path: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .hunks(path: try FfiConverterString.read(from: &buf), hunks: try FfiConverterSequenceTypeBackendHunk.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BackendFileSelection, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .whole(path):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(path, into: &buf)
+            
+        
+        case let .hunks(path,hunks):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(path, into: &buf)
+            FfiConverterSequenceTypeBackendHunk.write(hunks, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileSelection_lift(_ buf: RustBuffer) throws -> BackendFileSelection {
+    return try FfiConverterTypeBackendFileSelection.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBackendFileSelection_lower(_ value: BackendFileSelection) -> RustBuffer {
+    return FfiConverterTypeBackendFileSelection.lower(value)
+}
+
+
+
+
 public enum BackendFileStatus: Equatable, Hashable {
     
     case modified
@@ -2890,6 +3079,30 @@ fileprivate struct FfiConverterOptionTypeWritePhase: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]
 
@@ -2990,6 +3203,31 @@ fileprivate struct FfiConverterSequenceTypeBackendFileStatistics: FfiConverterRu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBackendHunk: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendHunk]
+
+    public static func write(_ value: [BackendHunk], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendHunk.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendHunk] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendHunk]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendHunk.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeBackendOperation: FfiConverterRustBuffer {
     typealias SwiftType = [BackendOperation]
 
@@ -3057,6 +3295,31 @@ fileprivate struct FfiConverterSequenceTypeBackendWriteReceipt: FfiConverterRust
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeBackendWriteReceipt.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBackendFileSelection: FfiConverterRustBuffer {
+    typealias SwiftType = [BackendFileSelection]
+
+    public static func write(_ value: [BackendFileSelection], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBackendFileSelection.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BackendFileSelection] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BackendFileSelection]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBackendFileSelection.read(from: &buf))
         }
         return seq
     }
@@ -3165,6 +3428,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendrepository_undo() != 40372) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_resolve_file() != 26624) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_split() != 18093) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_ravel_backend_checksum_method_backendrepository_squash() != 37244) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_ravel_backend_checksum_method_backendhistory_close() != 41414) {

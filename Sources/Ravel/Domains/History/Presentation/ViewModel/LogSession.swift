@@ -133,6 +133,11 @@ final class LogSession {
         refresh()
     }
 
+    func refreshForSplit(selecting commitID: String) async {
+        refresh(selecting: commitID)
+        await loadTask?.value
+    }
+
     func refresh(selecting commitID: String? = nil) {
         guard let directory = repositoryURL else { return }
         loadTask?.cancel()
