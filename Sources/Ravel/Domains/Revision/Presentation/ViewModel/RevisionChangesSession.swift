@@ -30,6 +30,21 @@ final class RevisionChangesSession {
     private(set) var errorMessage: String?
     private(set) var fileErrorMessage: String?
     private(set) var statisticsErrorMessage: String?
+    private(set) var splitSelection: RevisionSplitSelection?
+    var isSelectingSplit: Bool { splitSelection != nil }
+
+    func beginSplit(_ revision: Revision, request: RevisionDiffRequest) {
+        guard !revision.isImmutable, revision.id == request.commitID,
+              displayedRequest == request, self.request == request, !isLoading,
+              let diff, diff.files.contains(where: { $0.status != .unchanged }) else { return }
+        splitSelection = RevisionSplitSelection(source: revision, request: request, files: diff.files)
+        showsDetails = false
+    }
+
+    func endSplit() {
+        splitSelection = nil
+    }
+
     let fileList = RevisionFileListViewModel()
     var showsDetails = false
     var showsFileInformation = false
@@ -69,6 +84,7 @@ final class RevisionChangesSession {
 
     func selectRevision(_ request: RevisionDiffRequest?, revision: Revision? = nil) {
         guard self.request != request else { return }
+        endSplit()
         if let previous = self.request, let request,
            previous.repositoryURL == request.repositoryURL,
            previous.commitID == request.commitID,

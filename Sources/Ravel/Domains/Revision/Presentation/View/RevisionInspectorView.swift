@@ -45,6 +45,17 @@ struct RevisionInspectorView: View {
 
                     Spacer(minLength: 0)
 
+                    if diff.isSelectingSplit {
+                        Button(I18n.splitCancel) {
+                            diff.endSplit()
+                        }
+                    } else if let revision, let request {
+                        Button(I18n.splitReview) {
+                            diff.beginSplit(revision, request: request)
+                        }
+                        .disabled(revision.isImmutable || diff.isLoading || diff.files.isEmpty)
+                    }
+
                     if diff.showsRevisionProgress {
                         ProgressView()
                             .controlSize(.small)
@@ -83,7 +94,7 @@ struct RevisionInspectorView: View {
                             guard let id else { return }
                             diff.selectFile(id)
                         },
-                    ), mode: $options.fileListMode, statisticsError: diff.statisticsErrorMessage, retryStatistics: diff.retryStatistics)
+                    ), mode: $options.fileListMode, splitSelection: diff.splitSelection, statisticsError: diff.statisticsErrorMessage, retryStatistics: diff.retryStatistics)
                         .frame(minWidth: 290, idealWidth: 340, maxWidth: 520)
                         .allowsHitTesting(!diff.isLoading)
 
@@ -125,6 +136,12 @@ struct RevisionInspectorView: View {
                     {
                         diff.findRequest += 1
                 }
+
+                Divider()
+            }
+
+            if let selection = diff.splitSelection, let file = diff.displayedFile, diff.selectedFileID == file.id {
+                RevisionSplitReview(selection: selection, file: file, content: diff.fileDiff)
 
                 Divider()
             }

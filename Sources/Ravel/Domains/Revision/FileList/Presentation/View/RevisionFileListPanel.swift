@@ -13,6 +13,7 @@ struct RevisionFileListPanel: View {
     let summary: RevisionChangeSummary
     @Binding var selection: String?
     @Binding var mode: RevisionFileListMode
+    var splitSelection: RevisionSplitSelection?
     var statisticsError: String?
     var retryStatistics: () -> Void = {}
 
@@ -28,7 +29,7 @@ struct RevisionFileListPanel: View {
 
             Divider()
 
-            RevisionFileList(model: model, selection: $selection, mode: mode)
+            RevisionFileList(model: model, selection: $selection, mode: mode, splitSelection: splitSelection)
         }
     }
 }

@@ -1080,4 +1080,53 @@ public nonisolated enum I18n {
     public static var revisionWorkingCopy: LocalizedStringResource {
         LocalizedStringResource("revisionWorkingCopy", table: "Localizable", bundle: resourceBundleDescription)
     }
+
+    /**
+     Localized string for key “splitCancel” in table “Localizable.xcstrings”.
+     */
+    public static var splitCancel: LocalizedStringResource {
+        LocalizedStringResource("splitCancel", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitFileOnly” in table “Localizable.xcstrings”.
+     */
+    public static var splitFileOnly: LocalizedStringResource {
+        LocalizedStringResource("splitFileOnly", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitFirst” in table “Localizable.xcstrings”.
+     */
+    public static var splitFirst: LocalizedStringResource {
+        LocalizedStringResource("splitFirst", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitPartial” in table “Localizable.xcstrings”.
+     */
+    public static var splitPartial: LocalizedStringResource {
+        LocalizedStringResource("splitPartial", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitReview” in table “Localizable.xcstrings”.
+     */
+    public static var splitReview: LocalizedStringResource {
+        LocalizedStringResource("splitReview", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitSecond” in table “Localizable.xcstrings”.
+     */
+    public static var splitSecond: LocalizedStringResource {
+        LocalizedStringResource("splitSecond", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
+     Localized string for key “splitWholeFile” in table “Localizable.xcstrings”.
+     */
+    public static var splitWholeFile: LocalizedStringResource {
+        LocalizedStringResource("splitWholeFile", table: "Localizable", bundle: resourceBundleDescription)
+    }
 }

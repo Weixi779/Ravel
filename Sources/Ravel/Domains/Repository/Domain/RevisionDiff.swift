@@ -51,7 +51,7 @@ nonisolated struct RevisionDiffStatistics: Sendable {
 }
 
 nonisolated struct FileDiff: Identifiable, Sendable {
-    struct Hunk: Sendable {
+    struct Hunk: Hashable, Sendable {
         let oldStart: Int
         let oldCount: Int
         let newStart: Int
