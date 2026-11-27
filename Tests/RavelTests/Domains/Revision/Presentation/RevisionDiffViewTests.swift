@@ -31,10 +31,10 @@ struct RevisionDiffViewTests {
         let last = try #require(text.visibleRows.last { $0.row.line.oldNumber == 2 })
         let addition = try #require(text.visibleRows.first { $0.row.line.kind == .addition })
         #expect(abs(last.frame.height - addition.frame.height) < 1)
-        let original = text.text
-        text.textSelection = NSRange(location: 0, length: 1)
+        let original = text.string
+        text.setSelectedRange(NSRange(location: 0, length: 1))
         text.setAccessibilitySelectedText("replacement")
-        #expect(text.text == original)
+        #expect(text.string == original)
     }
 
     @Test
@@ -91,13 +91,13 @@ struct RevisionDiffViewTests {
         #expect(!text.isEditable)
         #expect(text.isSelectable)
         #expect(text.document?.rows.count == 1001)
-        #expect(text.text?.contains("\nlet value1 = 1\n") == true)
-        #expect(text.text?.contains("\n+let") == false)
+        #expect(text.string.contains("\nlet value1 = 1\n"))
+        #expect(!text.string.contains("\n+let"))
 
-        text.textSelection = NSRange(location: 30, length: 20)
+        text.setSelectedRange(NSRange(location: 30, length: 20))
         text.scrollToEndOfDocument(nil)
         scroll.layoutSubtreeIfNeeded()
-        let selection = text.textSelection
+        let selection = text.selectedRange()
         let origin = scroll.contentView.bounds.origin
         let width = scroll.verticalRulerView?.ruleThickness
         #expect(origin.y > 0)
@@ -109,10 +109,45 @@ struct RevisionDiffViewTests {
         await Task.yield()
         host.layoutSubtreeIfNeeded()
         #expect(descendant(DiffReadOnlyTextView.self, in: host) === text)
-        #expect(text.textSelection == selection)
+        #expect(text.selectedRange() == selection)
         #expect(abs(scroll.contentView.bounds.origin.y - origin.y) < 1)
         #expect(scroll.verticalRulerView?.ruleThickness == width)
-        #expect(text.document?.row(atUTF16Offset: (text.text ?? "").utf16.count - 1)?.line.newNumber == 1000)
+        #expect(text.document?.row(atUTF16Offset: text.string.utf16.count - 1)?.line.newNumber == 1000)
+    }
+
+    @Test
+    func nativeFindAndCopyUseTheFocusedSideOfAWideDiff() throws {
+        let wide = String(repeating: "abcdef", count: 100)
+        let patch = try RevisionPatchParser.parse("@@ -1 +1 @@\n-old \(wide)\n+new \(wide)\n")
+        let presentation = RevisionDiffPresentation(patch, fileName: "Sample.swift")
+        let view = RevisionDiffContainerView()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 320), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = view
+        defer { window.close() }
+        view.update(presentation, sideBySide: true, showsChangeMarkers: true, findRequest: 0)
+        view.layoutSubtreeIfNeeded()
+        let readers = descendants(DiffReadOnlyTextView.self, in: view)
+        let left = try #require(readers.first)
+        let right = try #require(readers.last)
+        let scroll = try #require(left.enclosingScrollView)
+        let otherScroll = try #require(right.enclosingScrollView)
+        let row = try #require(left.visibleRows.first { $0.row.line.kind == .deletion })
+        #expect(window.makeFirstResponder(left))
+        left.setSelectedRange(NSRange(location: row.row.range.location, length: 3))
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        #expect(left.writeSelection(to: pasteboard, types: left.writablePasteboardTypes))
+        #expect(pasteboard.string(forType: .string) == "old")
+        let rightX = otherScroll.contentView.bounds.minX
+        scroll.contentView.scroll(to: NSPoint(x: 200, y: scroll.contentView.bounds.minY))
+        #expect(scroll.contentView.bounds.minX >= 199)
+        #expect(otherScroll.contentView.bounds.minX == rightX)
+        #expect(left.visibleRows.contains { $0.row.line.kind == .deletion })
+        #expect(window.makeFirstResponder(left))
+        view.update(presentation, sideBySide: true, showsChangeMarkers: true, findRequest: 1)
+        #expect(scroll.isFindBarVisible)
+        #expect(!otherScroll.isFindBarVisible)
     }
 
     @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
@@ -136,17 +171,14 @@ struct RevisionDiffViewTests {
             host.layoutSubtreeIfNeeded()
             let visible = text.visibleRect
             #expect(text.convert(NSPoint.zero, to: scroll).x >= (scroll.verticalRulerView?.frame.maxX ?? 0))
-            #expect(abs(text.diffBackground.frame.minY - visible.minY) < 1)
-            #expect(text.diffBackground.frame.maxY >= visible.maxY - 1)
             let bottom = try #require(text.visibleRows.last { $0.frame.intersects(visible) && $0.row.line.kind == .addition })
-            let point = text.diffBackground.convert(NSPoint(x: visible.maxX - 12, y: min(bottom.frame.midY, visible.maxY - 2)), from: text)
-            let image = try #require(text.diffBackground.bitmapImageRepForCachingDisplay(in: text.diffBackground.bounds))
-            text.diffBackground.cacheDisplay(in: text.diffBackground.bounds, to: image)
-            let x = min(image.pixelsWide - 1, max(0, Int(point.x * CGFloat(image.pixelsWide) / text.diffBackground.bounds.width)))
-            let y = min(image.pixelsHigh - 1, max(0, Int(point.y * CGFloat(image.pixelsHigh) / text.diffBackground.bounds.height)))
+            let image = try #require(text.bitmapImageRepForCachingDisplay(in: visible))
+            text.cacheDisplay(in: visible, to: image)
+            let x = Int((visible.width - 12) * CGFloat(image.pixelsWide) / visible.width)
+            let y = Int((min(bottom.frame.midY, visible.maxY - 2) - visible.minY) * CGFloat(image.pixelsHigh) / visible.height)
             let color = try #require(image.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
             #expect(color.alphaComponent > 0.05)
-            #expect(color.greenComponent > color.redComponent)
+            #expect(color.greenComponent > color.redComponent, "offset \(distance), visible \(visible), bottom \(bottom.frame), sample \(x), \(y)")
         }
         if let directory = ProcessInfo.processInfo.environment["RAVEL_RENDER_OUTPUT"],
            let image = host.bitmapImageRepForCachingDisplay(in: host.bounds)
@@ -177,12 +209,13 @@ struct RevisionDiffViewTests {
         #expect(labels.count == 2)
         #expect(abs(labels[0].frame.width - left.frame.width) < 1)
         #expect(abs(labels[1].frame.width - right.frame.width) < 1)
-        for (source, target) in [(left, right), (right, left)] {
-            source.contentView.scroll(to: NSPoint(x: source.contentView.bounds.minX, y: 800))
+        for (source, target, offset) in [(left, right, CGFloat(800)), (right, left, CGFloat(1600))] {
+            source.contentView.scroll(to: NSPoint(x: source.contentView.bounds.minX, y: offset))
             source.reflectScrolledClipView(source.contentView)
             await Task.yield()
             host.layoutSubtreeIfNeeded()
             #expect(abs(source.contentView.bounds.minY - target.contentView.bounds.minY) < 1)
+            #expect(abs(source.contentView.bounds.minY - offset) < 1)
             let old = try #require(texts[0].visibleRows.first { $0.frame.intersects(texts[0].visibleRect) && $0.row.line.oldNumber != nil })
             let new = try #require(texts[1].visibleRows.first { $0.frame.intersects(texts[1].visibleRect) && $0.row.line.newNumber != nil })
             #expect(old.row.line.oldNumber == new.row.line.newNumber, "old frame: \(old.frame), new frame: \(new.frame), left visible: \(texts[0].visibleRect), right visible: \(texts[1].visibleRect), left view: \(texts[0].frame), right view: \(texts[1].frame), clip left: \(left.contentView.bounds), clip right: \(right.contentView.bounds)")
