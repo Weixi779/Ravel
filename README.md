@@ -52,7 +52,7 @@ open /path/to/Ravel.app --args --repository /path/to/workspace
   green/red/blue/purple; conflicts have an independent warning indicator.
   Per-file and total line statistics load independently of file previews. File
   information shows before/after types, executable modes and conflict sides.
-  Read-only STTextView readers offer unified or aligned side-by-side text,
+  Read-only AppKit text views offer unified or aligned side-by-side text,
   synchronized vertical scrolling, line-number gutters, change backgrounds,
   basic intraline emphasis, conservative comment coloring, and native find.
   Header copy buttons copy the repository-relative path or filename; the context
@@ -128,8 +128,6 @@ presented as a contiguous complete source file. Expanding omitted source context
 and full language-aware syntax highlighting are not implemented yet. Conflicts
 inherited unchanged from merged parents remain listed, with an explicit message
 when there is no additional text delta.
-STTextView is pinned to 2.4.1 and is available under
-[GPLv3 or a commercial license](https://github.com/krzyzanowskim/STTextView#license).
 
 History and Diff use the bundled Rust backend. Diff requests carry the history
 operation ID as well as the full commit ID. The macOS target remains non-sandboxed

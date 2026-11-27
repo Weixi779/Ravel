@@ -16,8 +16,6 @@
 		10CA11000000000000000001 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000002 /* Localization */; };
 		10CA11000000000000000003 /* Localization in Frameworks */ = {isa = PBXBuildFile; productRef = 10CA11000000000000000004 /* Localization */; };
 		BAC000000000000000000001 /* RavelBackend in Frameworks */ = {isa = PBXBuildFile; productRef = BAC000000000000000000002 /* RavelBackend */; };
-		D1FF00000000000000000001 /* STTextView in Frameworks */ = {isa = PBXBuildFile; productRef = D1FF00000000000000000002 /* STTextView */; };
-		D1FF00000000000000000004 /* STTextView in Frameworks */ = {isa = PBXBuildFile; productRef = D1FF00000000000000000002 /* STTextView */; };
 		DE5100000000000000000001 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = DE5100000000000000000002 /* DesignSystem */; };
 /* End PBXBuildFile section */
 
@@ -53,7 +51,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D1FF00000000000000000001 /* STTextView in Frameworks */,
 				BAC000000000000000000001 /* RavelBackend in Frameworks */,
 				10CA11000000000000000001 /* Localization in Frameworks */,
 				DE5100000000000000000001 /* DesignSystem in Frameworks */,
@@ -67,7 +64,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D1FF00000000000000000004 /* STTextView in Frameworks */,
 				10CA11000000000000000003 /* Localization in Frameworks */,
 				106600000000000000000003 /* Logger in Frameworks */,
 				0DEF00000000000000000003 /* UserDefaultsKit in Frameworks */,
@@ -132,7 +128,6 @@
 			);
 			name = RavelTests;
 			packageProductDependencies = (
-				D1FF00000000000000000002 /* STTextView */,
 				10CA11000000000000000004 /* Localization */,
 				106600000000000000000004 /* Logger */,
 				0DEF00000000000000000004 /* UserDefaultsKit */,
@@ -160,7 +155,6 @@
 			);
 			name = Ravel;
 			packageProductDependencies = (
-				D1FF00000000000000000002 /* STTextView */,
 				BAC000000000000000000002 /* RavelBackend */,
 				10CA11000000000000000002 /* Localization */,
 				DE5100000000000000000002 /* DesignSystem */,
@@ -208,9 +202,6 @@
 				Base,
 			);
 			mainGroup = 0D6E4079E36703EBD37C0072;
-			packageReferences = (
-				D1FF00000000000000000003 /* XCRemoteSwiftPackageReference "STTextView" */,
-			);
 			productRefGroup = 0A3E27B8CA818264D75C8D81 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -446,17 +437,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		D1FF00000000000000000003 /* XCRemoteSwiftPackageReference "STTextView" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/krzyzanowskim/STTextView";
-			requirement = {
-				kind = exactVersion;
-				version = 2.4.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
 		0DEF00000000000000000002 /* UserDefaultsKit */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -493,11 +473,6 @@
 		BAC000000000000000000002 /* RavelBackend */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RavelBackend;
-		};
-		D1FF00000000000000000002 /* STTextView */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = D1FF00000000000000000003 /* XCRemoteSwiftPackageReference "STTextView" */;
-			productName = STTextView;
 		};
 		DE5100000000000000000002 /* DesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
