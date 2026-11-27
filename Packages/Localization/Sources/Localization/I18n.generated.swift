@@ -1224,6 +1224,13 @@ public nonisolated enum I18n {
     }
 
     /**
+     Localized string for key “organizeUnresolvedFiles” in table “Localizable.xcstrings”.
+     */
+    public static var organizeUnresolvedFiles: LocalizedStringResource {
+        LocalizedStringResource("organizeUnresolvedFiles", table: "Localizable", bundle: resourceBundleDescription)
+    }
+
+    /**
      Repository picker instructions.
      
      Localized string for key “repositoryChooseWorkspace” in table “Localizable.xcstrings”.

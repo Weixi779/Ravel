@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Localization
 @testable import Ravel
 import Testing
 
@@ -88,26 +89,70 @@ struct ReleaseLocalWorkflowTests {
             return try graph.target(for: #require(graph.revisions.first { $0.summary == summary }, "Missing \(summary), available \(graph.revisions.map(\.summary)), notice \(log.commandNotice ?? "")"))
         }
         let initial = try row("Mixed")
+        let focusContents = checkout.contents(12, "First save")
         let finalContents = checkout.contents(15, "Ready")
-        try checkout.write(finalContents)
-        let snapshot = try await workspace.snapshot(at: checkout.url, operationID: initial.operationID)
-        try #require(snapshot.disposition == .succeeded)
-        log.refresh()
+        try checkout.write(focusContents)
+        await log.reconcileWindow(checkDisk: true, focus: true) { true }
         try await settle(log)
+        let focus = try row("Mixed")
+        #expect(focus.revision.id != initial.revision.id)
+        #expect(try await checkout.file(at: "@") == focusContents)
+        func displayedDiff() async throws -> RevisionDiffPresentation {
+            let request = try #require(log.diffRequest)
+            let files = try await workspace.diff(request).files
+            let changed = try #require(files.first { $0.path == checkout.path })
+            let patch = try await workspace.fileDiff(request, file: changed)
+            return RevisionDiffPresentation(patch, fileName: checkout.path)
+        }
+        let focusedDiff = try await displayedDiff()
+        #expect(focusedDiff.hunks.count == 2)
+        #expect(focusedDiff.after.text.contains("let timeout = 12"))
+        #expect(focusedDiff.after.text.contains("First save"))
+        try checkout.write(finalContents)
+        await log.reconcileWindow(checkDisk: true, focus: false) { true }
+        #expect(log.hasDiskChanges)
+        #expect(log.log?.operationID == focus.operationID)
+        #expect(try await checkout.file(at: "@") == focusContents)
+        #expect(try await displayedDiff().after.text == focusedDiff.after.text)
+        await log.snapshotDiskChanges()
+        try await settle(log)
+        #expect(!log.hasDiskChanges)
         #expect(try await checkout.file(at: "@") == finalContents)
 
-        let mixed = try row("Mixed")
-        let request = try #require(log.diffRequest)
-        diff.selectRevision(request, revision: mixed.revision)
-        diff.requestOrganization(.split, source: mixed.revision, request: request)
-        await diff.performOrganization(try #require(diff.organization), destination: nil, log: log)
-        let selection = try #require(diff.splitSelection, "\(log.commandNotice ?? "")")
-        let hunks = try #require(diff.fileDiff?.hunks.map(\.range))
-        try #require(hunks.count == 2)
-        selection.setHunk(hunks[0], included: true, in: checkout.path, available: hunks)
-        diff.requestOrganization(.confirmSplit, source: selection.source, request: selection.request)
-        await diff.performOrganization(try #require(diff.organization), destination: nil, log: log)
+        func selectFirstHunk() async throws -> RevisionSplitSelection {
+            let mixed = try row("Mixed")
+            let request = try #require(log.diffRequest)
+            diff.selectRevision(request, revision: mixed.revision)
+            diff.requestOrganization(.split, source: mixed.revision, request: request)
+            await diff.performOrganization(try #require(diff.organization), destination: nil, log: log)
+            let selection = try #require(diff.splitSelection)
+            let presentation = try #require(diff.fileDiff)
+            let hunks = presentation.hunks.map(\.range)
+            try #require(hunks.count == 2)
+            #expect(presentation.after.text.contains("let timeout = 15"))
+            #expect(presentation.after.text.contains("Ready"))
+            selection.setHunk(hunks[0], included: true, in: checkout.path, available: hunks)
+            return selection
+        }
+        func confirm(_ selection: RevisionSplitSelection) async throws {
+            diff.requestOrganization(.confirmSplit, source: selection.source, request: selection.request)
+            await diff.performOrganization(try #require(diff.organization), destination: nil, log: log)
+            try await settle(log)
+        }
+        let original = try await selectFirstHunk()
+        try checkout.write(checkout.contents(16, "Edited during Split"))
+        await log.reconcileWindow(checkDisk: true, focus: true) { !diff.isSelectingSplit && !diff.isOrganizing }
+        #expect(log.log?.operationID == original.request.operationID)
+        #expect(diff.splitSelection === original && original.canSplit)
+        try await confirm(original)
+        #expect(log.commandNotice?.contains(String(localized: I18n.organizeStale)) == true)
+        #expect(try row("Mixed").revision.parentIDs == original.source.parentIDs)
+        #expect(try await checkout.file(at: "@") == checkout.contents(16, "Edited during Split"))
+        try checkout.write(finalContents)
+        await log.snapshotDiskChanges()
         try await settle(log)
+        let reviewed = try await selectFirstHunk()
+        try await confirm(reviewed)
         #expect(try await checkout.file(at: "@-") == checkout.contents(15, "Draft"))
         #expect(try await checkout.file(at: "@") == finalContents)
         let upper = try #require(log.log?.revisions.first { $0.isWorkingCopy })
@@ -124,6 +169,8 @@ struct ReleaseLocalWorkflowTests {
         try await settle(log)
         let moved = try row("Set timeout")
         let top = try row("Update title")
+        #expect(moved.revision.description.trimmingCharacters(in: .newlines) == "Set timeout\n\nUse 15 seconds.")
+        #expect(top.revision.description.trimmingCharacters(in: .newlines) == "Update title\n\nShow Ready.")
         #expect(moved.revision.parentIDs == [dest.revision.id])
         #expect(top.revision.parentIDs == [moved.revision.id])
         #expect(top.revision.isWorkingCopy)

@@ -166,7 +166,7 @@ struct RevisionInspectorView: View {
                             }
                         }
                     } label: {
-                        Label(I18n.diffConflicts, systemImage: "exclamationmark.triangle")
+                        Label(I18n.organizeUnresolvedFiles, systemImage: "exclamationmark.triangle")
                     }
 
                     let file = diff.displayedFile.flatMap { $0.hasConflict ? $0 : nil } ?? conflict
